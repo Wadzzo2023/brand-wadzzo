@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  :root,
+  .light {
+    --background: 110 20% 98%;
+    --foreground: 110 15% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 110 15% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 110 15% 12%;
+
+    --primary: 110 65% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 110 25% 88%;
+    --secondary-foreground: 110 15% 20%;
+
+    --muted: 110 15% 92%;
+    --muted-foreground: 110 10% 45%;
+
+    --accent: 110 35% 85%;
+    --accent-foreground: 110 20% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 110 20% 85%;
+    --input: 110 15% 90%;
+    --ring: 110 65% 45%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 110 15% 6%;
+    --foreground: 110 10% 95%;
+
+    --card: 110 20% 8%;
+    --card-foreground: 110 10% 95%;
+
+    --popover: 110 20% 8%;
+    --popover-foreground: 110 10% 95%;
+
+    --primary: 110 65% 55%;
+    --primary-foreground: 110 20% 5%;
+
+    --secondary: 110 15% 15%;
+    --secondary-foreground: 110 20% 85%;
+
+    --muted: 110 12% 12%;
+    --muted-foreground: 110 8% 65%;
+
+    --accent: 110 20% 18%;
+    --accent-foreground: 110 15% 88%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 110 15% 18%;
+    --input: 110 12% 16%;
+    --ring: 110 65% 55%;
+  }
+}
+/* Add these styles to your globals.css file */
+.quill-editor-wrapper {
+  height: 100%;
+}
+
+.quill-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.quill-editor .ql-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.quill-editor .ql-editor {
+  min-height: 100px;
+}
+
+/* Prevent focus outline issues */
+.quill-editor .ql-editor:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure the editor doesn't lose focus on click */
+.quill-editor .ql-editor {
+  caret-color: currentColor;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
