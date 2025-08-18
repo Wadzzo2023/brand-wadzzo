@@ -5,7 +5,7 @@ import { getSession } from "next-auth/react";
 import NextCors from "nextjs-cors";
 
 import { z } from "zod";
-import { SubmissionMediaInfo } from "~/components/modals/file-upload-modal";
+import { SubmissionMediaInfo } from "~/lib/play/upload-submission";
 import { EnableCors } from "~/server/api-cors";
 
 import { db } from "~/server/db";
