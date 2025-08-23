@@ -530,9 +530,9 @@ model LocationGroup {
 
     creatorId String
     creator   Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-
-    limit     Int @default(0)
-    remaining Int @default(0)
+    hidden    Boolean @default(false)
+    limit     Int     @default(0)
+    remaining Int     @default(0)
 
     title       String
     description String?
@@ -559,9 +559,9 @@ model LocationGroup {
 model Location {
     id String @id @default(cuid())
 
-    latitude  Float
-    longitude Float
-
+    latitude    Float
+    longitude   Float
+    hidden      Boolean @default(false)
     autoCollect Boolean
 
     locationGroupId String?
