@@ -481,6 +481,7 @@ export const pinRouter = createTRPCRouter({
       const pins = await ctx.db.location.findMany({
         where: {
           locationGroup: {
+            hidden: false,
             creatorId: ctx.session.user.id,
             ...dateCondition,
             OR: [{ approved: true }, { approved: null }],
@@ -632,7 +633,7 @@ export const pinRouter = createTRPCRouter({
 
   getLocationGroups: adminProcedure.query(async ({ ctx, input }) => {
     const locationGroups = await ctx.db.locationGroup.findMany({
-      where: { approved: { equals: null }, endDate: { gte: new Date() } },
+      where: { approved: { equals: null }, endDate: { gte: new Date() }, hidden: false },
       include: {
         creator: { select: { name: true, id: true } },
         locations: true,
@@ -644,7 +645,7 @@ export const pinRouter = createTRPCRouter({
   }),
   getApprovedLocationGroups: adminProcedure.query(async ({ ctx, input }) => {
     const locationGroups = await ctx.db.locationGroup.findMany({
-      where: { approved: { equals: true }, endDate: { gte: new Date() } },
+      where: { approved: { equals: true }, endDate: { gte: new Date() }, hidden: false },
       include: {
         creator: { select: { name: true, id: true } },
         locations: true,
@@ -925,6 +926,7 @@ export const pinRouter = createTRPCRouter({
     const locatoinGroups = await ctx.db.locationGroup.findMany({
       where: {
         creatorId,
+        hidden: false,
       },
       include: {
         locations: {
@@ -1186,11 +1188,12 @@ export const pinRouter = createTRPCRouter({
   deletePin: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.location.delete({
+      const items = await ctx.db.location.update({
         where: {
           id: input.id,
           locationGroup: { creatorId: ctx.session.user.id },
         },
+        data: { hidden: true },
       });
       return {
         item: items.id,
@@ -1199,10 +1202,11 @@ export const pinRouter = createTRPCRouter({
   deletePinForAdmin: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.location.delete({
+      const items = await ctx.db.location.update({
         where: {
           id: input.id,
         },
+        data: { hidden: true },
       });
       return {
         item: items.id,
@@ -1211,10 +1215,11 @@ export const pinRouter = createTRPCRouter({
   deleteLocationGroupForAdmin: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.locationGroup.delete({
+      const items = await ctx.db.locationGroup.update({
         where: {
           id: input.id,
         },
+        data: { hidden: true },
       });
       return {
         item: items.id,
@@ -1224,11 +1229,12 @@ export const pinRouter = createTRPCRouter({
   deleteLocationGroup: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.locationGroup.delete({
+      const items = await ctx.db.locationGroup.update({
         where: {
           id: input.id,
           creatorId: ctx.session.user.id,
         },
+        data: { hidden: true },
       });
       return {
         item: items.id,
