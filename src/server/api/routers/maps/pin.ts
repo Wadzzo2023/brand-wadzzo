@@ -1161,6 +1161,7 @@ export const pinRouter = createTRPCRouter({
       }
 
       if (input.isCut) {
+        console.log("isCuttt,,,,,,,,,,,,,,,,,,,", input.isCut);
         await ctx.db.location.update({
           where: { id: input.id },
           data: { latitude: lat, longitude: long },

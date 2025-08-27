@@ -30,7 +30,7 @@ export function MapHeader({
 
 }: MapHeaderProps) {
     return (
-        <div className="absolute top-0 left-1/4 right-0 z-30 p-4">
+        <div className="absolute top-0 left-0 right-0 z-30 p-4">
             <div className="mx-auto max-w-4xl">
                 <div className="flex items-center justify-between gap-4">
 
@@ -39,7 +39,7 @@ export function MapHeader({
                     <div className="flex-1 ">
                         <div className="relative">
                             <div className="absolute inset-0 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/30" />
-                            <div className="relative flex items-center">
+                            <div className="relative flex items-center  ">
                                 <Search className="absolute left-4 h-5 w-5 text-gray-400 z-10" />
                                 <CustomMapControl
                                     onPlaceSelect={onPlaceSelect}
@@ -61,12 +61,12 @@ export function MapHeader({
                     <Button
                         variant="default"
                         size="lg"
-                        className="px-6 rounded-2xl"
+                        className="md:px-6 px-3  md:rounded-2xl"
                         onClick={onManualPinClick}
                         aria-label="Create manual pin"
                     >
                         <Plus className="" />
-                        Create Pin
+                        <span className="hidden md:block"> Create Pin</span>
                     </Button>
                 </div>
             </div>

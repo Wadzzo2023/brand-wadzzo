@@ -47,6 +47,7 @@ import { useMapInteractionStore } from "~/store/map-stores" // Changed to useMap
 import type { Location, LocationGroup } from "@prisma/client"
 import { PinType as PinTypeEnum } from "@prisma/client" // Declare PinType
 import { UploadS3Button } from "../common/upload-button"
+import { useCopyCutModalStore } from "~/store/copy-cut-modal-store"
 
 type Pin = {
     locationGroup:
@@ -135,9 +136,7 @@ const MapOptionModal = () => {
             navigator.clipboard.writeText(data.id) // Copy pin ID
             setPinCopied(true, data) // Set copied state and store pin data
             toast.success("Pin ID copied to clipboard")
-            setTimeout(() => {
-                setPinCopied(false)
-            }, 3000)
+
         } else {
             toast.error("No pin selected to copy.")
         }
@@ -169,10 +168,9 @@ const MapOptionModal = () => {
     const handleCutPin = () => {
         if (data) {
             setPinCut(true, data) // Set cut state and store pin data
+
             toast.success("Pin ready to move")
-            setTimeout(() => {
-                setPinCut(false)
-            }, 3000)
+
         } else {
             toast.error("No pin selected to cut.")
         }
@@ -193,7 +191,10 @@ const MapOptionModal = () => {
 
     return (
         <AnimatePresence>
-            <Dialog open={!!data} onOpenChange={handleClose}>
+            <Dialog open={!!data && !isPinCopied && !isPinCut} onOpenChange={() => {
+                setIsFormLocal(false)
+                handleClose()
+            }}>
                 <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-2xl flex-col p-0 overflow-hidden">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -289,7 +290,7 @@ const MapOptionModal = () => {
                                                     </>
                                                 )}
                                             </Button>
-                                            <Button
+                                            {/* <Button
                                                 variant="outline"
                                                 type="button"
                                                 className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
@@ -311,7 +312,7 @@ const MapOptionModal = () => {
                                                         </div>
                                                     </>
                                                 )}
-                                            </Button>
+                                            </Button> */}
                                             <Button
                                                 variant="outline"
                                                 className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"

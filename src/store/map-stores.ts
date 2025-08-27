@@ -138,8 +138,9 @@ export const useMapInteractionStore = create<IMapInteractionStore>((set) => ({
     // Pin Detail Modal
     selectedPinForDetail: null,
     openPinDetailModal: (pin) => set({ selectedPinForDetail: pin }),
-    closePinDetailModal: () => set({ selectedPinForDetail: null }),
-
+    closePinDetailModal: () => set((state) => ({
+        selectedPinForDetail: (state.isPinCut || state.isPinCopied) ? state.selectedPinForDetail : null
+    })),
     // Pin Copy/Cut State
     isPinCopied: false,
     isPinCut: false,
