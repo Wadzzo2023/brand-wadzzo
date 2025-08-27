@@ -1,5 +1,6 @@
 import type { MapMouseEvent } from "@vis.gl/react-google-maps" // Correct import for MapMouseEvent
 import type { Location, LocationGroup } from "@prisma/client" // Import PinType and other types
+import { useCopyCutModalStore } from "~/store/copy-cut-modal-store"
 // Define Pin type locally for clarity, or import from map-stores if it's the canonical source
 type Pin = Location & {
     locationGroup:
@@ -19,6 +20,7 @@ interface UseMapInteractionsProps {
     openPinDetailModal: (pin: Pin) => void // Expects a full Pin object
     isPinCopied: boolean
     isPinCut: boolean
+    duplicate: boolean
     copiedPinData: Pin | null // Updated to expect Pin | null
     setMapZoom: (zoom: number) => void
     mapZoom: number
@@ -33,12 +35,14 @@ export function useMapInteractions({
     openPinDetailModal,
     isPinCopied,
     isPinCut,
+    duplicate,
     copiedPinData, // Use copiedPinData
     setMapZoom,
     mapZoom,
     filterNearbyPins,
     centerChanged,
 }: UseMapInteractionsProps) {
+    const { setIsOpen } = useCopyCutModalStore();
     const handleMapClick = (event: MapMouseEvent) => {
         // Corrected type here
         setManual(false)
@@ -48,23 +52,7 @@ export function useMapInteractions({
             if (!isPinCopied && !isPinCut) {
                 openCreatePinModal()
             } else if (isPinCopied || isPinCut) {
-                if (copiedPinData) {
-                    // Create a new Pin object with updated coordinates
-                    const newPin: Pin = {
-                        ...copiedPinData,
-                        latitude: position.lat,
-                        longitude: position.lng,
-                        // If locationGroup is not null, update its properties if necessary
-                        locationGroup: copiedPinData.locationGroup
-                            ? {
-                                ...copiedPinData.locationGroup,
-                                // Potentially update title/description if it's a "paste as new" scenario
-                                // For now, just using the original locationGroup data
-                            }
-                            : null,
-                    }
-                    openPinDetailModal(newPin)
-                }
+                setIsOpen(true)
             }
         }
     }

@@ -22,6 +22,7 @@ import { useMapInteractionStore } from "~/store/map-stores"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../shadcn/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "../shadcn/ui/card"
 import { Badge } from "../shadcn/ui/badge"
+import CopyCutPinModal from "./copy-cut-pin-modal"
 // Define types for assets and pins
 type AssetType = {
     id: number
@@ -65,7 +66,8 @@ export const createPinFormSchema = z.object({
 type CreatePinType = z.infer<typeof createPinFormSchema>
 
 export default function CreatePinModal() {
-    const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData } = useMapInteractionStore()
+    const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData, copiedPinData } = useMapInteractionStore()
+
     const [coverUrl, setCover] = useState<string | undefined>()
     const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>()
     const [remainingBalance, setRemainingBalance] = useState<number>(0)
@@ -585,74 +587,78 @@ export default function CreatePinModal() {
     }
 
     return (
-        <Dialog
-            open={isOpenCreatePin}
-            onOpenChange={(open) => {
-                if (!open) resetState()
-                closeCreatePinModal()
-            }}
-        >
-            <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden pb-0">
-                <DialogHeader className="">
-                    <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">
-                        Create Pin
-                    </DialogTitle>
+        <>
+            <Dialog
+                open={isOpenCreatePin && !copiedPinData}
+                onOpenChange={(open) => {
+                    if (!open) resetState()
+                    closeCreatePinModal()
+                }}
+            >
+                <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden pb-0">
+                    <DialogHeader className="">
+                        <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">
+                            Create Pin
+                        </DialogTitle>
 
-                </DialogHeader>
+                    </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
-                    <div className="p-6">
-                        <StepIndicator />
+                    <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
+                        <div className="p-6">
+                            <StepIndicator />
 
-                        <FormProvider {...methods}>
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                                <div className="min-h-[500px]">{renderStepContent()}</div>
-                            </form>
-                        </FormProvider>
+                            <FormProvider {...methods}>
+                                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                                    <div className="min-h-[500px]">{renderStepContent()}</div>
+                                </form>
+                            </FormProvider>
+                        </div>
                     </div>
-                </div>
 
-                <DialogFooter className="flex justify-between items-center p-2 w-full">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={prevStep}
-                        disabled={currentStep === 1}
-                        className="transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-6 bg-transparent w-full"
-                    >
-                        Previous
-                    </Button>
+                    <DialogFooter className="flex justify-between items-center p-2 w-full">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={prevStep}
+                            disabled={currentStep === 1}
+                            className="transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-6 bg-transparent w-full"
+                        >
+                            Previous
+                        </Button>
 
-                    <div className="flex items-center space-x-3 w-full">
-                        {currentStep < 4 ? (
-                            <Button
-                                type="button"
-                                onClick={nextStep}
-                                className=" hover:scale-105 shadow-lg w-full"
-                            >
-                                Next Step
-                            </Button>
-                        ) : (
-                            <Button
-                                type="button"
-                                onClick={() => onSubmit(getValues())}
-                                disabled={addPinM.isLoading ?? remainingBalance < 0}
-                                className=" hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-full"
-                            >
-                                {addPinM.isLoading && <Loader className="animate-spin mr-2 w-4 h-4" />}
-                                {addPinM.isLoading ? "Creating Pin..." : "Create Pin"}
-                            </Button>
+                        <div className="flex items-center space-x-3 w-full">
+                            {currentStep < 4 ? (
+                                <Button
+                                    type="button"
+                                    onClick={nextStep}
+                                    className=" hover:scale-105 shadow-lg w-full"
+                                >
+                                    Next Step
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    onClick={() => onSubmit(getValues())}
+                                    disabled={addPinM.isLoading ?? remainingBalance < 0}
+                                    className=" hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                                >
+                                    {addPinM.isLoading && <Loader className="animate-spin mr-2 w-4 h-4" />}
+                                    {addPinM.isLoading ? "Creating Pin..." : "Create Pin"}
+                                </Button>
+                            )}
+                        </div>
+
+                        {addPinM.isError && (
+                            <p className="text-red-500 text-sm mt-2 animate-in slide-in-from-top-2 absolute bottom-2 left-6">
+                                {addPinM.error.message}
+                            </p>
                         )}
-                    </div>
+                    </DialogFooter>
 
-                    {addPinM.isError && (
-                        <p className="text-red-500 text-sm mt-2 animate-in slide-in-from-top-2 absolute bottom-2 left-6">
-                            {addPinM.error.message}
-                        </p>
-                    )}
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
+            <CopyCutPinModal />
+        </>
     )
 }
 

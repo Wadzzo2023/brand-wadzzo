@@ -28,9 +28,9 @@ interface NearbyLocationsPanelProps {
 
 export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({ onSelectPlace }: NearbyLocationsPanelProps) {
     const { nearbyPins } = useNearbyPinsStore()
-
+    console.log("NearbyLocationsPanel rendered", nearbyPins)
     return (
-        <div className="absolute  right-6 top-96 flex max-h-[500px] w-80 items-start justify-center pointer-events-none">
+        <div className="absolute  right-6 top-96 max-h-[500px] w-80 items-start justify-center pointer-events-none hidden md:flex">
             <Card className="w-full max-h-full bg-white/95 backdrop-blur-md border border-white/30 shadow-2xl rounded-3xl overflow-hidden pointer-events-auto">
                 <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -83,7 +83,7 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({ onSelec
                                                     <Image
                                                         width={24}
                                                         height={24}
-                                                        src={pin.locationGroup?.image ?? "/placeholder.svg"}
+                                                        src={pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl ?? "/default-avatar.png"}
                                                         alt="Creator"
                                                         className="rounded-full object-cover"
                                                     />

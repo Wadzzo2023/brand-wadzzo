@@ -11,7 +11,7 @@ interface PinToggleSwitchProps {
 
 export function PinToggleSwitch({ showExpired, setShowExpired }: PinToggleSwitchProps) {
     return (
-        <div className="flex items-center gap-2 ">
+        <div className="items-center gap-2 hidden md:flex">
             <Card className="bg-white/90  backdrop-blur-md border border-white/30 rounded-2xl p-3 shadow-xl pointer-events-auto transition-all duration-300 hover:bg-white/95">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
