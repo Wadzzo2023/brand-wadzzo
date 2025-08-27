@@ -209,41 +209,34 @@ export default function StoredItemsView() {
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <h2 className="text-4xl font-semibold text-center">Stores</h2>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                className="shadow-foreground">
-                                <Plus className="h-4 w-4" />
-                                Create Store Item
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    setIsNFTCreateModalOpen(true)
-                                }}
-                                className="cursor-pointer">
-                                <ShoppingBag className="mr-2 h-4 w-4" />
-                                <span>Create Stored Item</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    setIsOpenPageAssetModal(true)
-                                }}
-                                className="cursor-pointer">
-                                <Coins className="mr-2 h-4 w-4" />
-                                <span>Create Page Asset</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    setIsOpenQRModal(true)
-                                }}
-                                className="cursor-pointer">
-                                <QrCode className="mr-2 h-4 w-4" />
-                                <span>Create QR Code</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={() => {
+                                setIsNFTCreateModalOpen(true)
+                            }}
+                            className="cursor-pointer">
+                            <ShoppingBag className="mr-2 h-4 w-4" />
+                            <span>Create NFT</span>
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setIsOpenPageAssetModal(true)
+                            }}
+                            className="cursor-pointer">
+                            <Coins className="mr-2 h-4 w-4" />
+                            <span>Create Page Asset</span>
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setIsOpenQRModal(true)
+                            }}
+                            className="cursor-pointer">
+                            <QrCode className="mr-2 h-4 w-4" />
+                            <span>Create QR Code</span>
+                        </Button>
+                    </div>
+
                 </div>
             </CardHeader>
             <CardContent className="overflow-y-auto  scrollbar-hide h-[calc(100vh-20vh)]">
@@ -256,7 +249,7 @@ export default function StoredItemsView() {
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="STORED" className="flex items-center gap-2">
                             <ImageIcon className="h-4 w-4" />
-                            Stored Items
+                            NFT
                         </TabsTrigger>
                         <TabsTrigger value="pageAsset" className="flex items-center gap-2">
                             <Coins className="h-4 w-4" />
