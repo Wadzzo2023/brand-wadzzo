@@ -416,10 +416,10 @@ export default function NftCreateModal({ isOpen, onClose }: NFTCreateProps) {
         >
           <DialogHeader className=" px-6 py-4">
             <DialogTitle className="flex items-center gap-2 text-xl">
-              Create Stored Item
+              Create NFT
             </DialogTitle>
             <DialogDescription>
-              Create you nft and place it to marketplace.
+              Create your NFT and place it in the marketplace.
             </DialogDescription>
             <Progress value={formProgress} className="mt-2 h-2" />
 

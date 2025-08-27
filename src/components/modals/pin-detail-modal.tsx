@@ -637,7 +637,7 @@ function PinInfo({
     )
 }
 
-const updateMapFormSchema = z.object({
+export const updateMapFormSchema = z.object({
     pinId: z.string(),
     lat: z
         .number({
@@ -663,7 +663,7 @@ const updateMapFormSchema = z.object({
                 message: "Input contains banned words.",
             },
         ),
-    image: z.string().url().optional(),
+    image: z.string().optional(),
     startDate: z.date().optional(),
     endDate: z
         .date()
@@ -671,6 +671,7 @@ const updateMapFormSchema = z.object({
         .optional(),
     url: z.string().url().optional(),
     autoCollect: z.boolean(),
+    multiPin: z.boolean().optional(),
     pinRemainingLimit: z.number().optional(),
     type: z.nativeEnum(PinTypeEnum).default(PinTypeEnum.OTHER), // Added new type field
 })
@@ -716,6 +717,7 @@ function PinInfoUpdate({
     isLoading?: boolean
     type?: PinTypeEnum // Add type to props
 }) {
+    console.log("auto collect, multipin", autoCollect, multiPin)
     const [coverUrl, setCover] = React.useState("")
     const { selectedPinForDetail, closePinDetailModal } = useMapInteractionStore() // Use store for modal state
     const utils = api.useUtils()
@@ -740,7 +742,7 @@ function PinInfoUpdate({
             description: description ?? "",
             startDate: startDate,
             endDate: endDate,
-            image: image,
+            image: image ?? "",
             autoCollect: autoCollect ?? false,
             pinId: id,
             lat: lat ?? 0,
@@ -748,6 +750,7 @@ function PinInfoUpdate({
             url: link ?? "",
             pinRemainingLimit: remainingLimit,
             type: type ?? PinTypeEnum.OTHER, // Set default type
+            multiPin: multiPin ?? false,
         },
     })
 
@@ -852,7 +855,8 @@ function PinInfoUpdate({
         setValue("pinRemainingLimit", remainingLimit)
         setValue("type", type ?? PinTypeEnum.OTHER) // Set type
         setCover(image ?? "") // Set cover image for preview
-    }, [title, description, startDate, endDate, image, autoCollect, id, lat, long, link, remainingLimit, type, setValue])
+        setValue("multiPin", multiPin ?? false)
+    }, [title, description, startDate, endDate, image, autoCollect, multiPin, id, lat, long, link, remainingLimit, type, setValue])
 
     if (isLoading) {
         return (
@@ -1112,6 +1116,20 @@ function PinInfoUpdate({
                                     <p className="text-xs text-muted-foreground">Automatically collect when in range</p>
                                 </div>
                             </div>
+                            <div className="flex items-center space-x-2 rounded-lg border p-4">
+                                <input
+                                    type="checkbox"
+                                    id="multiPin"
+                                    {...register("multiPin")}
+                                    className="h-4 w-4 rounded border-gray-300  focus:ring-primary"
+                                />
+                                <div>
+                                    <Label htmlFor="multiPin" className="text-sm font-medium">
+                                        Multi Pin
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">Allow multiple pins to be created</p>
+                                </div>
+                            </div>
                         </motion.div>
                     </TabsContent>
                     <Separator className="my-6" />
@@ -1154,6 +1172,7 @@ function PinInfoUpdate({
                                 </Button>
                             ) : (
                                 <Button
+                                    type="button"
                                     onClick={() => onSubmit(getValues())}
                                     disabled={isSubmitting} className="flex items-center gap-1">
                                     {isSubmitting ? (

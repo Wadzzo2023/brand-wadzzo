@@ -1,6 +1,7 @@
 import { ItemPrivacy } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { updateMapFormSchema } from "~/components/modals/pin-detail-modal";
 
 
 import {
@@ -28,42 +29,6 @@ export type LocationWithConsumers = {
   id: string;
 };
 
-const updateMapFormSchema = z.object({
-  pinId: z.string(),
-  lat: z
-    .number({
-      message: "Latitude is required",
-    })
-    .min(-180)
-    .max(180),
-  lng: z
-    .number({
-      message: "Longitude is required",
-    })
-    .min(-180)
-    .max(180),
-  description: z.string(),
-  title: z
-    .string()
-    .min(3)
-    .refine(
-      (value) => {
-        return !BADWORDS.some((word) => value.includes(word))
-      },
-      {
-        message: "Input contains banned words.",
-      },
-    ),
-  image: z.string().url().optional(),
-  startDate: z.date().optional(),
-  endDate: z
-    .date()
-    .min(new Date(new Date().setHours(0, 0, 0, 0)))
-    .optional(),
-  url: z.string().url().optional(),
-  autoCollect: z.boolean(),
-  pinRemainingLimit: z.number().optional(),
-})
 
 export const createPinFormSchema = z.object({
   lat: z
@@ -402,6 +367,7 @@ export const pinRouter = createTRPCRouter({
         url,
         pinRemainingLimit,
         autoCollect,
+        multiPin,
       } = input;
       console.log("Input,", input);
       try {
@@ -442,7 +408,7 @@ export const pinRouter = createTRPCRouter({
 
         // console.log(">> prev", pinRemainingLimit);
         // console.log(">> updated", updatedLimit, updatedRemainingLimit);
-
+        console.log("Multipin, Auto Collection", multiPin, autoCollect)
         const updatedLocationGroup = await ctx.db.locationGroup.update({
           where: {
             id: findLocation.locationGroup.id, // Use locationGroup ID to update
@@ -456,6 +422,7 @@ export const pinRouter = createTRPCRouter({
             limit: updatedLimit,
             remaining: updatedRemainingLimit,
             link: url,
+            multiPin
           },
         });
 
