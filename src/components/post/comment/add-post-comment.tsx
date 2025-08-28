@@ -76,7 +76,6 @@ export function AddPostComment({ postId }: { postId: number }) {
                         <Button
                             type="submit"
                             size="sm"
-                            variant="sidebarAccent"
                             className="absolute right-2 bottom-2 h-8 w-8 p-0  shadow-sm shadow-foreground"
                             disabled={commentMutation.isLoading || !contentValue?.trim()}
                         >

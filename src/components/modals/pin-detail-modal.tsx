@@ -290,7 +290,7 @@ const MapOptionModal = () => {
                                                     </>
                                                 )}
                                             </Button>
-                                            {/* <Button
+                                            <Button
                                                 variant="outline"
                                                 type="button"
                                                 className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
@@ -312,7 +312,7 @@ const MapOptionModal = () => {
                                                         </div>
                                                     </>
                                                 )}
-                                            </Button> */}
+                                            </Button>
                                             <Button
                                                 variant="outline"
                                                 className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"

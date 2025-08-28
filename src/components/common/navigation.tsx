@@ -13,7 +13,7 @@ import { api } from "~/utils/api"
 
 const navItems = [
     { href: "/map", label: "Map", icon: Map },
-    { href: "stores", label: "Stores", icon: Store },
+    { href: "/stores", label: "Stores", icon: Store },
     { href: "/posts", label: "Posts", icon: FileText },
     { href: "/bounties", label: "Bounties", icon: Target, badge: "8" },
     { href: "/gifts", label: "Gifts", icon: Gift },
@@ -76,11 +76,7 @@ export function Navigation() {
                             <div className="text-xs text-green-600 font-medium uppercase tracking-wide">Wadzzo Balance</div>
                             <div className="text-lg font-bold text-green-700">{formatBalance(platformAssetBalance)}</div>
                         </div>
-                        <div className="opacity-100 group-hover:opacity-0 transition-opacity duration-300 absolute right-2">
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5">
-                                {formatBalance(platformAssetBalance).split(".")[0]}
-                            </Badge>
-                        </div>
+
                     </div>
                 </div>
             )}
