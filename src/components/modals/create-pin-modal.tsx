@@ -517,7 +517,8 @@ export default function CreatePinModal() {
                                                     rel="noopener noreferrer"
                                                     className="text-sm text-blue-600 hover:underline truncate"
                                                 >
-                                                    {getValues("url")}
+
+                                                    {formatDisplayUrl(getValues("url")).slice(0, 14)}
                                                 </a>
                                             </div>
                                         ) : (
@@ -595,7 +596,7 @@ export default function CreatePinModal() {
                     closeCreatePinModal()
                 }}
             >
-                <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden pb-0">
+                <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-x-hidden pb-0">
                     <DialogHeader className="">
                         <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">
                             Create Pin
@@ -842,4 +843,14 @@ function PinTypeToggles() {
             </div>
         </div>
     )
+}
+
+function formatDisplayUrl(url: string | undefined) {
+    if (!url) return "";
+    try {
+        const { hostname, pathname } = new URL(url)
+        return `${hostname}${pathname}`
+    } catch {
+        return url
+    }
 }

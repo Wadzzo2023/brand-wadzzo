@@ -678,7 +678,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                         )}
 
                                         {/* Seek buttons - always visible in fullscreen */}
-                                        {(isFullscreen ?? currentMedia?.type === "VIDEO" ?? currentMedia?.type === "MUSIC") && (
+                                        {(isFullscreen || currentMedia?.type === "VIDEO" || currentMedia?.type === "MUSIC") && (
                                             <>
                                                 <button
                                                     className="text-white hover:bg-white/10 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center"

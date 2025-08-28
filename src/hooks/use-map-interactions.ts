@@ -54,6 +54,9 @@ export function useMapInteractions({
             } else if (isPinCopied || isPinCut) {
                 setIsOpen(true)
             }
+            else if (duplicate && copiedPinData) {
+                openPinDetailModal(copiedPinData)
+            }
         }
     }
 
