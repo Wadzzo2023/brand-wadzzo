@@ -11,7 +11,6 @@ import Image from "next/image"
 import CreatePinModal from "~/components/modals/create-pin-modal"
 import { MapHeader } from "~/components/map/map-header"
 import { NearbyLocationsPanel } from "~/components/map/nearby-locations-panel"
-import { PinToggleSwitch } from "~/components/map/pin-toggle-switch"
 import { getPinIcon } from "~/utils/map-helpers"
 import PinDetailAndActionsModal from "~/components/modals/pin-detail-modal"
 import { useGeolocation } from "~/hooks/use-geolocation"
@@ -20,7 +19,6 @@ import { useMapInteractions } from "~/hooks/use-map-interactions"
 import { usePinsData } from "~/hooks/use-pins-data"
 import { PinType, type Location, type LocationGroup } from "@prisma/client"
 import { MapControls } from "~/components/map/map-controls"
-import CopyCutPinModal from "~/components/modals/copy-cut-pin-modal"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {

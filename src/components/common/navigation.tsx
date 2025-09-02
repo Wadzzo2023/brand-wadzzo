@@ -2,10 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Map, FileText, Target, Gift, BarChart3, Settings, LogOut, Store, User, Wallet } from "lucide-react"
+import { Map, FileText, Target, Gift, BarChart3, Settings, LogOut, Store, User, Wallet, Wallet2 } from "lucide-react"
 import { Button } from "~/components/shadcn/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/shadcn/ui/avatar"
-import { Badge } from "~/components/shadcn/ui/badge"
 import Image from "next/image"
 import { signOut, useSession } from "next-auth/react"
 import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances"
@@ -15,8 +14,9 @@ const navItems = [
     { href: "/map", label: "Map", icon: Map },
     { href: "/stores", label: "Stores", icon: Store },
     { href: "/posts", label: "Posts", icon: FileText },
-    { href: "/bounties", label: "Bounties", icon: Target, badge: "8" },
+    { href: "/bounties", label: "Bounties", icon: Target },
     { href: "/gifts", label: "Gifts", icon: Gift },
+    { href: "/membership", label: "Membership", icon: Wallet2 },
     { href: "/report", label: "Report & Analytics", icon: BarChart3 },
 ]
 
@@ -26,7 +26,7 @@ export function Navigation() {
     const { setBalance, setActive, active, platformAssetBalance } = useUserStellarAcc()
     const balances = api.wallate.acc.getAccountBalance.useQuery(undefined, {
         onSuccess: (data) => {
-            const { balances, platformAssetBal, xlm } = data
+            const { balances } = data
             setBalance(balances)
             setActive(true)
         },
