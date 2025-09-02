@@ -283,9 +283,6 @@ const CreateBountyModal = ({ isDialogOpen, onClose }: CreateBountyProps) => {
       },
     });
 
-  // Queries
-  const { data: prizeRate } =
-    api.bounty.Bounty.getCurrentUSDFromAsset.useQuery();
 
   // Handlers
   const onSubmit: SubmitHandler<z.infer<typeof BountySchema>> = (data) => {
@@ -567,14 +564,12 @@ function DetailsStep() {
   } = useFormContext<z.infer<typeof BountySchema>>();
 
   const title = watch("title", "");
-  const { data: prizeRate } =
-    api.bounty.Bounty.getCurrentUSDFromAsset.useQuery();
+  const prizeRate = 0.01;
 
   const handlePrizeChange = (value: string) => {
     const prizeUSD = Number(value) || 0;
     setValue("prizeInUSD", prizeUSD);
 
-    // Make sure prize is a valid number before dividing
     if (prizeRate && Number(prizeRate) > 0) {
       const prizeValue = prizeUSD / Number(prizeRate);
       setValue("prize", prizeValue);

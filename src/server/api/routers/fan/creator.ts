@@ -92,6 +92,43 @@ export const creatorRouter = createTRPCRouter({
         return creator;
       }
     }),
+  getCreatorPackages: protectedProcedure
+    .input(z.object({ id: z.string() }).optional())
+    .query(async ({ ctx, input }) => {
+      let id = ctx.session.user.id;
+      if (input) {
+        id = input.id;
+      }
+      const creator = await ctx.db.creator.findUnique({
+        where: { id: id },
+      });
+      if (!creator) {
+        throw new Error("Creator not found");
+      }
+      const packages = await ctx.db.subscription.findMany({
+        where: { creatorId: creator.id },
+      });
+      return packages;
+    }),
+  deleteCreatorSubscription: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creator = await ctx.db.creator.findUnique({
+        where: { id: ctx.session.user.id },
+      });
+      if (!creator) {
+        throw new Error("Creator not found");
+      }
+      const feature = await ctx.db.subscription.delete({
+        where: { id: input.id },
+      });
+      return feature;
+    }),
+
   requestForBrandCreation: protectedProcedure
     .input(RequestBrandCreateFormSchema).mutation(async ({ ctx, input }) => {
       const creator = await ctx.db.creator.findUnique({

@@ -225,7 +225,7 @@ export default function StoredItemsView() {
                             }}
                             className="cursor-pointer">
                             <Coins className="mr-2 h-4 w-4" />
-                            <span>Create Page Asset</span>
+                            <span>Sell Page Asset</span>
                         </Button>
                         <Button
                             onClick={() => {

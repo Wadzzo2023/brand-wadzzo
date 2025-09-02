@@ -15,7 +15,6 @@ import {
     Users2,
     Video,
     X,
-    Plus,
     Sparkles,
     Play,
     Pause,
@@ -31,16 +30,8 @@ import Image from "next/image"
 
 import { Button } from "~/components/shadcn/ui/button"
 import { Input } from "~/components/shadcn/ui/input"
-import { Card, CardContent, CardHeader } from "~/components/shadcn/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "~/components/shadcn/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import toast from "react-hot-toast"
 import { useRouter } from "next/router"
 
@@ -69,11 +60,11 @@ export const PostSchema = z.object({
     medias: z.array(MediaInfo).optional(),
 })
 
-type FormStep = "content" | "media" | "preview"
+type FormStep = "content" | "preview"
 
 type CreatePostModalProps = {
-    isOpen: boolean;
-    setIsOpen: (value: boolean) => void;
+    isOpen: boolean
+    setIsOpen: (value: boolean) => void
 }
 
 export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
@@ -141,7 +132,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
 
     // Updated editor change handler without immediate validation
     function handleEditorChange(value: string): void {
-        setValue("content", value);
+        setValue("content", value)
     }
 
     const openMediaPreview = (item: MediaInfoType) => {
@@ -201,20 +192,16 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
             // Only trigger validation when actually trying to proceed
             const isContentValid = await trigger(["heading"])
             if (isContentValid) {
-                setCurrentStep("media")
+                setCurrentStep("preview")
             } else {
                 toast.error("Please fill in all required fields")
             }
-        } else if (currentStep === "media") {
-            setCurrentStep("preview")
         }
     }
 
     const goToPreviousStep = () => {
-        if (currentStep === "media") {
+        if (currentStep === "preview") {
             setCurrentStep("content")
-        } else if (currentStep === "preview") {
-            setCurrentStep("media")
         }
     }
 
@@ -325,7 +312,6 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit(onSubmit)}>
-                        {/* Step Indicator */}
                         <div className="px-6 ">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center w-full">
@@ -339,19 +325,6 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                     >
                                         1
                                     </div>
-                                    <div className={clsx("flex-1 h-1 mx-2", currentStep === "content" ? "bg-gray-200" : "bg-primary")} />
-                                    <div
-                                        className={clsx(
-                                            "flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors",
-                                            currentStep === "media"
-                                                ? "bg-primary  shadow-sm shadow-foreground"
-                                                : currentStep === "preview"
-                                                    ? "bg-gray-100 text-gray-400"
-                                                    : "bg-gray-100 text-gray-400",
-                                        )}
-                                    >
-                                        2
-                                    </div>
                                     <div className={clsx("flex-1 h-1 mx-2", currentStep === "preview" ? "bg-primary" : "bg-gray-200")} />
                                     <div
                                         className={clsx(
@@ -361,14 +334,15 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                                 : "bg-gray-100 text-gray-400",
                                         )}
                                     >
-                                        3
+                                        2
                                     </div>
                                 </div>
                             </div>
                             <div className="flex justify-between text-sm mb-6">
-                                <div className={clsx("font-medium", currentStep === "content" ? "" : "text-gray-500")}>Content</div>
-                                <div className={clsx("font-medium", currentStep === "media" ? "" : "text-gray-500")}>Media</div>
-                                <div className={clsx("font-medium", currentStep === "preview" ? "" : "text-gray-500")}>Preview</div>
+                                <div className={clsx("font-medium", currentStep === "content" ? "" : "text-gray-500")}>
+                                    Create
+                                </div>
+                                <div className={clsx("font-medium", currentStep === "preview" ? "" : "text-gray-500")}>Review</div>
                             </div>
                         </div>
 
@@ -385,7 +359,6 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                             </div>
                         </div>
 
-                        {/* Step 1: Content */}
                         <AnimatePresence mode="wait">
                             {currentStep === "content" && (
                                 <motion.div
@@ -395,7 +368,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                     exit={{ opacity: 0, x: 20 }}
                                     transition={{ duration: 0.3 }}
                                 >
-                                    <h3 className="text-lg font-medium mb-4">Step 1: Create Your Content</h3>
+                                    <h3 className="text-lg font-medium mb-4">Step 1: Create Your Content & Add Media</h3>
                                     <div className="space-y-6">
                                         <div className="space-y-2">
                                             <Input
@@ -417,206 +390,194 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                             />
                                             {errors.content && <p className="text-sm text-red-500">{errors.content.message}</p>}
                                         </div>
-                                    </div>
-                                </motion.div>
-                            )}
 
-                            {/* Step 2: Media */}
-                            {currentStep === "media" && (
-                                <motion.div
-                                    className="px-6 py-4"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <h3 className="text-lg font-medium mb-4">Step 2: Add Media</h3>
-                                    <div className="space-y-6">
-                                        <AnimatePresence>
-                                            {media.length > 0 ? (
-                                                <motion.div
-                                                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    exit={{ opacity: 0 }}
-                                                >
-                                                    {media.map((el, id) => (
-                                                        <motion.div
-                                                            key={id}
-                                                            className="relative group"
-                                                            initial={{ opacity: 0, scale: 0.8 }}
-                                                            animate={{ opacity: 1, scale: 1 }}
-                                                            exit={{ opacity: 0, scale: 0.8 }}
-                                                            transition={{ duration: 0.2 }}
-                                                            layout
-                                                            whileHover={{ scale: 1.05 }}
-                                                            onClick={() => openMediaPreview(el)}
-                                                        >
-                                                            <div className="aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer border-2 border-transparent hover:border-purple-500 transition-all duration-300">
-                                                                {el.type === MediaType.IMAGE ? (
-                                                                    <div className="relative h-full w-full">
-                                                                        <Image
-                                                                            src={el.url ?? "/placeholder.svg"}
-                                                                            alt="Uploaded media"
-                                                                            fill
-                                                                            className="object-cover"
-                                                                        />
-                                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
-                                                                            <ImageIcon className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
-                                                                        </div>
-                                                                    </div>
-                                                                ) : el.type === MediaType.VIDEO ? (
-                                                                    <div className="relative h-full w-full bg-gray-100 flex items-center justify-center">
-                                                                        <FileVideo className="h-12 w-12 text-gray-400" />
-                                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
-                                                                            <Play className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="relative h-full w-full bg-gray-100 flex items-center justify-center">
-                                                                        <FileAudio className="h-12 w-12 text-gray-400" />
-                                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
-                                                                            <Music className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="destructive"
-                                                                className="absolute -right-2 -top-2 h-6 w-6 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setMedia(media.filter((_, index) => index !== id))
-                                                                }}
+                                        <div className="border-t pt-6">
+                                            <h4 className="text-md font-medium mb-4">Add Media (Optional)</h4>
+                                            <AnimatePresence>
+                                                {media.length > 0 ? (
+                                                    <motion.div
+                                                        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6"
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                    >
+                                                        {media.map((el, id) => (
+                                                            <motion.div
+                                                                key={id}
+                                                                className="relative group"
+                                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                                animate={{ opacity: 1, scale: 1 }}
+                                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                                transition={{ duration: 0.2 }}
+                                                                layout
+                                                                whileHover={{ scale: 1.05 }}
+                                                                onClick={() => openMediaPreview(el)}
                                                             >
-                                                                <X className="h-3 w-3" />
+                                                                <div className="aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer border-2 border-transparent hover:border-purple-500 transition-all duration-300">
+                                                                    {el.type === MediaType.IMAGE ? (
+                                                                        <div className="relative h-full w-full">
+                                                                            <Image
+                                                                                src={el.url ?? "/placeholder.svg"}
+                                                                                alt="Uploaded media"
+                                                                                fill
+                                                                                className="object-cover"
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
+                                                                                <ImageIcon className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : el.type === MediaType.VIDEO ? (
+                                                                        <div className="relative h-full w-full bg-gray-100 flex items-center justify-center">
+                                                                            <FileVideo className="h-12 w-12 text-gray-400" />
+                                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
+                                                                                <Play className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="relative h-full w-full bg-gray-100 flex items-center justify-center">
+                                                                            <FileAudio className="h-12 w-12 text-gray-400" />
+                                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all duration-300">
+                                                                                <Music className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="destructive"
+                                                                    className="absolute -right-2 -top-2 h-6 w-6 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setMedia(media.filter((_, index) => index !== id))
+                                                                    }}
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            </motion.div>
+                                                        ))}
+                                                    </motion.div>
+                                                ) : (
+                                                    <motion.div
+                                                        className="text-center py-6 rounded-lg border-2 border-dashed border-gray-300 mb-6"
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                    >
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <div className="p-3 rounded-full bg-purple-100">
+                                                                <ImageIcon className="h-6 w-6 text-purple-500" />
+                                                            </div>
+                                                            <h4 className="font-medium">No media added yet</h4>
+                                                            <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                                                Add images, videos, or music to make your post more engaging
+                                                            </p>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="flex flex-wrap items-center justify-center gap-3">
+                                                    {mediaTypes.map(({ type, icon: IconComponent, label }) => (
+                                                        <motion.div key={type} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                                            <Button
+                                                                size="sm"
+                                                                type="button"
+                                                                variant={wantMediaType === type ? "default" : "outline"}
+                                                                onClick={() => handleWantMediaType(type)}
+                                                                className={clsx(
+                                                                    "flex-1 sm:flex-none px-4 py-2",
+                                                                    wantMediaType === type && "bg-purple-600 hover:bg-purple-700",
+                                                                )}
+                                                            >
+                                                                <IconComponent className="mr-2 h-4 w-4" />
+                                                                {label}
                                                             </Button>
                                                         </motion.div>
                                                     ))}
-                                                </motion.div>
-                                            ) : (
-                                                <motion.div
-                                                    className="text-center py-8 rounded-lg border-2 border-dashed border-gray-300"
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    exit={{ opacity: 0 }}
-                                                >
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <div className="p-3 rounded-full bg-purple-100">
-                                                            <ImageIcon className="h-6 w-6 text-purple-500" />
-                                                        </div>
-                                                        <h3 className="font-medium text-lg">No media added yet</h3>
-                                                        <p className="text-gray-500 max-w-md mx-auto">
-                                                            Add images, videos, or music to make your post more engaging
-                                                        </p>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
+                                                </div>
 
-                                        <div className="flex flex-col items-center gap-6 pt-4">
-                                            <div className="flex flex-wrap items-center justify-center gap-3">
-                                                {mediaTypes.map(({ type, icon: IconComponent, label }) => (
-                                                    <motion.div key={type} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                                        <Button
-                                                            size="lg"
-                                                            type="button"
-                                                            variant={wantMediaType === type ? "default" : "outline"}
-                                                            onClick={() => handleWantMediaType(type)}
-                                                            className={clsx(
-                                                                "flex-1 sm:flex-none h-14 px-6",
-                                                                wantMediaType === type && "bg-purple-600 hover:bg-purple-700",
-                                                            )}
+                                                <AnimatePresence>
+                                                    {wantMediaType && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: "auto" }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            transition={{ duration: 0.3 }}
+                                                            className="overflow-hidden w-full flex justify-center"
                                                         >
-                                                            <IconComponent className="mr-2 h-5 w-5" />
-                                                            {label}
-                                                        </Button>
-                                                    </motion.div>
-                                                ))}
-                                            </div>
-
-                                            <AnimatePresence>
-                                                {wantMediaType && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3 }}
-                                                        className="overflow-hidden w-full flex justify-center"
-                                                    >
-                                                        <div className="bg-gray-50 p-6 rounded-lg border w-full max-w-md">
-                                                            <h3 className="font-medium text-center mb-4">
-                                                                {wantMediaType === "IMAGE"
-                                                                    ? "Upload an Image"
-                                                                    : wantMediaType === "VIDEO"
-                                                                        ? "Upload a Video"
-                                                                        : "Upload Music"}
-                                                            </h3>
-                                                            {wantMediaType === "IMAGE" ? (
-                                                                <UploadS3Button
-                                                                    endpoint="imageUploader"
-                                                                    className="w-full"
-                                                                    label="Upload Image"
-                                                                    onClientUploadComplete={(res) => {
-                                                                        const data = res
-                                                                        if (data?.url) {
-                                                                            addMediaItem(data.url, wantMediaType)
-                                                                            setWantMedia(undefined)
-                                                                            toast.success("Image uploaded successfully!")
-                                                                        }
-                                                                    }}
-                                                                    onUploadError={(error: Error) => {
-                                                                        toast.error(`ERROR! ${error.message}`)
-                                                                    }}
-                                                                />
-                                                            ) : wantMediaType === "VIDEO" ? (
-                                                                <UploadS3Button
-                                                                    className="w-full"
-                                                                    label="Upload Video"
-                                                                    endpoint="videoUploader"
-                                                                    onClientUploadComplete={(res) => {
-                                                                        const data = res
-                                                                        if (data?.url) {
-                                                                            addMediaItem(data.url, wantMediaType)
-                                                                            setWantMedia(undefined)
-                                                                            toast.success("Video uploaded successfully!")
-                                                                        }
-                                                                    }}
-                                                                    onUploadError={(error: Error) => {
-                                                                        toast.error(`ERROR! ${error.message}`)
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                wantMediaType === "MUSIC" && (
+                                                            <div className="bg-gray-50 p-4 rounded-lg border w-full max-w-md">
+                                                                <h4 className="font-medium text-center mb-3 text-sm">
+                                                                    {wantMediaType === "IMAGE"
+                                                                        ? "Upload an Image"
+                                                                        : wantMediaType === "VIDEO"
+                                                                            ? "Upload a Video"
+                                                                            : "Upload Music"}
+                                                                </h4>
+                                                                {wantMediaType === "IMAGE" ? (
                                                                     <UploadS3Button
+                                                                        endpoint="imageUploader"
                                                                         className="w-full"
-                                                                        label="Upload Audio"
-                                                                        endpoint="musicUploader"
+                                                                        label="Upload Image"
                                                                         onClientUploadComplete={(res) => {
                                                                             const data = res
                                                                             if (data?.url) {
                                                                                 addMediaItem(data.url, wantMediaType)
                                                                                 setWantMedia(undefined)
-                                                                                toast.success("Music uploaded successfully!")
+                                                                                toast.success("Image uploaded successfully!")
                                                                             }
                                                                         }}
                                                                         onUploadError={(error: Error) => {
                                                                             toast.error(`ERROR! ${error.message}`)
                                                                         }}
                                                                     />
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                                                ) : wantMediaType === "VIDEO" ? (
+                                                                    <UploadS3Button
+                                                                        className="w-full"
+                                                                        label="Upload Video"
+                                                                        endpoint="videoUploader"
+                                                                        onClientUploadComplete={(res) => {
+                                                                            const data = res
+                                                                            if (data?.url) {
+                                                                                addMediaItem(data.url, wantMediaType)
+                                                                                setWantMedia(undefined)
+                                                                                toast.success("Video uploaded successfully!")
+                                                                            }
+                                                                        }}
+                                                                        onUploadError={(error: Error) => {
+                                                                            toast.error(`ERROR! ${error.message}`)
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    wantMediaType === "MUSIC" && (
+                                                                        <UploadS3Button
+                                                                            className="w-full"
+                                                                            label="Upload Audio"
+                                                                            endpoint="musicUploader"
+                                                                            onClientUploadComplete={(res) => {
+                                                                                const data = res
+                                                                                if (data?.url) {
+                                                                                    addMediaItem(data.url, wantMediaType)
+                                                                                    setWantMedia(undefined)
+                                                                                    toast.success("Music uploaded successfully!")
+                                                                                }
+                                                                            }}
+                                                                            onUploadError={(error: Error) => {
+                                                                                toast.error(`ERROR! ${error.message}`)
+                                                                            }}
+                                                                        />
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>
                             )}
 
-                            {/* Step 3: Preview */}
                             {currentStep === "preview" && (
                                 <motion.div
                                     className="px-6 py-4"
@@ -625,7 +586,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                     exit={{ opacity: 0, x: -20 }}
                                     transition={{ duration: 0.3 }}
                                 >
-                                    <h3 className="text-lg font-medium mb-4">Step 3: Preview Your Post</h3>
+                                    <h3 className="text-lg font-medium mb-4">Step 2: Review Your Post</h3>
                                     <div className="border rounded-lg p-6 bg-white shadow-sm">
                                         <div className="flex items-center gap-3 mb-4">
                                             <CustomAvatar className="h-10 w-10" url={creator.data.profileUrl} />
@@ -637,7 +598,10 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                             </div>
                                         </div>
                                         <h2 className="text-xl font-bold mb-3">{watchedHeading}</h2>
-                                        <div className="prose max-w-none mb-6" dangerouslySetInnerHTML={{ __html: getValues("content") ?? "" }} />
+                                        <div
+                                            className="prose max-w-none mb-6"
+                                            dangerouslySetInnerHTML={{ __html: getValues("content") ?? "" }}
+                                        />
                                         {media.length > 0 && (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                                                 {media.map((item, index) => (
@@ -691,7 +655,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                     onClick={goToNextStep}
                                     disabled={currentStep === "content" && !isContentStepValid()}
                                 >
-                                    Next <ArrowRight className="ml-2 h-4 w-4" />
+                                    Review Post <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             ) : (
                                 <Button type="button" disabled={createPostMutation.isLoading} onClick={handleSubmit(onSubmit)}>

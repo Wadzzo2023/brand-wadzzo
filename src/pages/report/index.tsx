@@ -91,18 +91,8 @@ type ConsumerType = {
     claimed_at: Date | null;
 };
 
-import type { InferGetServerSidePropsType, GetServerSideProps } from "next";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "~/server/auth";
 import { useRouter } from "next/navigation";
 
-// @ts-expect-error i don't know the type
-export const getServerSideProps = async (context) => {
-    const user = await getServerSession(context.req, context.res, authOptions);
-    // const user = await getServerSession();
-
-    return { props: { userId: user?.user.id } };
-};
 
 const CreatorCollectionReport = ({
     isAdmin,

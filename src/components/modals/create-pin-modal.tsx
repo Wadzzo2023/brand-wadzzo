@@ -5,24 +5,26 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, Calendar, ImageIcon, Settings, CheckCircle, Clock, Globe, Link } from 'lucide-react'
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Clock, Link, Coins } from "lucide-react"
 import Image from "next/image"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
 import { Label } from "~/components/shadcn/ui/label"
 import { Textarea } from "~/components/shadcn/ui/textarea"
 import { Button } from "~/components/shadcn/ui/button"
-import { Switch } from "~/components/shadcn/ui/switch"
 import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
 import { api } from "~/utils/api"
-import { UploadS3Button } from "../common/upload-button"
 import { BADWORDS } from "~/utils/banned-word"
 import { PinType } from "@prisma/client"
 import { useMapInteractionStore } from "~/store/map-stores"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../shadcn/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "../shadcn/ui/card"
 import { Badge } from "../shadcn/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../shadcn/ui/tabs"
 import CopyCutPinModal from "./copy-cut-pin-modal"
+import { UploadS3Button } from "../common/upload-button"
+import { Switch } from "../shadcn/ui/switch"
+
 // Define types for assets and pins
 type AssetType = {
     id: number
@@ -57,7 +59,7 @@ export const createPinFormSchema = z.object({
     token: z.number().optional(),
     tokenAmount: z.number().nonnegative().optional(),
     pinNumber: z.number().nonnegative().min(1, "Number of pins must be at least 1"),
-    radius: z.number().nonnegative("Radius cannot be negative"),
+    radius: z.number().nonnegative("Radius cannot be negative").default(50), // Set default radius to 50
     pinCollectionLimit: z.number().min(0, "Collection limit cannot be negative"),
     tier: z.string().optional(),
     multiPin: z.boolean().default(false),
@@ -66,17 +68,18 @@ export const createPinFormSchema = z.object({
 type CreatePinType = z.infer<typeof createPinFormSchema>
 
 export default function CreatePinModal() {
-    const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData, copiedPinData } = useMapInteractionStore()
+    const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData, copiedPinData } =
+        useMapInteractionStore()
 
     const [coverUrl, setCover] = useState<string | undefined>()
     const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>()
     const [remainingBalance, setRemainingBalance] = useState<number>(0)
-    const [currentStep, setCurrentStep] = useState(1)
+    const [collectionMode, setCollectionMode] = useState<"manual" | "auto">("manual")
+    const [currentStep, setCurrentStep] = useState<number>(1)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
     console.log("CreatePinModal rendered with position:", isOpenCreatePin)
 
-    const { getAssetBalance } = useCreatorStorageAcc()
     const today = new Date()
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -96,7 +99,7 @@ export default function CreatePinModal() {
         defaultValues: {
             lat: position?.lat,
             lng: position?.lng,
-            radius: 0,
+            radius: 50,
             pinNumber: 1,
             pinCollectionLimit: 0,
             description: prevData?.description ?? "",
@@ -121,12 +124,10 @@ export default function CreatePinModal() {
         watch,
         formState: { errors, isValid },
     } = methods
+
     const tokenAmount = watch("pinCollectionLimit")
-    const autoCollect = watch("autoCollect")
-    const multiPin = watch("multiPin")
 
     const assetsQuery = api.fan.asset.myAssets.useQuery(undefined, {})
-    const tiersQuery = api.fan.member.getAllMembership.useQuery()
 
     const addPinM = api.maps.pin.createPin.useMutation({
         onSuccess: () => {
@@ -143,7 +144,21 @@ export default function CreatePinModal() {
         setCover(undefined)
         setSelectedToken(undefined)
         setRemainingBalance(0)
+        setCollectionMode("manual")
         setCurrentStep(1)
+    }
+
+    const nextStep = async () => {
+        const isStepValid = await trigger()
+        if (isStepValid && currentStep < 2) {
+            setCurrentStep(currentStep + 1)
+        }
+    }
+
+    const prevStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1)
+        }
     }
 
     const onSubmit: SubmitHandler<z.infer<typeof createPinFormSchema>> = (data) => {
@@ -161,6 +176,8 @@ export default function CreatePinModal() {
             finalData.lng = position.lng
         }
 
+        finalData.autoCollect = collectionMode === "auto"
+        console.log("Final data to submit:", finalData)
         addPinM.mutate({
             ...finalData,
             description: finalData.description ?? "",
@@ -203,390 +220,6 @@ export default function CreatePinModal() {
         }
     }, [tokenAmount, selectedToken])
 
-    const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4))
-    const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1))
-
-    const StepIndicator = () => (
-        <div className="flex items-center justify-center space-x-2 mb-8">
-            {[
-                { step: 1, label: "Basic Info", icon: MapPin },
-                { step: 2, label: "Media", icon: ImageIcon },
-                { step: 3, label: "Schedule", icon: Calendar },
-                { step: 4, label: "Review", icon: CheckCircle },
-            ].map(({ step, label, icon: Icon }, index) => (
-                <div key={step} className="flex items-center">
-                    <div className="flex flex-col items-center">
-                        <div
-                            className={`relative w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${currentStep >= step
-                                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-110"
-                                : currentStep === step - 1
-                                    ? "bg-blue-100 text-blue-600 border-2 border-blue-300"
-                                    : "bg-gray-100 text-gray-400"
-                                }`}
-                        >
-                            {currentStep > step ? <CheckCircle className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
-                            {currentStep === step && (
-                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full opacity-20 animate-pulse" />
-                            )}
-                        </div>
-                        <span
-                            className={`mt-2 text-xs font-medium transition-colors duration-300 ${currentStep >= step ? "text-blue-600" : "text-gray-400"
-                                }`}
-                        >
-                            {label}
-                        </span>
-                    </div>
-                    {index < 3 && (
-                        <div
-                            className={`w-16 h-0.5 mx-4 transition-all duration-300 ${currentStep > step ? "bg-gradient-to-r from-blue-500 to-purple-600" : "bg-gray-200"
-                                }`}
-                        />
-                    )}
-                </div>
-            ))}
-        </div>
-    )
-
-    const renderStepContent = () => {
-        switch (currentStep) {
-            case 1:
-                return (
-                    <div className="space-y-6 animate-in slide-in-from-left-5 duration-300">
-                        <div className="flex items-center space-x-3 mb-6">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <MapPin className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-900">Basic Information</h3>
-                                <p className="text-sm text-gray-500">Set up your pin{"'"}s core details</p>
-                            </div>
-                        </div>
-
-                        <ManualCoordinatesInput manual={manual} position={position} />
-
-                        <div className="space-y-2">
-                            <Label htmlFor="title" className="text-sm font-semibold text-gray-700">
-                                Pin Title
-                            </Label>
-                            <Input
-                                id="title"
-                                {...register("title")}
-                                className="h-12 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
-                                placeholder="Enter a catchy title for your pin"
-                            />
-                            {errors.title && (
-                                <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                    {errors.title.message}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
-                                Description
-                            </Label>
-                            <Textarea
-                                id="description"
-                                {...register("description")}
-                                className="min-h-[120px] transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200 resize-none"
-                                placeholder="Describe what makes this pin special..."
-                            />
-                            {errors.description && (
-                                <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                    {errors.description.message}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="pinType" className="text-sm font-semibold text-gray-700">
-                                Pin Type
-                            </Label>
-                            <Controller
-                                name="type"
-                                control={control}
-                                render={({ field }) => (
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger className="h-12 border-gray-200">
-                                            <SelectValue placeholder="Choose Pin Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {Object.values(PinType).map((type) => (
-                                                <SelectItem key={type} value={type}>
-                                                    {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                            />
-                            {errors.type && (
-                                <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                    {errors.type.message}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                )
-
-            case 2:
-                return (
-                    <div className="space-y-6 animate-in slide-in-from-right-5 duration-300">
-                        <div className="flex items-center space-x-3 mb-6">
-                            <div className="p-2 bg-purple-100 rounded-lg">
-                                <ImageIcon className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-900">Media & Links</h3>
-                                <p className="text-sm text-gray-500">Add visual content and external links</p>
-                            </div>
-                        </div>
-
-                        <ImageUploadField coverUrl={coverUrl} setCover={setCover} setValue={setValue} />
-
-                        <div className="space-y-2">
-                            <Label htmlFor="url" className="text-sm font-semibold text-gray-700">
-                                URL / Link{" "}
-                                <Badge variant="secondary" className="ml-2 text-xs">
-                                    Optional
-                                </Badge>
-                            </Label>
-                            <div className="relative">
-                                <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    id="url"
-                                    {...register("url")}
-                                    className="h-12 pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
-                                    placeholder="https://example.com"
-                                />
-                            </div>
-                            {errors.url && (
-                                <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                    {errors.url.message}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                )
-
-            case 3:
-                return (
-                    <div className="space-y-6 animate-in slide-in-from-right-5 duration-300">
-                        <div className="flex items-center space-x-3 mb-6">
-                            <div className="p-2 bg-green-100 rounded-lg">
-                                <Calendar className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-900">Schedule & Settings</h3>
-                                <p className="text-sm text-gray-500">Configure timing and advanced options</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="startDate" className="text-sm font-semibold text-gray-700">
-                                    Start Date
-                                </Label>
-                                <Input
-                                    type="datetime-local"
-                                    id="startDate"
-                                    {...register("startDate", {
-                                        valueAsDate: true,
-                                        setValueAs: (value: string) => (value ? new Date(value) : new Date()),
-                                    })}
-                                    defaultValue={formatDateForInput(prevData?.startDate ?? today)}
-                                    className="h-12 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
-                                />
-                                {errors.startDate && (
-                                    <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                        <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                        {errors.startDate.message}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="endDate" className="text-sm font-semibold text-gray-700">
-                                    End Date
-                                </Label>
-                                <Input
-                                    type="datetime-local"
-                                    id="endDate"
-                                    {...register("endDate", {
-                                        valueAsDate: true,
-                                        setValueAs: (value: string) => (value ? new Date(value) : new Date()),
-                                    })}
-                                    defaultValue={formatDateForInput(prevData?.endDate ?? tomorrow)}
-                                    className="h-12 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
-                                />
-                                {errors.endDate && (
-                                    <p className="text-red-500 text-sm mt-1 animate-in slide-in-from-top-2 flex items-center gap-1">
-                                        <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                                        {errors.endDate.message}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <PinTypeToggles />
-                    </div>
-                )
-
-            case 4:
-                return (
-                    <div className="space-y-6 animate-in slide-in-from-right-5 duration-300">
-                        <div className="flex items-center space-x-3 mb-6">
-                            <div className="p-2 bg-emerald-100 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-emerald-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-900">Review Your Pin</h3>
-                                <p className="text-sm text-gray-500">Double-check all details before creating</p>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4">
-                            <Card className="border-l-4 border-l-blue-500">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <MapPin className="w-4 h-4 text-blue-500" />
-                                        <h4 className="font-semibold text-gray-900">Basic Information</h4>
-                                    </div>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">Title:</span>
-                                            <span className="font-medium text-gray-900">{getValues("title") ?? "Not set"}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">Type:</span>
-                                            <Badge variant="outline">{getValues("type")}</Badge>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">Location:</span>
-                                            <span className="font-mono text-xs text-gray-700">
-                                                {getValues("lat")?.toFixed(4)}, {getValues("lng")?.toFixed(4)}
-                                            </span>
-                                        </div>
-                                        {getValues("description") && (
-                                            <div className="pt-2 border-t border-gray-100">
-                                                <span className="text-gray-600 block mb-1">Description:</span>
-                                                <p className="text-gray-900 text-xs leading-relaxed">{getValues("description")}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-l-4 border-l-purple-500">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <ImageIcon className="w-4 h-4 text-purple-500" />
-                                        <h4 className="font-semibold text-gray-900">Media & Links</h4>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {coverUrl ? (
-                                            <div className="flex items-center gap-3">
-                                                <Image
-                                                    className="rounded-lg shadow-lg transition-transform duration-200 group-hover:scale-105 border border-gray-200"
-                                                    width={60}
-                                                    height={60}
-                                                    alt="preview image"
-                                                    src={coverUrl ?? "/placeholder.svg"}
-                                                />
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900">Cover image uploaded</p>
-                                                    <p className="text-xs text-gray-500">Image will be displayed on the pin</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-gray-500">
-                                                <ImageIcon className="w-4 h-4" />
-                                                <span className="text-sm">No cover image</span>
-                                            </div>
-                                        )}
-                                        {getValues("url") ? (
-                                            <div className="flex items-center gap-2">
-                                                <Link className="w-4 h-4 text-blue-500" />
-                                                <a
-                                                    href={getValues("url")}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm text-blue-600 hover:underline truncate"
-                                                >
-
-                                                    {formatDisplayUrl(getValues("url")).slice(0, 14)}
-                                                </a>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-gray-500">
-                                                <Link className="w-4 h-4" />
-                                                <span className="text-sm">No external link</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-l-4 border-l-green-500">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Clock className="w-4 h-4 text-green-500" />
-                                        <h4 className="font-semibold text-gray-900">Schedule</h4>
-                                    </div>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">Start:</span>
-                                            <span className="font-medium text-gray-900">
-                                                {getValues("startDate")?.toLocaleDateString()} at{" "}
-                                                {getValues("startDate")?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">End:</span>
-                                            <span className="font-medium text-gray-900">
-                                                {getValues("endDate")?.toLocaleDateString()} at{" "}
-                                                {getValues("endDate")?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-l-4 border-l-orange-500">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Settings className="w-4 h-4 text-orange-500" />
-                                        <h4 className="font-semibold text-gray-900">Advanced Settings</h4>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className={`w-3 h-3 rounded-full ${getValues("autoCollect") ? "bg-green-500" : "bg-gray-300"}`}
-                                            />
-                                            <span className="text-sm text-gray-700">Auto Collect</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className={`w-3 h-3 rounded-full ${getValues("multiPin") ? "bg-green-500" : "bg-gray-300"}`}
-                                            />
-                                            <span className="text-sm text-gray-700">Multi Pin</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-                )
-
-            default:
-                return null
-        }
-    }
-
     return (
         <>
             <Dialog
@@ -596,66 +229,395 @@ export default function CreatePinModal() {
                     closeCreatePinModal()
                 }}
             >
-                <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-4xl flex-col overflow-x-hidden pb-0">
-                    <DialogHeader className="">
-                        <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">
-                            Create Pin
-                        </DialogTitle>
-
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold text-primary">Create New Pin</DialogTitle>
+                        <div className="flex items-center justify-center space-x-4 mt-4">
+                            <div className="flex items-center">
+                                <div
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                        }`}
+                                >
+                                    1
+                                </div>
+                                <span className={`ml-2 text-sm ${currentStep >= 1 ? "text-foreground" : "text-muted-foreground"}`}>
+                                    Create
+                                </span>
+                            </div>
+                            <div className={`w-8 h-0.5 ${currentStep >= 2 ? "bg-primary" : "bg-muted"}`} />
+                            <div className="flex items-center">
+                                <div
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                        }`}
+                                >
+                                    2
+                                </div>
+                                <span className={`ml-2 text-sm ${currentStep >= 2 ? "text-foreground" : "text-muted-foreground"}`}>
+                                    Preview
+                                </span>
+                            </div>
+                        </div>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
-                        <div className="p-6">
-                            <StepIndicator />
+                    <div className="overflow-y-auto" ref={scrollContainerRef}>
+                        <FormProvider {...methods}>
+                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-1">
+                                {currentStep === 1 && (
+                                    <div className="space-y-6">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2 text-lg">
+                                                    <Settings className="w-5 h-5 text-primary" />
+                                                    Collection Mode
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <Tabs
+                                                    value={collectionMode}
+                                                    onValueChange={(value) => setCollectionMode(value as "manual" | "auto")}
+                                                >
+                                                    <TabsList className="grid w-full grid-cols-2">
+                                                        <TabsTrigger value="manual">Manual Collect</TabsTrigger>
+                                                        <TabsTrigger value="auto">Auto Collect</TabsTrigger>
+                                                    </TabsList>
 
-                            <FormProvider {...methods}>
-                                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                                    <div className="min-h-[500px]">{renderStepContent()}</div>
-                                </form>
-                            </FormProvider>
-                        </div>
+                                                    <TabsContent value="manual" className="mt-4">
+                                                        <p className="text-sm text-muted-foreground">
+                                                            Users must manually collect rewards when they enter the area
+                                                        </p>
+                                                    </TabsContent>
+
+                                                    <TabsContent value="auto" className="mt-4">
+                                                        <p className="text-sm text-muted-foreground">
+                                                            Automatically collect rewards when users enter the area
+                                                        </p>
+                                                    </TabsContent>
+                                                </Tabs>
+                                            </CardContent>
+                                        </Card>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                                        <MapPin className="w-5 h-5 text-primary" />
+                                                        Pin Details
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    <ManualCoordinatesInput manual={manual} position={position} />
+
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="title" className="text-sm font-medium">
+                                                            Pin Title *
+                                                        </Label>
+                                                        <Input
+                                                            id="title"
+                                                            {...register("title")}
+                                                            className="bg-input border-border focus:ring-ring"
+                                                            placeholder="Enter a catchy title for your pin"
+                                                        />
+                                                        {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="description" className="text-sm font-medium">
+                                                            Description
+                                                        </Label>
+                                                        <Textarea
+                                                            id="description"
+                                                            {...register("description")}
+                                                            className="bg-input border-border focus:ring-ring min-h-[100px] resize-none"
+                                                            placeholder="Describe what makes this pin special..."
+                                                        />
+                                                        {errors.description && (
+                                                            <p className="text-destructive text-sm">{errors.description.message}</p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="pinType" className="text-sm font-medium">
+                                                                Pin Type
+                                                            </Label>
+                                                            <Controller
+                                                                name="type"
+                                                                control={control}
+                                                                render={({ field }) => (
+                                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                                        <SelectTrigger className="bg-input border-border">
+                                                                            <SelectValue placeholder="Choose Pin Type" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {Object.values(PinType).map((type) => (
+                                                                                <SelectItem key={type} value={type}>
+                                                                                    {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                )}
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="url" className="text-sm font-medium">
+                                                                URL / Link
+                                                            </Label>
+                                                            <Input
+                                                                id="url"
+                                                                {...register("url")}
+                                                                className="bg-input border-border focus:ring-ring"
+                                                                placeholder="https://example.com"
+                                                            />
+                                                            {errors.url && <p className="text-destructive text-sm">{errors.url.message}</p>}
+                                                        </div>
+                                                    </div>
+
+                                                    <ImageUploadField coverUrl={coverUrl} setCover={setCover} setValue={setValue} />
+
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="startDate" className="text-sm font-medium">
+                                                                Start Date
+                                                            </Label>
+                                                            <Input
+                                                                type="datetime-local"
+                                                                id="startDate"
+                                                                {...register("startDate", {
+                                                                    valueAsDate: true,
+                                                                    setValueAs: (value: string) => (value ? new Date(value) : new Date()),
+                                                                })}
+                                                                defaultValue={formatDateForInput(prevData?.startDate ?? today)}
+                                                                className="bg-input border-border focus:ring-ring"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="endDate" className="text-sm font-medium">
+                                                                End Date
+                                                            </Label>
+                                                            <Input
+                                                                type="datetime-local"
+                                                                id="endDate"
+                                                                {...register("endDate", {
+                                                                    valueAsDate: true,
+                                                                    setValueAs: (value: string) => (value ? new Date(value) : new Date()),
+                                                                })}
+                                                                defaultValue={formatDateForInput(prevData?.endDate ?? tomorrow)}
+                                                                className="bg-input border-border focus:ring-ring "
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                                        <Settings className="w-5 h-5 text-primary" />
+                                                        Collection & Tier Settings
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="flex flex-col gap-2">
+                                                    <TiersOptions />
+                                                    <CollectionInputs
+
+
+                                                        setSelectedToken={setSelectedToken}
+                                                        setRemainingBalance={setRemainingBalance}
+                                                        assetsQuery={assetsQuery}
+
+                                                        selectedToken={selectedToken}
+                                                        remainingBalance={remainingBalance}
+                                                    />
+                                                </CardContent>
+                                            </Card>
+
+                                        </div>
+
+                                        <PinTypeToggles />
+                                    </div>
+                                )}
+
+                                {currentStep === 2 && (
+                                    <div className="space-y-6">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2 text-lg">
+                                                    <CheckCircle className="w-5 h-5 text-primary" />
+                                                    Pin Preview
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                    <div className="space-y-4">
+                                                        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                                                            {coverUrl ? (
+                                                                <Image
+                                                                    src={coverUrl || "/placeholder.svg"}
+                                                                    alt="Pin preview"
+                                                                    width={400}
+                                                                    height={300}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="text-center text-muted-foreground">
+                                                                    <ImageIcon className="w-12 h-12 mx-auto mb-2" />
+                                                                    <p className="text-sm">No image uploaded</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            <h2 className="text-xl font-bold text-foreground">{getValues("title") || "Pin Title"}</h2>
+                                                            <p className="text-muted-foreground">
+                                                                {getValues("description")}
+                                                            </p>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <Badge variant="outline">{getValues("type")}</Badge>
+                                                                <Badge variant={collectionMode === "auto" ? "default" : "secondary"}>
+                                                                    {collectionMode === "auto" ? "Auto Collect" : "Manual Collect"}
+                                                                </Badge>
+                                                                {getValues("multiPin") && <Badge variant="outline">Multi-Pin</Badge>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">Location</div>
+                                                            <div className="font-medium">
+                                                                {getValues("lat")?.toFixed(6)}, {getValues("lng")?.toFixed(6)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">Radius</div>
+                                                            <div className="font-medium">{getValues("radius")} meters</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">Number of Pins</div>
+                                                            <div className="font-medium">{getValues("pinNumber")}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">Collection Limit</div>
+                                                            <div className="font-medium">{getValues("pinCollectionLimit")}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">Start Date</div>
+                                                            <div className="font-medium text-xs">
+                                                                {getValues("startDate")?.toLocaleDateString()}{" "}
+                                                                {getValues("startDate")?.toLocaleTimeString()}
+                                                            </div>
+                                                        </div>
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">End Date</div>
+                                                            <div className="font-medium text-xs">
+                                                                {getValues("endDate")?.toLocaleDateString()}{" "}
+                                                                {getValues("endDate")?.toLocaleTimeString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {getValues("url") && (
+                                                        <div className="p-3 bg-muted rounded-lg">
+                                                            <div className="text-sm text-muted-foreground">URL</div>
+                                                            <div className="font-medium text-sm break-all">{getValues("url")}</div>
+                                                        </div>
+                                                    )}
+
+                                                    {selectedToken && (
+                                                        <div className="p-4 bg-card rounded-lg border">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <Coins className="w-5 h-5 text-accent" />
+                                                                <span className="font-medium">Token Details</span>
+                                                            </div>
+                                                            <div className="space-y-2 text-sm">
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Asset:</span>
+                                                                    <span className="font-medium">{selectedToken.code}</span>
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Available Balance:</span>
+                                                                    <span className="font-medium">{selectedToken.bal}</span>
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Collection Limit:</span>
+                                                                    <span className="font-medium">{getValues("pinCollectionLimit") || 0}</span>
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Remaining Balance:</span>
+                                                                    <span
+                                                                        className={`font-medium ${remainingBalance < 0 ? "text-destructive" : "text-accent"}`}
+                                                                    >
+                                                                        {remainingBalance}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                )}
+                            </form>
+                        </FormProvider>
                     </div>
 
-                    <DialogFooter className="flex justify-between items-center p-2 w-full">
+                    <DialogFooter className="flex justify-between items-center">
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={prevStep}
-                            disabled={currentStep === 1}
-                            className="transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed h-11 px-6 bg-transparent w-full"
+                            onClick={() => {
+                                resetState()
+                                closeCreatePinModal()
+                            }}
+                            className="border-border"
                         >
-                            Previous
+                            Cancel
                         </Button>
 
-                        <div className="flex items-center space-x-3 w-full">
-                            {currentStep < 4 ? (
+                        <div className="flex gap-2">
+                            {currentStep > 1 && (
+                                <Button type="button" variant="outline" onClick={prevStep} className="border-border bg-transparent">
+                                    Previous
+                                </Button>
+                            )}
+
+                            {currentStep < 2 ? (
                                 <Button
                                     type="button"
                                     onClick={nextStep}
-                                    className=" hover:scale-105 shadow-lg w-full"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
-                                    Next Step
+                                    Next: Preview
                                 </Button>
                             ) : (
                                 <Button
                                     type="button"
                                     onClick={() => onSubmit(getValues())}
-                                    disabled={addPinM.isLoading ?? remainingBalance < 0}
-                                    className=" hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                                    disabled={addPinM.isLoading || remainingBalance < 0}
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
                                     {addPinM.isLoading && <Loader className="animate-spin mr-2 w-4 h-4" />}
                                     {addPinM.isLoading ? "Creating Pin..." : "Create Pin"}
                                 </Button>
                             )}
                         </div>
-
-                        {addPinM.isError && (
-                            <p className="text-red-500 text-sm mt-2 animate-in slide-in-from-top-2 absolute bottom-2 left-6">
-                                {addPinM.error.message}
-                            </p>
-                        )}
                     </DialogFooter>
 
+                    {addPinM.isError && (
+                        <div className="px-6 pb-2">
+                            <p className="text-destructive text-sm">{addPinM.error.message}</p>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
             <CopyCutPinModal />
@@ -663,6 +625,177 @@ export default function CreatePinModal() {
     )
 }
 
+function CollectionInputs({
+
+    setSelectedToken,
+    setRemainingBalance,
+    assetsQuery,
+
+    selectedToken,
+    remainingBalance,
+}: {
+    setSelectedToken: (asset: (AssetType & { bal: number } | undefined)) => void
+    setRemainingBalance: (balance: number) => void
+    assetsQuery: {
+        data?: {
+            pageAsset?: {
+                code: string;
+                creatorId: string;
+                issuer: string;
+                thumbnail: string | null;
+            }
+            shopAsset: AssetType[]
+        }
+    }
+
+    selectedToken: (AssetType & { bal: number } | undefined)
+    remainingBalance: number
+}) {
+    const { control, register, setValue, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
+    const { getAssetBalance } = useCreatorStorageAcc()
+
+    return (
+        <div className="space-y-4">
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">Choose Token</Label>
+                <Controller
+                    name="token"
+                    control={control}
+                    render={({ field }) => (
+                        <Select
+                            onValueChange={(value) => {
+                                const selectedAssetId = Number(value)
+                                field.onChange(selectedAssetId === NO_ASSET ? undefined : selectedAssetId)
+
+                                if (selectedAssetId === NO_ASSET) {
+                                    setSelectedToken(undefined)
+                                    setRemainingBalance(0)
+                                    return
+                                }
+
+                                if (selectedAssetId === PAGE_ASSET_NUM) {
+                                    const pageAsset = assetsQuery.data?.pageAsset
+                                    if (pageAsset) {
+                                        const bal = getAssetBalance({
+                                            code: pageAsset.code,
+                                            issuer: pageAsset.issuer,
+
+                                        })
+                                        setSelectedToken({
+                                            bal,
+                                            code: pageAsset.code,
+                                            issuer: pageAsset.issuer,
+                                            id: PAGE_ASSET_NUM,
+                                            thumbnail: pageAsset.thumbnail ?? "",
+                                        })
+                                        setRemainingBalance(bal)
+                                    } else {
+                                        toast.error("No page asset found")
+                                    }
+                                    return
+                                }
+
+                                const selectedAsset = assetsQuery.data?.shopAsset.find(
+                                    (asset: AssetType) => asset.id === selectedAssetId,
+                                )
+                                if (selectedAsset) {
+                                    const bal = getAssetBalance({
+                                        code: selectedAsset.code,
+                                        issuer: selectedAsset.issuer,
+                                    })
+                                    setSelectedToken({ ...selectedAsset, bal: bal })
+                                    setRemainingBalance(bal)
+                                }
+                            }}
+                            defaultValue={NO_ASSET.toString()}
+                        >
+                            <SelectTrigger className="bg-input border-border">
+                                <SelectValue placeholder="Choose Token" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NO_ASSET.toString()}>Pin (No asset)</SelectItem>
+                                {assetsQuery.data?.pageAsset && (
+                                    <SelectItem value={PAGE_ASSET_NUM.toString()}>
+                                        {assetsQuery.data.pageAsset.code} - Page Asset
+                                    </SelectItem>
+                                )}
+                                {assetsQuery.data?.shopAsset?.map((asset: AssetType) => (
+                                    <SelectItem key={asset.id} value={asset.id.toString()}>
+                                        {asset.code}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="radius" className="text-sm font-medium">
+                        Radius (meters)
+                    </Label>
+                    <Input
+                        type="number"
+                        id="radius"
+                        min={0}
+                        {...register("radius", { valueAsNumber: true })}
+                        className="bg-input border-border focus:ring-ring"
+                        placeholder="50"
+                    />
+                    {errors.radius && <p className="text-destructive text-sm">{errors.radius.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="pinNumber" className="text-sm font-medium">
+                        Number of Pins
+                    </Label>
+                    <Input
+                        type="number"
+                        id="pinNumber"
+                        min={1}
+                        {...register("pinNumber", { valueAsNumber: true })}
+                        className="bg-input border-border focus:ring-ring"
+                        placeholder="1"
+                    />
+                    {errors.pinNumber && <p className="text-destructive text-sm">{errors.pinNumber.message}</p>}
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="pinCollectionLimit" className="text-sm font-medium">
+                    Pin Collection Limit
+                </Label>
+                <Input
+                    type="number"
+                    id="pinCollectionLimit"
+                    min={0}
+                    {...register("pinCollectionLimit", { valueAsNumber: true })}
+                    className="bg-input border-border focus:ring-ring"
+                    placeholder="Enter collection limit"
+                />
+                {selectedToken && (
+                    <div className="text-xs space-y-1 p-2 bg-muted rounded">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Available Balance:</span>
+                            <span className="font-medium">{selectedToken.bal}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Remaining Balance:</span>
+                            <span className={`font-medium ${remainingBalance < 0 ? "text-destructive" : "text-accent"}`}>
+                                {remainingBalance}
+                            </span>
+                        </div>
+                    </div>
+                )}
+                {selectedToken && remainingBalance < 0 && (
+                    <p className="text-destructive text-sm">Insufficient token balance</p>
+                )}
+                {errors.pinCollectionLimit && <p className="text-destructive text-sm">{errors.pinCollectionLimit.message}</p>}
+            </div>
+        </div>
+    )
+}
 interface ManualCoordinatesInputProps {
     manual: boolean
     position: { lat: number; lng: number } | undefined
@@ -803,25 +936,7 @@ function PinTypeToggles() {
             </div>
 
             <div className="space-y-3">
-                <Card className="border border-gray-200 hover:border-blue-300 transition-colors duration-200">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                                <Label htmlFor="autoCollect" className="text-sm font-medium cursor-pointer text-gray-900">
-                                    Auto Collect
-                                </Label>
-                                <p className="text-xs text-gray-500 mt-1">Automatically collect rewards when users enter the area</p>
-                            </div>
-                            <Controller
-                                name="autoCollect"
-                                control={control} // Fixed to use control instead of register
-                                render={({ field }) => (
-                                    <Switch id="autoCollect" checked={field.value} onCheckedChange={field.onChange} />
-                                )}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+
 
                 <Card className="border border-gray-200 hover:border-blue-300 transition-colors duration-200">
                     <CardContent className="p-4">
@@ -844,13 +959,60 @@ function PinTypeToggles() {
         </div>
     )
 }
+function TiersOptions() {
+    const tiersQuery = api.fan.member.getAllMembership.useQuery()
+    const { control } = useFormContext<CreatePinType>()
+    if (tiersQuery.isLoading) return <div className="skeleton h-10 w-20"></div>;
+    if (tiersQuery.data) {
+        return (
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">Choose Tier</Label>
+                <Controller
+                    name="tier"
+                    control={control}
+                    render={({ field }) => (
+                        <Select
+                            onValueChange={(value) => {
+                                field.onChange(value)
+                            }}
+                        >
+                            <SelectTrigger className="bg-input border-border">
+                                <SelectValue placeholder="Choose Tier" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="public">Public</SelectItem>
+                                <SelectItem value="private">Only Followers</SelectItem>
+                                {tiersQuery.data.map((model) => (
 
-function formatDisplayUrl(url: string | undefined) {
-    if (!url) return "";
-    try {
-        const { hostname, pathname } = new URL(url)
-        return `${hostname}${pathname}`
-    } catch {
-        return url
+                                    <SelectItem key={model.id} value={model.id.toString()}>
+                                        {`${model.name} : ${model.price} ${model.creator.pageAsset?.code}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+            </div>
+            // <div>
+            //     <h4 className="text-sm font-semibold text-gray-700">Tier Settings</h4>
+            //     <Controller
+            //         name="tier"
+            //         control={control}
+            //         render={({ field }) => (
+            //             <select {...field} className="select select-bordered ">
+            //                 <option disabled>Choose Tier</option>
+            //                 <option value="public">Public</option>
+            //                 <option value="private">Only Followers</option>
+            //                 {tiersQuery.data.map((model) => (
+            //                     <option
+            //                         key={model.id}
+            //                         value={model.id}
+            //                     >{`${model.name} : ${model.price} ${model.creator.pageAsset?.code}`}</option>
+            //                 ))}
+            //             </select>
+            //         )}
+            //     />
+            // </div>
+        );
     }
 }
