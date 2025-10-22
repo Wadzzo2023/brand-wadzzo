@@ -91,6 +91,8 @@ export type IPin = {
     token?: number
     type?: PinType
     multiPin?: boolean
+    pinNumber?: number
+    radius?: number
 }
 
 interface IMapInteractionStore {
