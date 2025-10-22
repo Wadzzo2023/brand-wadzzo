@@ -225,7 +225,6 @@ function EventCard({ event }: { event: EventData }) {
         })
 
     }
-
     return (
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
             {/* {event.image && (
