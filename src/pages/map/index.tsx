@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useEffect, useState } from "react"
-import { APIProvider, AdvancedMarker, Map } from "@vis.gl/react-google-maps"
+import { APIProvider, AdvancedMarker, Map, Marker } from "@vis.gl/react-google-maps"
 import { useMapInteractionStore, useNearbyPinsStore } from "~/store/map-stores"
 import { useSelectedAutoSuggestion } from "~/hooks/use-selectedAutoSuggestion"
 import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
@@ -19,6 +19,7 @@ import { useMapInteractions } from "~/hooks/use-map-interactions"
 import { usePinsData } from "~/hooks/use-pins-data"
 import { PinType, type Location, type LocationGroup } from "@prisma/client"
 import { MapControls } from "~/components/map/map-controls"
+import AgentChat from "~/components/agent/AgentChat"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
@@ -113,6 +114,13 @@ function MapDashboardContent() {
         }
     }, [alreadySelectedPlace, setMapCenter, setMapZoom, setPosition])
 
+    useEffect(() => {
+        if (position) {
+            setMapCenter(position);
+            setMapZoom(14);
+        }
+    }, [position]);
+
     const handleManualPinClick = () => {
         setManual(true)
         setPosition(undefined)
@@ -162,6 +170,12 @@ function MapDashboardContent() {
                     disableDefaultUI={true}
                     onDragend={handleDragEnd}
                 >
+                    {position && !isCordsSearch && (
+                        <Marker
+                            position={{ lat: position.lat, lng: position.lng }}
+
+                        />
+                    )}
                     {/* Marker for search coordinates */}
                     {isCordsSearch && searchCoordinates && (
                         <AdvancedMarker position={searchCoordinates}>
@@ -202,7 +216,7 @@ function MapDashboardContent() {
 
             <CreatePinModal />
             <PinDetailAndActionsModal />
-
+            <AgentChat />
         </APIProvider>
     )
 }

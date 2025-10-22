@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Clock, Link, Coins } from "lucide-react"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
@@ -122,7 +122,7 @@ export default function CreatePinModal() {
         control,
         setError,
         watch,
-        formState: { errors, isValid },
+        formState: { errors },
     } = methods
 
     const tokenAmount = watch("pinCollectionLimit")
@@ -191,20 +191,36 @@ export default function CreatePinModal() {
         if (isOpenCreatePin) {
             setCurrentStep(1)
         }
-        if (duplicate && prevData) {
-            setValue("title", prevData.title ?? "")
-            setValue("description", prevData.description ?? "")
-            setCover(prevData.image ?? undefined)
-            setValue("image", prevData.image ?? undefined)
-            setValue("startDate", prevData.startDate ?? new Date())
-            setValue("endDate", prevData.endDate ?? new Date(new Date().setHours(23, 59, 59, 999)))
-            setValue("url", prevData.url ?? "")
-            setValue("autoCollect", prevData.autoCollect ?? false)
-            setValue("pinCollectionLimit", prevData.pinCollectionLimit ?? 0)
-            setValue("tier", prevData.tier?.toString())
-            setValue("pinNumber", prevData.pinCollectionLimit ?? 1)
+        // When duplicating or editing a pin, ensure date fields are Date objects
+        const toDate = (d?: string | number | Date | null): Date | undefined => {
+            if (d === undefined || d === null) return undefined
+            if (d instanceof Date) return d
+            if (typeof d === "string" || typeof d === "number") {
+                const parsed = new Date(d)
+                if (!isNaN(parsed.getTime())) return parsed
+            }
+            return undefined
         }
-        if (position) {
+
+        if (prevData) {
+            if (prevData.title) setValue("title", prevData.title)
+            if (prevData.radius) setValue("radius", prevData.radius)
+            if (prevData.description) setValue("description", prevData.description)
+            if (prevData.image) setCover(prevData.image)
+            if (prevData.image) setValue("image", prevData.image)
+            // Normalize dates to Date objects so the datetime-local inputs receive proper values
+            const sDate = toDate(prevData.startDate) ?? new Date()
+            const eDate = toDate(prevData.endDate) ?? new Date(new Date().setHours(23, 59, 59, 999))
+            setValue("startDate", sDate)
+            setValue("endDate", eDate)
+            if (prevData.url) setValue("url", prevData.url)
+            setValue("autoCollect", prevData.autoCollect ?? false)
+            // Sync collectionMode UI (tabs) with prevData.autoCollect
+            setCollectionMode(prevData.autoCollect ? "auto" : "manual")
+            setValue("pinCollectionLimit", prevData.pinCollectionLimit ?? 0)
+            if (prevData.tier) setValue("tier", prevData.tier.toString())
+            if (prevData.pinNumber) setValue("pinNumber", prevData.pinNumber)
+        } if (position) {
             setValue("lat", position.lat)
             setValue("lng", position.lng)
         }
@@ -381,15 +397,21 @@ export default function CreatePinModal() {
                                                             <Label htmlFor="startDate" className="text-sm font-medium">
                                                                 Start Date
                                                             </Label>
-                                                            <Input
-                                                                type="datetime-local"
-                                                                id="startDate"
-                                                                {...register("startDate", {
-                                                                    valueAsDate: true,
-                                                                    setValueAs: (value: string) => (value ? new Date(value) : new Date()),
-                                                                })}
-                                                                defaultValue={formatDateForInput(prevData?.startDate ?? today)}
-                                                                className="bg-input border-border focus:ring-ring"
+                                                            <Controller
+                                                                name="startDate"
+                                                                control={control}
+                                                                render={({ field }) => (
+                                                                    <Input
+                                                                        type="datetime-local"
+                                                                        id="startDate"
+                                                                        value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(today)}
+                                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                            const v = e.target.value
+                                                                            field.onChange(v ? new Date(v) : undefined)
+                                                                        }}
+                                                                        className="bg-input border-border focus:ring-ring"
+                                                                    />
+                                                                )}
                                                             />
                                                         </div>
 
@@ -397,15 +419,21 @@ export default function CreatePinModal() {
                                                             <Label htmlFor="endDate" className="text-sm font-medium">
                                                                 End Date
                                                             </Label>
-                                                            <Input
-                                                                type="datetime-local"
-                                                                id="endDate"
-                                                                {...register("endDate", {
-                                                                    valueAsDate: true,
-                                                                    setValueAs: (value: string) => (value ? new Date(value) : new Date()),
-                                                                })}
-                                                                defaultValue={formatDateForInput(prevData?.endDate ?? tomorrow)}
-                                                                className="bg-input border-border focus:ring-ring "
+                                                            <Controller
+                                                                name="endDate"
+                                                                control={control}
+                                                                render={({ field }) => (
+                                                                    <Input
+                                                                        type="datetime-local"
+                                                                        id="endDate"
+                                                                        value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(tomorrow)}
+                                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                            const v = e.target.value
+                                                                            field.onChange(v ? new Date(v) : undefined)
+                                                                        }}
+                                                                        className="bg-input border-border focus:ring-ring "
+                                                                    />
+                                                                )}
                                                             />
                                                         </div>
                                                     </div>
@@ -651,7 +679,7 @@ function CollectionInputs({
     selectedToken: (AssetType & { bal: number } | undefined)
     remainingBalance: number
 }) {
-    const { control, register, setValue, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
+    const { control, register, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
     const { getAssetBalance } = useCreatorStorageAcc()
 
     return (
