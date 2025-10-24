@@ -283,7 +283,7 @@ export default function AgentChat() {
                     /> */}
 
                     {/* Chat Drawer - Adjusted bottom position to prevent overlap with input box */}
-                    <div className="fixed inset-x-0 bottom-24 z-40 mx-auto flex max-w-2xl flex-col bg-background rounded-2xl border border-border overflow-hidden animate-in slide-in-from-bottom-5 duration-300 shadow-2xl sm:h-[70vh] sm:bottom-24">
+                    <div className="fixed inset-x-0 bottom-24 z-40 mx-auto flex max-w-2xl flex-col bg-background rounded-2xl border border-border overflow-hidden animate-in slide-in-from-bottom-5 duration-300 shadow-2xl h-[80vh] md:h-[70vh] sm:bottom-24">
                         {/* Header */}
                         <div className="flex items-center justify-between bg-primary px-6 py-3 text-primary-foreground sm:rounded-t-2xl">
                             <div className="flex items-center gap-3">
@@ -349,7 +349,7 @@ export default function AgentChat() {
                                                 </div>
                                             )}
                                             {message.events && message.events.length > 0 && (
-                                                <div className="space-y-2 grid grid-cols-2 gap-3">
+                                                <div className="space-y-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     {message.events.map((event, eventIndex) => (
                                                         <EventCard key={eventIndex} event={event} />
                                                     ))}
