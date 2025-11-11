@@ -38,6 +38,7 @@ import { truncateString } from "~/utils/string";
 import { PaymentMethodEnum } from "../bounty/bounty";
 import axios from "axios";
 import { RequestBrandCreateFormSchema } from "~/pages/create";
+import { creatorExtraFiledsSchema } from "~/types/creator";
 export const brandCreateRequestSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   bio: z.string().max(500, "Bio must be 500 characters or less"),
@@ -47,10 +48,10 @@ export const brandCreateRequestSchema = z.object({
     .max(12, "Page asset name must be 12 characters or less")
     .regex(/^[^\s]+$/, "Page asset name cannot contain spaces"),
   vanityUrl: z
-    .string().min(2, "Vanity URL must be 2 characters or more")
+    .string()
+    .min(2, "Vanity URL must be 2 characters or more")
     .max(30, "Vanity URL must be 30 characters or less")
-    .regex(/^[^\s]+$/, "Vanity URL cannot contain spaces")
-  ,
+    .regex(/^[^\s]+$/, "Vanity URL cannot contain spaces"),
   profileUrl: z.string().url().optional(),
   coverUrl: z.string().url().optional(),
   assetThumbnail: z.string().url().optional(),
@@ -130,7 +131,8 @@ export const creatorRouter = createTRPCRouter({
     }),
 
   requestForBrandCreation: protectedProcedure
-    .input(RequestBrandCreateFormSchema).mutation(async ({ ctx, input }) => {
+    .input(RequestBrandCreateFormSchema)
+    .mutation(async ({ ctx, input }) => {
       const creator = await ctx.db.creator.findUnique({
         where: { id: ctx.session.user.id },
       });
@@ -139,9 +141,7 @@ export const creatorRouter = createTRPCRouter({
         throw new Error("Creator already exists");
       }
 
-      if (input.assetType === 'custom') {
-
-
+      if (input.assetType === "custom") {
         await ctx.db.creator.create({
           data: {
             id: ctx.session.user.id,
@@ -153,12 +153,10 @@ export const creatorRouter = createTRPCRouter({
             name: input.displayName,
             aprovalSend: true,
             customPageAssetCodeIssuer: `${input.assetCode}-${input.issuer}`,
-
           },
         });
       }
-      if (input.assetType === 'new') {
-
+      if (input.assetType === "new") {
         await ctx.db.creator.create({
           data: {
             id: ctx.session.user.id,
@@ -175,8 +173,8 @@ export const creatorRouter = createTRPCRouter({
                 issuer: BLANK_KEYWORD,
                 thumbnail: input.assetImage,
                 limit: 0,
-              }
-            }
+              },
+            },
           },
         });
       }
@@ -187,7 +185,6 @@ export const creatorRouter = createTRPCRouter({
       //   amount: 0,
       //   vanityURL: input.vanityUrl.toLocaleLowerCase(),
       // });
-
     }),
   getMeCreator: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.creator.findFirst({
@@ -247,11 +244,10 @@ export const creatorRouter = createTRPCRouter({
             followers: true,
             assets: true,
             posts: true,
-          }
+          },
         },
         pageAsset: true,
-
-      }
+      },
     });
   }),
   vanitySubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -599,7 +595,10 @@ export const creatorRouter = createTRPCRouter({
     .input(z.object({ assetCode: z.string(), issuer: z.string() }))
     .mutation(async ({ ctx, input }) => {
       console.log("input", input);
-      console.log("process.env.NEXT_PUBLIC_STELLAR_PUBNET", process.env.NEXT_PUBLIC_STELLAR_PUBNET);
+      console.log(
+        "process.env.NEXT_PUBLIC_STELLAR_PUBNET",
+        process.env.NEXT_PUBLIC_STELLAR_PUBNET,
+      );
 
       const isPubnet = process.env.NEXT_PUBLIC_STELLAR_PUBNET === "true"; // Explicit comparison
 
@@ -608,9 +607,7 @@ export const creatorRouter = createTRPCRouter({
       console.log("Generated URL:", url);
 
       console.log("url", url);
-      const response = await axios.get(
-        url
-      );
+      const response = await axios.get(url);
       console.log("response", response.data);
       return response.status === 200;
     }),
@@ -686,7 +683,6 @@ export const creatorRouter = createTRPCRouter({
       const userId = ctx.session.user.id;
       const creator = await ctx.db.creator.findUnique({
         where: { id: userId },
-
       });
 
       if (!creator) {
@@ -962,4 +958,13 @@ export const creatorRouter = createTRPCRouter({
         });
       }
     }),
+
+  getPermissionData: creatorProcedure.query(async ({ ctx, input }) => {
+    const creator = await ctx.db.creator.findFirstOrThrow({
+      where: { id: ctx.session.user.id },
+    });
+
+    const navPermission = creatorExtraFiledsSchema.parse(creator.extraFields);
+    return navPermission?.navPermission ?? false;
+  }),
 });
