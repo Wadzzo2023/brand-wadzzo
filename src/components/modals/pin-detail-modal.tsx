@@ -755,7 +755,7 @@ function PinInfoUpdate({
     })
 
 
-    const tiers = api.fan.member.getAllMembership.useQuery()
+    const tiers = api.fan.member.getAllMembership.useQuery({})
     const assets = api.fan.asset.myAssets.useQuery(undefined, {
         enabled: !!selectedPinForDetail, // Enable query only when modal is open
     })

@@ -20,7 +20,7 @@ export type SubscriptionType = Omit<Subscription, "issuerPrivate">;
 
 export { MemberShip }
 export default function MemberShip() {
-    const { data: subscriptions } = api.fan.member.getAllMembership.useQuery();
+    const { data: subscriptions } = api.fan.member.getAllMembership.useQuery({});
     const creator = api.fan.creator.meCreator.useQuery(undefined, {
         refetchOnWindowFocus: false,
     })

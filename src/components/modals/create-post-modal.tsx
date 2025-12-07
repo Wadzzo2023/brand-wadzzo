@@ -115,7 +115,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
         },
     })
 
-    const tiers = api.fan.member.getAllMembership.useQuery()
+    const tiers = api.fan.member.getAllMembership.useQuery({})
 
     const onSubmit: SubmitHandler<z.infer<typeof PostSchema>> = (data) => {
         data.medias = media

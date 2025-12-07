@@ -30,7 +30,7 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({ onSelec
     const { nearbyPins } = useNearbyPinsStore()
     console.log("NearbyLocationsPanel rendered", nearbyPins)
     return (
-        <div className="absolute  right-6 top-96 max-h-[500px] w-80 items-start justify-center pointer-events-none hidden md:flex">
+        <div className="absolute  right-6 top-64 max-h-[500px] w-80 items-start justify-center pointer-events-none hidden md:flex">
             <Card className="w-full max-h-full bg-white/95 backdrop-blur-md border border-white/30 shadow-2xl rounded-3xl overflow-hidden pointer-events-auto">
                 <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -43,7 +43,7 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({ onSelec
                 </CardHeader>
 
                 <CardContent className="p-0">
-                    <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                    <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                         {nearbyPins.length <= 0 ? (
                             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">

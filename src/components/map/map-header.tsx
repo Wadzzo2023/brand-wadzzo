@@ -49,9 +49,13 @@ export function MapHeader({
                             <Select
                                 value={selectedCreator?.id}
                                 onValueChange={(value) => {
-                                    const selected = creator.data?.find((c) => c.id === value)
-                                    if (selected) setSelectedCreator(selected)
+                                    const selectedCreator = creator.data.find((c) => c.id === value);
+                                    if (selectedCreator) {
+                                        console.log("Selected creator:", selectedCreator);
+                                        setSelectedCreator(selectedCreator);
+                                    }
                                 }}
+                                defaultValue={selectedCreator?.id}
                             >
                                 <SelectTrigger className="bg-white/80 backdrop-blur-md border-white/30 shadow-lg rounded-xl">
                                     <SelectValue placeholder="Select a creator" />

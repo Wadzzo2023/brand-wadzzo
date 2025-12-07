@@ -73,7 +73,7 @@ export default function CreateAdminPinModal() {
     const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData, copiedPinData } =
         useMapInteractionStore()
     const { data: selectedCreator } = useSelectCreatorStore()
-
+    console.log("Selected creator in CreateAdminPinModal:", selectedCreator)
     const [coverUrl, setCover] = useState<string | undefined>()
     const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>()
     const [remainingBalance, setRemainingBalance] = useState<number>(0)
@@ -135,7 +135,7 @@ export default function CreateAdminPinModal() {
         creatorId: selectedCreator?.id ?? "",
     })
 
-    const addPinM = api.maps.pin.createPin.useMutation({
+    const addPinM = api.maps.pin.createForAdminPin.useMutation({
         onSuccess: () => {
             console.log("Pin sent for approval")
             closeCreatePinModal()
@@ -193,6 +193,7 @@ export default function CreateAdminPinModal() {
         setRemainingBalance(0)
         setSelectedToken(undefined)
         if (selectedCreator) {
+            console.log("Selected creator changed:", selectedCreator.id)
             setValue("creatorId", selectedCreator?.id)
         }
     }, [selectedCreator, setValue])
@@ -231,6 +232,7 @@ export default function CreateAdminPinModal() {
             // Sync collectionMode UI (tabs) with prevData.autoCollect
             setCollectionMode(prevData.autoCollect ? "auto" : "manual")
             setValue("pinCollectionLimit", prevData.pinCollectionLimit ?? 0)
+            setValue("creatorId", selectedCreator?.id ?? "")
             if (prevData.tier) setValue("tier", prevData.tier.toString())
             if (prevData.pinNumber) setValue("pinNumber", prevData.pinNumber)
         } if (position) {
