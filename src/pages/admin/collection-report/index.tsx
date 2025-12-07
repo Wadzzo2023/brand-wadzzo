@@ -92,21 +92,42 @@ type ConsumerType = {
 };
 
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 
-const CreatorCollectionReport = () => {
-  const session = useSession();
+const CreatorCollectionReport = ({
+  isAdmin = true,
+  userId,
+}: {
+  isAdmin?: boolean;
+  userId?: string;
+}) => {
   const [selectedDays, setSelectedDays] = useState<number | undefined>(
     undefined,
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
-  const [creatorId, setCreatorId] = useState<string | undefined>(session.data?.user.id);
+  const [creatorId, setCreatorId] = useState<string | undefined>(userId);
+
+  // Get creators and set default to first creator
+  const creatorsQuery = api.fan.creator.getCreators.useQuery();
+  const [defaultCreatorSet, setDefaultCreatorSet] = useState(false);
+
+  // Set default creator when data loads
+  if (
+    !defaultCreatorSet &&
+    creatorsQuery.data &&
+    creatorsQuery.data.length > 0 &&
+    !userId &&
+    !creatorId
+  ) {
+    setCreatorId(creatorsQuery.data[0]?.id);
+    setDefaultCreatorSet(true);
+  }
 
   const pins = api.maps.pin.getCreatorPinTConsumedByUser.useQuery(
     {
       day: selectedDays,
       creatorId: creatorId,
+      isAdmin: isAdmin,
     },
     {
       enabled: true,
@@ -163,261 +184,286 @@ const CreatorCollectionReport = () => {
   if (!pins.data) {
     return (
       <div>
-        <CreatorDropDown creatorId={creatorId} setCreatorId={setCreatorId} />
+        <CreatorDropDown creatorId={creatorId} setCreatorId={setCreatorId} creators={creatorsQuery.data} />
         <EmptyState message="No data available" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className=" flex h-full flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-6 p-2">
 
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Collection Reports
-          </h1>
-          <p className="text-muted-foreground">
-            Monitor and analyze your pin collection performance
-          </p>
-        </div>
+        <CardHeader className="shrink-0 space-y-4 border-b bg-muted/30 px-6 py-5">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Collection Reports
+              </h1>
+              <p className="text-muted-foreground">
+                Monitor and analyze your pin collection performance
+              </p>
+            </div>
 
-        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <CreatorDropDown
+                  creatorId={creatorId}
+                  setCreatorId={setCreatorId}
+                  creators={creatorsQuery.data}
+                />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {selectedDays ? `Last ${selectedDays} days` : "All time"}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setSelectedDays(undefined)}>
+                    All time
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedDays(7)}>
+                    Last 7 days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedDays(15)}>
+                    Last 15 days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedDays(30)}>
+                    Last 30 days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedDays(90)}>
+                    Last 90 days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <CalendarDays className="mr-2 h-4 w-4" />
-                {selectedDays ? `Last ${selectedDays} days` : "All time"}
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => setSelectedDays(undefined)}>
-                All time
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedDays(7)}>
-                Last 7 days
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedDays(15)}>
-                Last 15 days
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedDays(30)}>
-                Last 30 days
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedDays(90)}>
-                Last 90 days
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <ReportDownloadItem day={7} creatorId={creatorId}>
-                Last 7 days (Weekly)
-              </ReportDownloadItem>
-              <ReportDownloadItem day={30} creatorId={creatorId}>
-                Last 30 days (Monthly)
-              </ReportDownloadItem>
-              <ReportDownloadItem day={90} creatorId={creatorId}>
-                Last 90 days (Quarterly)
-              </ReportDownloadItem>
-              <ReportDownloadItem day={365} creatorId={creatorId}>
-                Last 365 days (Yearly)
-              </ReportDownloadItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {selectedDays && (
-        <div className="mb-6">
-          <Badge
-            variant="outline"
-            className="flex items-center gap-1 px-3 py-1"
-          >
-            <CalendarDays className="h-3.5 w-3.5" />
-            <span>Filtered to last {selectedDays} days</span>
-            <X
-              className="ml-1 h-3 w-3 cursor-pointer opacity-70 hover:opacity-100"
-              onClick={() => setSelectedDays(undefined)}
-            />
-          </Badge>
-        </div>
-      )}
-
-      <Tabs
-        defaultValue="overview"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-6"
-      >
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="data">Data Table</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {metrics && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <ReportDownloadItem day={7} creatorId={creatorId}>
+                    Last 7 days (Weekly)
+                  </ReportDownloadItem>
+                  <ReportDownloadItem day={30} creatorId={creatorId}>
+                    Last 30 days (Monthly)
+                  </ReportDownloadItem>
+                  <ReportDownloadItem day={90} creatorId={creatorId}>
+                    Last 90 days (Quarterly)
+                  </ReportDownloadItem>
+                  <ReportDownloadItem day={365} creatorId={creatorId}>
+                    Last 365 days (Yearly)
+                  </ReportDownloadItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-0">
+          {!isAdmin && (
             <>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <MetricCard
-                  title="Total Pins"
-                  value={metrics.totalPins}
-                  icon={<MapPin className="h-4 w-4" />}
-                />
-                <MetricCard
-                  title="Total Locations"
-                  value={metrics.totalLocations}
-                  icon={<MapPin className="h-4 w-4" />}
-                />
-                <MetricCard
-                  title="Total Consumers"
-                  value={metrics.totalConsumers}
-                  icon={<Users className="h-4 w-4" />}
-                />
-                <MetricCard
-                  title="Consumption Rate"
-                  value={`${metrics.consumptionRate}%`}
-                  icon={<BarChart3 className="h-4 w-4" />}
-                />
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-medium">
-                      Top Performing Pins
-                    </CardTitle>
-                    <CardDescription>
-                      Pins with the highest consumer engagement
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {metrics.topPins.map((pin, index) => (
-                        <div
-                          key={pin.id}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <div className="font-medium">{pin.title}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {pin.id}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">
-                              {pin.consumerCount} consumers
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setActiveTab("data")}
-                    >
-                      View all pins
+              {/* <div className="mb-6">
+                    <Button variant="ghost" size="sm" asChild className="mb-4">
+                        <Link href="/fan/creator" className="flex items-center">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to Creator Dashboard
+                        </Link>
                     </Button>
-                  </CardFooter>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-medium">
-                      Recent Activity
-                    </CardTitle>
-                    <CardDescription>
-                      Latest consumer interactions
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {pins.data
-                        .slice(0, 5)
-                        .flatMap((pin) =>
-                          pin.locations.flatMap((location) =>
-                            location.consumers.slice(0, 1).map((consumer) => (
-                              <div
-                                key={`${pin.id}-${location.id}-${consumer.user.id}`}
-                                className="flex items-center justify-between"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                                    {consumer.user.name?.[0] ?? "U"}
-                                  </div>
-                                  <div>
-                                    <div className="font-medium">
-                                      {consumer.user.email ?? "Anonymous User"}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Collected from {pin.title}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {consumer.claimedAt
-                                    ? new Date(
-                                      consumer.claimedAt,
-                                    ).toLocaleDateString()
-                                    : "Unknown date"}
-                                </div>
-                              </div>
-                            )),
-                          ),
-                        )
-                        .slice(0, 5)}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setActiveTab("data")}
-                    >
-                      View all activity
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
+                </div> */}
             </>
           )}
-        </TabsContent>
 
-        <TabsContent value="data">
-          <Card className="border-none shadow-sm">
-            <CardContent className="p-0 pt-6">
-              <TableData
-                pins={pins.data}
-                selectedDays={selectedDays}
-                setSelectedDays={setSelectedDays}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                isLoading={pins.isLoading}
-                isRefetching={pins.isRefetching}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+          {selectedDays && (
+            <div className="mb-6">
+              <Badge
+                variant="outline"
+                className="flex items-center gap-1 px-3 py-1"
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span>Filtered to last {selectedDays} days</span>
+                <X
+                  className="ml-1 h-3 w-3 cursor-pointer opacity-70 hover:opacity-100"
+                  onClick={() => setSelectedDays(undefined)}
+                />
+              </Badge>
+            </div>
+          )}
+
+          <Tabs
+            defaultValue="overview"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="data">Data Table</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              {metrics && (
+                <>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    <MetricCard
+                      title="Total Pins"
+                      value={metrics.totalPins}
+                      icon={<MapPin className="h-4 w-4" />}
+                    />
+                    <MetricCard
+                      title="Total Locations"
+                      value={metrics.totalLocations}
+                      icon={<MapPin className="h-4 w-4" />}
+                    />
+                    <MetricCard
+                      title="Total Consumers"
+                      value={metrics.totalConsumers}
+                      icon={<Users className="h-4 w-4" />}
+                    />
+                    <MetricCard
+                      title="Consumption Rate"
+                      value={`${metrics.consumptionRate}%`}
+                      icon={<BarChart3 className="h-4 w-4" />}
+                    />
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-medium">
+                          Top Performing Pins
+                        </CardTitle>
+                        <CardDescription>
+                          Pins with the highest consumer engagement
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {metrics.topPins.map((pin, index) => (
+                            <div
+                              key={pin.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <div className="font-medium">{pin.title}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {pin.id}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">
+                                  {pin.consumerCount} consumers
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setActiveTab("data")}
+                        >
+                          View all pins
+                        </Button>
+                      </CardFooter>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-medium">
+                          Recent Activity
+                        </CardTitle>
+                        <CardDescription>
+                          Latest consumer interactions
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {pins.data
+                            .slice(0, 5)
+                            .flatMap((pin) =>
+                              pin.locations.flatMap((location) =>
+                                location.consumers.slice(0, 1).map((consumer) => (
+                                  <div
+                                    key={`${pin.id}-${location.id}-${consumer.user.id}`}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                                        {consumer.user.name?.[0] ?? "U"}
+                                      </div>
+                                      <div>
+                                        <div className="font-medium">
+                                          {consumer.user.email ?? "Anonymous User"}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Collected from {pin.title}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {consumer.claimedAt
+                                        ? new Date(
+                                          consumer.claimedAt,
+                                        ).toLocaleDateString()
+                                        : "Unknown date"}
+                                    </div>
+                                  </div>
+                                )),
+                              ),
+                            )
+                            .slice(0, 5)}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setActiveTab("data")}
+                        >
+                          View all activity
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="data">
+              <Card className="border-none shadow-sm">
+                <CardContent className="p-0 pt-6">
+                  <TableData
+                    pins={pins.data}
+                    selectedDays={selectedDays}
+                    setSelectedDays={setSelectedDays}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    isLoading={pins.isLoading}
+                    isRefetching={pins.isRefetching}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -1044,7 +1090,8 @@ export function TableData({
                   location.consumers.map((consumer, consumerIndex) => (
                     <TableRow
                       onClick={() => {
-                        router.push(`/report/${location.id}`);
+                        console.log("Navigating to location:", location.id);
+                        router.push(`/admin/collection-report/${location.id}`);
                       }}
                       key={`${pin.id}-${location.id}-${consumer.user.id}-${consumerIndex}`}
                       className={cn(
@@ -1583,26 +1630,33 @@ function EmptyState({ message }: { message: string }) {
 function CreatorDropDown({
   creatorId,
   setCreatorId,
+  creators,
 }: {
   creatorId: string | undefined;
   setCreatorId: (id: string | undefined) => void;
+  creators?: { id: string; name: string | null }[];
 }) {
-  const creators = api.fan.creator.getCreators.useQuery();
+  // Use passed creators or fetch them
+  const creatorsQuery = api.fan.creator.getCreators.useQuery(
+    undefined,
+    { enabled: !creators },
+  );
+  const creatorsList = creators ?? creatorsQuery.data;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="h-9">
           {creatorId
-            ? creators.data?.find((c) => c.id === creatorId)?.name
-              ? `${creators.data?.find((c) => c.id === creatorId)?.name} (${creatorId.slice(0, 6)}...)`
+            ? creatorsList?.find((c) => c.id === creatorId)?.name
+              ? `${creatorsList?.find((c) => c.id === creatorId)?.name} (${creatorId.slice(0, 6)}...)`
               : creatorId
             : "Select Creator"}
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {creators.data?.map((creator) => (
+        {creatorsList?.map((creator) => (
           <DropdownMenuItem
             key={creator.id}
             onClick={() => setCreatorId(creator.id)}

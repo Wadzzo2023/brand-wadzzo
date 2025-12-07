@@ -20,6 +20,9 @@ import { usePinsData } from "~/hooks/use-pins-data"
 import { PinType, type Location, type LocationGroup } from "@prisma/client"
 import { MapControls } from "~/components/map/map-controls"
 import AgentChat from "~/components/agent/AgentChat"
+import { useSelectCreatorStore } from "~/components/store/creator-selection-store"
+import CreateAdminPinModal from "~/components/modals/create-admin-pin-modal"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "~/components/shadcn/ui/select"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
@@ -89,17 +92,9 @@ function MapDashboardContent() {
         filterNearbyPins,
         centerChanged,
     })
+    const { setData: setSelectedCreator, data: selectedCreator } =
+        useSelectCreatorStore();
 
-    // Fetch creator storage balances
-    api.wallate.acc.getCreatorStorageBallances.useQuery(undefined, {
-        onSuccess: (data) => {
-            setBalance(data)
-        },
-        onError: (error) => {
-            console.error("Failed to fetch creator storage balances:", error)
-        },
-        refetchOnWindowFocus: false,
-    })
 
     // Effect for auto-suggestion place selection
     useEffect(() => {
@@ -121,6 +116,10 @@ function MapDashboardContent() {
         }
     }, [position]);
 
+    useEffect(() => {
+        console.log(selectedCreator);
+    }, [selectedCreator]);
+
     const handleManualPinClick = () => {
         setManual(true)
         setPosition(undefined)
@@ -131,7 +130,6 @@ function MapDashboardContent() {
     return (
         <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY!}>
             <MapHeader
-                showCreatorList={false}
                 showExpired={showExpired}
                 setShowExpired={setShowExpired}
                 onManualPinClick={handleManualPinClick}
@@ -146,6 +144,7 @@ function MapDashboardContent() {
                 setSearchCoordinates={setSearchCoordinates}
                 setCordSearchLocation={setCordSearchCords}
                 setZoom={setMapZoom}
+                showCreatorList={true}
             />
 
             <div className="relative h-screen w-full overflow-hidden">
@@ -196,15 +195,21 @@ function MapDashboardContent() {
                     )}
 
                     <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
-                    <MyPins
-                        onPinClick={(pin) => {
-                            openPinDetailModal(pin)
-                            setIsAutoCollect(pin.autoCollect)
-                        }}
-                        showExpired={showExpired}
-                    />
+                    {
+                        selectedCreator && (
+                            <MyPins
+                                onPinClick={(pin) => {
+                                    openPinDetailModal(pin)
+                                    setIsAutoCollect(pin.autoCollect)
+                                }}
+                                creatorId={selectedCreator.id}
+                                showExpired={showExpired}
+                            />
+                        )
+                    }
                 </Map>
             </div>
+
 
             <NearbyLocationsPanel
                 onSelectPlace={(coords) => {
@@ -215,9 +220,9 @@ function MapDashboardContent() {
             />
 
 
-            <CreatePinModal />
-            <PinDetailAndActionsModal />
-            <AgentChat />
+            {selectedCreator && <CreateAdminPinModal />}
+            {/* <PinDetailAndActionsModal /> */}
+            {selectedCreator && <AgentChat />}
         </APIProvider>
     )
 }
@@ -227,12 +232,16 @@ export default MapDashboardContent
 const MyPins = memo(function MyPins({
     onPinClick,
     showExpired,
+    creatorId,
 }: {
     onPinClick: (pin: Pin) => void
     showExpired: boolean
+    creatorId: string
 }) {
     const { allPins, setAllPins } = useNearbyPinsStore()
-    const pinsQuery = api.maps.pin.getMyPins.useQuery({ showExpired })
+    const pinsQuery = api.maps.pin.getCreatorPins.useQuery({
+        creator_id: creatorId,
+    });
 
     useEffect(() => {
         if (pinsQuery.data) {
