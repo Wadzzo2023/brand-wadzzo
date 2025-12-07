@@ -14,12 +14,11 @@ import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances";
 import { api } from "~/utils/api";
 import { NavLinks } from "./navlinks";
 import { useRouter } from "next/router";
-import { usePathname } from "next/navigation";
 
 export function Navigation() {
   const session = useSession()
   const router = useRouter()
-  const pathname = usePathname()
+  const { pathname } = router;
   const { setBalance, setActive, active, platformAssetBalance } = useUserStellarAcc()
 
   const admin = api.wallate.admin.checkAdmin.useQuery(undefined, {
