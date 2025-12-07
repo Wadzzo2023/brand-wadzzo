@@ -2,7 +2,7 @@
 
 import { BarChart3, FileText, Flag, Gift, Map, MapPin, Shield, Store, Target, Users, Wallet2 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useRouter } from "next/router";
 import { cn } from "~/lib/utils"
 
 // Regular user nav items
@@ -32,8 +32,8 @@ interface NavLinksProps {
 }
 
 export function NavLinks({ isAdminMode = false, creatorPermission = false }: NavLinksProps) {
-  const pathname = usePathname()
-
+  const router = useRouter();
+  const { pathname } = router;
   const navItems = isAdminMode ? adminNavItems : userNavItems
 
   return (
