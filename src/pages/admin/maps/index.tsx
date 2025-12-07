@@ -92,7 +92,7 @@ function MapDashboardContent() {
         filterNearbyPins,
         centerChanged,
     })
-    const { setData: setSelectedCreator, data: selectedCreator } =
+    const { data: selectedCreator } =
         useSelectCreatorStore();
 
 
@@ -221,7 +221,7 @@ function MapDashboardContent() {
 
 
             {selectedCreator && <CreateAdminPinModal />}
-            {/* <PinDetailAndActionsModal /> */}
+            <PinDetailAndActionsModal />
             {selectedCreator && <AgentChat />}
         </APIProvider>
     )
@@ -270,7 +270,7 @@ const MyPins = memo(function MyPins({
                         <div
                             className={`relative flex items-center justify-center rounded-full border-3 border-white shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
                 ${isExpired ?? isRemainingZero ? "opacity-60 grayscale" : "opacity-100"}
-                ${!isApproved ? "bg-slate-500" : "bg-white"}
+                ${!isApproved ? "opacity-80 bg-gray-500" : "bg-white/80 hover:bg-white/100"}
                 transform hover:-translate-y-1
               `}
                         >

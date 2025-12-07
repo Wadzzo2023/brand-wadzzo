@@ -210,7 +210,7 @@ export default function NftCreateModal({ isOpen, onClose }: NFTCreateProps) {
     },
   });
 
-  const tiers = api.fan.member.getAllMembership.useQuery();
+  const tiers = api.fan.member.getAllMembership.useQuery({});
 
   const addAsset = api.fan.asset.createAsset.useMutation({
     onSuccess: () => {
