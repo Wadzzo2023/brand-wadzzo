@@ -1,12 +1,16 @@
 "use client"
-import { MapPin, Search, Layers, Filter, Menu, Plus } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 import { Button } from "~/components/shadcn/ui/button"
 import { Input } from "~/components/shadcn/ui/input"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "~/components/shadcn/ui/select"
 import { CustomMapControl } from "~/components/map/search/map-control"
 import { PinToggleSwitch } from "./pin-toggle-switch"
+import { api } from "~/utils/api"
+import { useSelectCreatorStore } from "../store/creator-selection-store"
 
 interface MapHeaderProps {
     showExpired: boolean
+    showCreatorList: boolean
     onPlaceSelect: (place: { lat: number; lng: number }) => void
     onCenterChange: (center: google.maps.LatLngLiteral) => void
     setIsCordsSearch: (value: boolean) => void
@@ -18,6 +22,7 @@ interface MapHeaderProps {
 }
 
 export function MapHeader({
+    showCreatorList = false,
     onPlaceSelect,
     onCenterChange,
     setIsCordsSearch,
@@ -27,14 +32,40 @@ export function MapHeader({
     showExpired,
     setShowExpired,
     onManualPinClick,
-
 }: MapHeaderProps) {
+    const creator = api.fan.creator.getCreators.useQuery(undefined, {
+        enabled: showCreatorList,
+    })
+    const { setData: setSelectedCreator, data: selectedCreator } = useSelectCreatorStore()
+
     return (
         <div className="absolute top-0 left-0 right-0 z-30 p-4">
             <div className="mx-auto max-w-4xl">
                 <div className="flex items-center justify-between gap-4">
+                    {!showCreatorList && <PinToggleSwitch showExpired={showExpired} setShowExpired={setShowExpired} />}
 
-                    <PinToggleSwitch showExpired={showExpired} setShowExpired={setShowExpired} />
+                    {showCreatorList && creator.data && (
+                        <div className="w-64 shrink-0">
+                            <Select
+                                value={selectedCreator?.id}
+                                onValueChange={(value) => {
+                                    const selected = creator.data?.find((c) => c.id === value)
+                                    if (selected) setSelectedCreator(selected)
+                                }}
+                            >
+                                <SelectTrigger className="bg-white/80 backdrop-blur-md border-white/30 shadow-lg rounded-xl">
+                                    <SelectValue placeholder="Select a creator" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {creator.data.map((model) => (
+                                        <SelectItem key={model.id} value={model.id}>
+                                            {model.name ?? model.id}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                     <div className="flex-1 ">
                         <div className="relative">
@@ -58,16 +89,20 @@ export function MapHeader({
                         </div>
                     </div>
 
-                    <Button
-                        variant="default"
-                        size="lg"
-                        className="md:px-6 px-3  md:rounded-2xl"
-                        onClick={onManualPinClick}
-                        aria-label="Create manual pin"
-                    >
-                        <Plus className="" />
-                        <span className="hidden md:block"> Create Pin</span>
-                    </Button>
+                    {
+                        (!showCreatorList || (showCreatorList && selectedCreator)) && (
+                            <Button
+                                variant="default"
+                                size="lg"
+                                className="md:px-6 px-3  md:rounded-2xl"
+                                onClick={onManualPinClick}
+                                aria-label="Create manual pin"
+                            >
+                                <Plus className="" />
+                                <span className="hidden md:block"> Create Pin</span>
+                            </Button>
+                        )
+                    }
                 </div>
             </div>
         </div>

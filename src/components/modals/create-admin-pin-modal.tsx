@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../shadcn/ui/tabs"
 import CopyCutPinModal from "./copy-cut-pin-modal"
 import { UploadS3Button } from "../common/upload-button"
 import { Switch } from "../shadcn/ui/switch"
+import { useSelectCreatorStore } from "../store/creator-selection-store"
 
 // Define types for assets and pins
 type AssetType = {
@@ -36,7 +37,7 @@ type AssetType = {
 export const PAGE_ASSET_NUM = -10
 export const NO_ASSET = -99
 
-export const createPinFormSchema = z.object({
+export const createAdminPinFormSchema = z.object({
     lat: z.number().min(-180).max(180),
     lng: z.number().min(-180).max(180),
     description: z.string().optional(),
@@ -64,12 +65,14 @@ export const createPinFormSchema = z.object({
     tier: z.string().optional(),
     multiPin: z.boolean().default(false),
     type: z.nativeEnum(PinType).default(PinType.OTHER),
+    creatorId: z.string(),
 })
-type CreatePinType = z.infer<typeof createPinFormSchema>
+type CreateAdminPinType = z.infer<typeof createAdminPinFormSchema>
 
-export default function CreatePinModal() {
+export default function CreateAdminPinModal() {
     const { isOpenCreatePin, closeCreatePinModal, manual, position, duplicate, prevData, copiedPinData } =
         useMapInteractionStore()
+    const { data: selectedCreator } = useSelectCreatorStore()
 
     const [coverUrl, setCover] = useState<string | undefined>()
     const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>()
@@ -94,8 +97,8 @@ export default function CreatePinModal() {
         return `${year}-${month}-${day}T${hours}:${minutes}`
     }
 
-    const methods = useForm<z.infer<typeof createPinFormSchema>>({
-        resolver: zodResolver(createPinFormSchema),
+    const methods = useForm<z.infer<typeof createAdminPinFormSchema>>({
+        resolver: zodResolver(createAdminPinFormSchema),
         defaultValues: {
             lat: position?.lat,
             lng: position?.lng,
@@ -109,6 +112,7 @@ export default function CreatePinModal() {
             multiPin: prevData?.multiPin ?? false,
             type: PinType.OTHER,
             url: "",
+            creatorId: selectedCreator?.id,
         },
     })
 
@@ -127,7 +131,9 @@ export default function CreatePinModal() {
 
     const tokenAmount = watch("pinCollectionLimit")
 
-    const assetsQuery = api.fan.asset.myAssets.useQuery(undefined, {})
+    const assetsQuery = api.fan.asset.getCreatorPageAsset.useQuery({
+        creatorId: selectedCreator?.id ?? "",
+    })
 
     const addPinM = api.maps.pin.createPin.useMutation({
         onSuccess: () => {
@@ -161,7 +167,7 @@ export default function CreatePinModal() {
         }
     }
 
-    const onSubmit: SubmitHandler<z.infer<typeof createPinFormSchema>> = (data) => {
+    const onSubmit: SubmitHandler<z.infer<typeof createAdminPinFormSchema>> = (data) => {
         if (selectedToken && data.pinCollectionLimit && data.pinCollectionLimit > selectedToken.bal) {
             setError("pinCollectionLimit", {
                 type: "manual",
@@ -183,6 +189,13 @@ export default function CreatePinModal() {
             description: finalData.description ?? "",
         })
     }
+    useEffect(() => {
+        setRemainingBalance(0)
+        setSelectedToken(undefined)
+        if (selectedCreator) {
+            setValue("creatorId", selectedCreator?.id)
+        }
+    }, [selectedCreator, setValue])
 
     useEffect(() => {
         if (isOpenCreatePin && scrollContainerRef.current) {
@@ -448,10 +461,10 @@ export default function CreatePinModal() {
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent className="flex flex-col gap-2">
-                                                    <TiersOptions />
+                                                    <TiersOptions creatorId={selectedCreator?.id ?? ""} />
                                                     <CollectionInputs
 
-
+                                                        creatorId={selectedCreator?.id ?? ""}
                                                         setSelectedToken={setSelectedToken}
                                                         setRemainingBalance={setRemainingBalance}
                                                         assetsQuery={assetsQuery}
@@ -654,7 +667,7 @@ export default function CreatePinModal() {
 }
 
 function CollectionInputs({
-
+    creatorId,
     setSelectedToken,
     setRemainingBalance,
     assetsQuery,
@@ -662,10 +675,11 @@ function CollectionInputs({
     selectedToken,
     remainingBalance,
 }: {
+    creatorId: string
     setSelectedToken: (asset: (AssetType & { bal: number } | undefined)) => void
     setRemainingBalance: (balance: number) => void
     assetsQuery: {
-        data?: {
+        data: {
             pageAsset?: {
                 code: string;
                 creatorId: string;
@@ -673,14 +687,14 @@ function CollectionInputs({
                 thumbnail: string | null;
             }
             shopAsset: AssetType[]
-        }
+        } | null | undefined
     }
 
     selectedToken: (AssetType & { bal: number } | undefined)
     remainingBalance: number
 }) {
-    const { control, register, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
-    const { getAssetBalance } = useCreatorStorageAcc()
+    const { control, setValue, register, formState: { errors } } = useFormContext<z.infer<typeof createAdminPinFormSchema>>()
+    const GetAssetBalance = api.fan.asset.getAssetBalance.useMutation()
 
     return (
         <div className="space-y-4">
@@ -704,19 +718,26 @@ function CollectionInputs({
                                 if (selectedAssetId === PAGE_ASSET_NUM) {
                                     const pageAsset = assetsQuery.data?.pageAsset
                                     if (pageAsset) {
-                                        const bal = getAssetBalance({
-                                            code: pageAsset.code,
-                                            issuer: pageAsset.issuer,
-
-                                        })
-                                        setSelectedToken({
-                                            bal,
-                                            code: pageAsset.code,
-                                            issuer: pageAsset.issuer,
-                                            id: PAGE_ASSET_NUM,
-                                            thumbnail: pageAsset.thumbnail ?? "",
-                                        })
-                                        setRemainingBalance(bal)
+                                        GetAssetBalance.mutate(
+                                            {
+                                                code: pageAsset.code,
+                                                issuer: pageAsset.issuer,
+                                                creatorId: creatorId,
+                                            },
+                                            {
+                                                onSuccess: (data) => {
+                                                    setSelectedToken({
+                                                        bal: data ?? 0,
+                                                        code: pageAsset.code,
+                                                        issuer: pageAsset.issuer,
+                                                        id: PAGE_ASSET_NUM,
+                                                        thumbnail: pageAsset.thumbnail ?? "",
+                                                    })
+                                                    setRemainingBalance(data)
+                                                    setValue("token", PAGE_ASSET_NUM)
+                                                },
+                                            },
+                                        )
                                     } else {
                                         toast.error("No page asset found")
                                     }
@@ -727,12 +748,21 @@ function CollectionInputs({
                                     (asset: AssetType) => asset.id === selectedAssetId,
                                 )
                                 if (selectedAsset) {
-                                    const bal = getAssetBalance({
-                                        code: selectedAsset.code,
-                                        issuer: selectedAsset.issuer,
-                                    })
-                                    setSelectedToken({ ...selectedAsset, bal: bal })
-                                    setRemainingBalance(bal)
+                                    GetAssetBalance.mutate(
+                                        {
+                                            code: selectedAsset.code,
+                                            issuer: selectedAsset.issuer,
+                                            creatorId: creatorId,
+                                        },
+                                        {
+                                            onSuccess: (data) => {
+                                                const bal = data ?? 0
+                                                setSelectedToken({ ...selectedAsset, bal: bal })
+                                                setRemainingBalance(bal)
+                                                setValue("token", selectedAsset.id)
+                                            },
+                                        },
+                                    )
                                 }
                             }}
                             defaultValue={NO_ASSET.toString()}
@@ -831,7 +861,7 @@ interface ManualCoordinatesInputProps {
 }
 
 function ManualCoordinatesInput({ manual, position }: ManualCoordinatesInputProps) {
-    const { register, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
+    const { register, formState: { errors } } = useFormContext<z.infer<typeof createAdminPinFormSchema>>()
     if (manual) {
         return (
             <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
@@ -955,7 +985,7 @@ function ImageUploadField({ coverUrl, setCover, setValue }: ImageUploadFieldProp
 
 
 function PinTypeToggles() {
-    const { control } = useFormContext<CreatePinType>()
+    const { control } = useFormContext<CreateAdminPinType>()
     return (
         <div className="space-y-4">
             <div className="flex items-center space-x-2 mb-4">
@@ -987,9 +1017,11 @@ function PinTypeToggles() {
         </div>
     )
 }
-function TiersOptions() {
-    const tiersQuery = api.fan.member.getAllMembership.useQuery({})
-    const { control } = useFormContext<CreatePinType>()
+function TiersOptions({ creatorId }: { creatorId: string }) {
+    const tiersQuery = api.fan.member.getAllMembership.useQuery({
+        creatorId: creatorId
+    })
+    const { control } = useFormContext<CreateAdminPinType>()
     if (tiersQuery.isLoading) return <div className="skeleton h-10 w-20"></div>;
     if (tiersQuery.data) {
         return (
