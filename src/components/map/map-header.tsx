@@ -42,7 +42,6 @@ export function MapHeader({
         <div className="absolute top-0 left-0 right-0 z-30 p-4">
             <div className="mx-auto max-w-4xl">
                 <div className="flex items-center justify-between gap-4">
-                    {!showCreatorList && <PinToggleSwitch showExpired={showExpired} setShowExpired={setShowExpired} />}
 
                     {showCreatorList && creator.data && (
                         <div className="w-64 shrink-0">
@@ -70,6 +69,7 @@ export function MapHeader({
                             </Select>
                         </div>
                     )}
+                    <PinToggleSwitch showExpired={showExpired} setShowExpired={setShowExpired} />
 
                     <div className="flex-1 ">
                         <div className="relative">

@@ -8,7 +8,6 @@ import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
 import { api } from "~/utils/api"
 import { MapPin } from "lucide-react"
 import Image from "next/image"
-import CreatePinModal from "~/components/modals/create-pin-modal"
 import { MapHeader } from "~/components/map/map-header"
 import { NearbyLocationsPanel } from "~/components/map/nearby-locations-panel"
 import { getPinIcon } from "~/utils/map-helpers"
@@ -16,13 +15,11 @@ import PinDetailAndActionsModal from "~/components/modals/pin-detail-modal"
 import { useGeolocation } from "~/hooks/use-geolocation"
 import { useMapState } from "~/hooks/use-map-state"
 import { useMapInteractions } from "~/hooks/use-map-interactions"
-import { usePinsData } from "~/hooks/use-pins-data"
 import { PinType, type Location, type LocationGroup } from "@prisma/client"
 import { MapControls } from "~/components/map/map-controls"
 import AgentChat from "~/components/agent/AgentChat"
 import { useSelectCreatorStore } from "~/components/store/creator-selection-store"
 import CreateAdminPinModal from "~/components/modals/create-admin-pin-modal"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "~/components/shadcn/ui/select"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
@@ -36,7 +33,7 @@ type Pin = Location & {
     }
 }
 
-function MapDashboardContent() {
+function AdminMapDashboardContent() {
     const {
         duplicate,
         manual,
@@ -71,12 +68,11 @@ function MapDashboardContent() {
     } = useMapState()
     const [showExpired, setShowExpired] = useState<boolean>(false)
 
-    const { filterNearbyPins } = useNearbyPinsStore()
+    const { filterNearbyPins, clearAdminPins } = useNearbyPinsStore()
     const { selectedPlace: alreadySelectedPlace } = useSelectedAutoSuggestion()
 
     // Custom hooks for logic separation
     useGeolocation(setMapCenter, setMapZoom)
-    usePinsData(showExpired)
 
     const { handleMapClick, handleZoomIn, handleZoomOut, handleDragEnd } = useMapInteractions({
         setManual,
@@ -89,12 +85,16 @@ function MapDashboardContent() {
         copiedPinData,
         setMapZoom,
         mapZoom,
-        filterNearbyPins,
+        filterNearbyPins: (bounds) => filterNearbyPins(bounds, "admin"),
         centerChanged,
     })
-    const { data: selectedCreator } =
-        useSelectCreatorStore();
+    const { data: selectedCreator } = useSelectCreatorStore()
 
+    useEffect(() => {
+        return () => {
+            clearAdminPins()
+        }
+    }, [clearAdminPins])
 
     // Effect for auto-suggestion place selection
     useEffect(() => {
@@ -111,14 +111,14 @@ function MapDashboardContent() {
 
     useEffect(() => {
         if (position) {
-            setMapCenter(position);
-            setMapZoom(14);
+            setMapCenter(position)
+            setMapZoom(14)
         }
-    }, [position]);
+    }, [position])
 
     useEffect(() => {
-        console.log(selectedCreator);
-    }, [selectedCreator]);
+        console.log(selectedCreator)
+    }, [selectedCreator])
 
     const handleManualPinClick = () => {
         setManual(true)
@@ -130,6 +130,7 @@ function MapDashboardContent() {
     return (
         <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY!}>
             <MapHeader
+                key="map-header"
                 showExpired={showExpired}
                 setShowExpired={setShowExpired}
                 onManualPinClick={handleManualPinClick}
@@ -170,13 +171,7 @@ function MapDashboardContent() {
                     disableDefaultUI={true}
                     onDragend={handleDragEnd}
                 >
-                    {position && !isCordsSearch && (
-                        <Marker
-                            position={{ lat: position.lat, lng: position.lng }}
-
-                        />
-                    )}
-                    {/* Marker for search coordinates */}
+                    {position && !isCordsSearch && <Marker position={{ lat: position.lat, lng: position.lng }} />}
                     {isCordsSearch && searchCoordinates && (
                         <AdvancedMarker position={searchCoordinates}>
                             <div className="animate-bounce">
@@ -185,7 +180,6 @@ function MapDashboardContent() {
                         </AdvancedMarker>
                     )}
 
-                    {/* Marker for manual coordinate search */}
                     {isCordsSearch && cordSearchCords && (
                         <AdvancedMarker position={cordSearchCords}>
                             <div className="animate-bounce">
@@ -195,21 +189,18 @@ function MapDashboardContent() {
                     )}
 
                     <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
-                    {
-                        selectedCreator && (
-                            <MyPins
-                                onPinClick={(pin) => {
-                                    openPinDetailModal(pin)
-                                    setIsAutoCollect(pin.autoCollect)
-                                }}
-                                creatorId={selectedCreator.id}
-                                showExpired={showExpired}
-                            />
-                        )
-                    }
+                    {selectedCreator && (
+                        <CreatorPins
+                            onPinClick={(pin) => {
+                                openPinDetailModal(pin)
+                                setIsAutoCollect(pin.autoCollect)
+                            }}
+                            creatorId={selectedCreator.id}
+                            showExpired={showExpired}
+                        />
+                    )}
                 </Map>
             </div>
-
 
             <NearbyLocationsPanel
                 onSelectPlace={(coords) => {
@@ -219,7 +210,6 @@ function MapDashboardContent() {
                 }}
             />
 
-
             {selectedCreator && <CreateAdminPinModal />}
             <PinDetailAndActionsModal />
             {selectedCreator && <AgentChat />}
@@ -227,9 +217,9 @@ function MapDashboardContent() {
     )
 }
 
-export default MapDashboardContent
+export default AdminMapDashboardContent
 
-const MyPins = memo(function MyPins({
+const CreatorPins = memo(function CreatorPins({
     onPinClick,
     showExpired,
     creatorId,
@@ -238,22 +228,31 @@ const MyPins = memo(function MyPins({
     showExpired: boolean
     creatorId: string
 }) {
-    const { allPins, setAllPins } = useNearbyPinsStore()
-    const pinsQuery = api.maps.pin.getCreatorPins.useQuery({
-        creator_id: creatorId,
-    });
+    const { data: selectedCreator } = useSelectCreatorStore()
+    const { adminPins, setAdminPins } = useNearbyPinsStore()
+    const adminPinsQuery = api.maps.pin.getCreatorPins.useQuery({
+        creator_id: selectedCreator ? selectedCreator.id : "",
+        showExpired: showExpired,
+    })
 
     useEffect(() => {
-        if (pinsQuery.data) {
-            setAllPins(pinsQuery.data)
+        // Clear pins while loading a new creator's pins to avoid stale markers
+        if (adminPinsQuery.isLoading) {
+            setAdminPins([])
+            return
         }
-    }, [pinsQuery.data, setAllPins])
 
-    if (pinsQuery.isLoading) return null
+        // When data arrives (or becomes empty), update the store so markers refresh
+        if (adminPinsQuery.data) {
+            setAdminPins(adminPinsQuery.data)
+        } else {
+            setAdminPins([])
+        }
+    }, [adminPinsQuery.data, adminPinsQuery.isLoading, setAdminPins, selectedCreator])
 
     return (
         <>
-            {allPins.map((pin) => {
+            {adminPins.map((pin) => {
                 const PinIcon = getPinIcon(pin.locationGroup?.type ?? PinType.OTHER)
                 const isExpired = pin.locationGroup?.endDate && new Date(pin.locationGroup.endDate) < new Date()
                 const isApproved = pin.locationGroup?.approved === true
@@ -269,7 +268,7 @@ const MyPins = memo(function MyPins({
                     >
                         <div
                             className={`relative flex items-center justify-center rounded-full border-3 border-white shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
-                ${isExpired ?? isRemainingZero ? "opacity-60 grayscale" : "opacity-100"}
+                ${(isExpired ?? isRemainingZero) ? "opacity-60 grayscale" : "opacity-100"}
                 ${!isApproved ? "opacity-80 bg-gray-500" : "bg-white/80 hover:bg-white/100"}
                 transform hover:-translate-y-1
               `}

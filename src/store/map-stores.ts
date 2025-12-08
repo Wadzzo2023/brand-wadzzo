@@ -5,14 +5,13 @@ import type { Location, LocationGroup, PinType } from "@prisma/client"
 type Pin = {
     locationGroup:
     | (LocationGroup & {
-        creator: { profileUrl: string | null };
+        creator: { profileUrl: string | null }
     })
-    | null;
+    | null
     _count: {
-        consumers: number;
-    };
-} & Location;
-
+        consumers: number
+    }
+} & Location
 
 // Re-defining ModalData here as use-modal-store.ts is being removed
 export type ModalData = {
@@ -39,16 +38,47 @@ export type ModalData = {
 
 interface NearbyPinsState {
     nearbyPins: Pin[]
-    allPins: Pin[]
+    // Separate pin states for different contexts
+    myPins: Pin[] // Creator's own pins
+    adminPins: Pin[] // Admin-selected creator's pins
+    allPins: Pin[] // Legacy - for nearby panel filtering
+
+    setMyPins: (pins: Pin[]) => void
+    setAdminPins: (pins: Pin[]) => void
     setAllPins: (pins: Pin[]) => void
     setNearbyPins: (pins: Pin[]) => void
-    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral) => void
+    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral, source?: "my" | "admin") => void
+    clearAdminPins: () => void
 }
 
 export const useNearbyPinsStore = create<NearbyPinsState>((set, get) => ({
     nearbyPins: [],
-    allPins: [], // Store all pins
+    myPins: [],
+    adminPins: [],
+    allPins: [], // Keep for backward compatibility
+
     setNearbyPins: (pins: Pin[]) => set({ nearbyPins: pins }),
+
+    setMyPins: (pins: Pin[]) => {
+        const currentPins = get().myPins
+        if (
+            pins.length !== currentPins.length ||
+            pins.map((pin) => pin.id).join(",") !== currentPins.map((pin) => pin.id).join(",")
+        ) {
+            set({ myPins: pins, allPins: pins })
+        }
+    },
+
+    setAdminPins: (pins: Pin[]) => {
+        const currentPins = get().adminPins
+        if (
+            pins.length !== currentPins.length ||
+            pins.map((pin) => pin.id).join(",") !== currentPins.map((pin) => pin.id).join(",")
+        ) {
+            set({ adminPins: pins, allPins: pins })
+        }
+    },
+
     setAllPins: (pins: Pin[]) => {
         const currentPins = get().allPins
         if (
@@ -58,9 +88,12 @@ export const useNearbyPinsStore = create<NearbyPinsState>((set, get) => ({
             set({ allPins: pins })
         }
     },
-    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral) => {
-        const { allPins, nearbyPins } = get()
-        const filtered = allPins.filter(
+
+    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral, source?: "my" | "admin") => {
+        const { myPins, adminPins, allPins, nearbyPins } = get()
+        // Use the appropriate source pins for filtering
+        const sourcePins = source === "my" ? myPins : source === "admin" ? adminPins : allPins
+        const filtered = sourcePins.filter(
             (pin) =>
                 pin.latitude >= center.south &&
                 pin.latitude <= center.north &&
@@ -74,6 +107,8 @@ export const useNearbyPinsStore = create<NearbyPinsState>((set, get) => ({
             set({ nearbyPins: filtered })
         }
     },
+
+    clearAdminPins: () => set({ adminPins: [], nearbyPins: [] }),
 }))
 
 export type IPin = {
@@ -140,9 +175,10 @@ export const useMapInteractionStore = create<IMapInteractionStore>((set) => ({
     // Pin Detail Modal
     selectedPinForDetail: null,
     openPinDetailModal: (pin) => set({ selectedPinForDetail: pin }),
-    closePinDetailModal: () => set((state) => ({
-        selectedPinForDetail: (state.isPinCut || state.isPinCopied) ? state.selectedPinForDetail : null
-    })),
+    closePinDetailModal: () =>
+        set((state) => ({
+            selectedPinForDetail: state.isPinCut || state.isPinCopied ? state.selectedPinForDetail : null,
+        })),
     // Pin Copy/Cut State
     isPinCopied: false,
     isPinCut: false,
