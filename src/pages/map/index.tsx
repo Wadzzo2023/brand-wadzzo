@@ -33,7 +33,7 @@ type Pin = Location & {
     }
 }
 
-function MapDashboardContent() {
+function CreatorMapDashboardContent() {
     const {
         duplicate,
         manual,
@@ -86,7 +86,7 @@ function MapDashboardContent() {
         copiedPinData,
         setMapZoom,
         mapZoom,
-        filterNearbyPins,
+        filterNearbyPins: (bounds) => filterNearbyPins(bounds, "my"),
         centerChanged,
     })
 
@@ -116,10 +116,10 @@ function MapDashboardContent() {
 
     useEffect(() => {
         if (position) {
-            setMapCenter(position);
-            setMapZoom(14);
+            setMapCenter(position)
+            setMapZoom(14)
         }
-    }, [position]);
+    }, [position])
 
     const handleManualPinClick = () => {
         setManual(true)
@@ -171,13 +171,7 @@ function MapDashboardContent() {
                     disableDefaultUI={true}
                     onDragend={handleDragEnd}
                 >
-                    {position && !isCordsSearch && (
-                        <Marker
-                            position={{ lat: position.lat, lng: position.lng }}
-
-                        />
-                    )}
-                    {/* Marker for search coordinates */}
+                    {position && !isCordsSearch && <Marker position={{ lat: position.lat, lng: position.lng }} />}
                     {isCordsSearch && searchCoordinates && (
                         <AdvancedMarker position={searchCoordinates}>
                             <div className="animate-bounce">
@@ -186,7 +180,6 @@ function MapDashboardContent() {
                         </AdvancedMarker>
                     )}
 
-                    {/* Marker for manual coordinate search */}
                     {isCordsSearch && cordSearchCords && (
                         <AdvancedMarker position={cordSearchCords}>
                             <div className="animate-bounce">
@@ -214,7 +207,6 @@ function MapDashboardContent() {
                 }}
             />
 
-
             <CreatePinModal />
             <PinDetailAndActionsModal />
             <AgentChat />
@@ -222,7 +214,7 @@ function MapDashboardContent() {
     )
 }
 
-export default MapDashboardContent
+export default CreatorMapDashboardContent
 
 const MyPins = memo(function MyPins({
     onPinClick,
@@ -231,20 +223,20 @@ const MyPins = memo(function MyPins({
     onPinClick: (pin: Pin) => void
     showExpired: boolean
 }) {
-    const { allPins, setAllPins } = useNearbyPinsStore()
+    const { myPins, setMyPins } = useNearbyPinsStore()
     const pinsQuery = api.maps.pin.getMyPins.useQuery({ showExpired })
 
     useEffect(() => {
         if (pinsQuery.data) {
-            setAllPins(pinsQuery.data)
+            setMyPins(pinsQuery.data)
         }
-    }, [pinsQuery.data, setAllPins])
+    }, [pinsQuery.data, setMyPins])
 
     if (pinsQuery.isLoading) return null
 
     return (
         <>
-            {allPins.map((pin) => {
+            {myPins.map((pin) => {
                 const PinIcon = getPinIcon(pin.locationGroup?.type ?? PinType.OTHER)
                 const isExpired = pin.locationGroup?.endDate && new Date(pin.locationGroup.endDate) < new Date()
                 const isApproved = pin.locationGroup?.approved === true
@@ -260,7 +252,7 @@ const MyPins = memo(function MyPins({
                     >
                         <div
                             className={`relative flex items-center justify-center rounded-full border-3 border-white shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
-                ${isExpired ?? isRemainingZero ? "opacity-60 grayscale" : "opacity-100"}
+                ${(isExpired ?? isRemainingZero) ? "opacity-60 grayscale" : "opacity-100"}
                 ${!isApproved ? "bg-slate-500" : "bg-white"}
                 transform hover:-translate-y-1
               `}
