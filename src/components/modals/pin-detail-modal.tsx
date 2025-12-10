@@ -89,7 +89,7 @@ const MapOptionModal = () => {
     const session = useSession()
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<string>("details")
-
+    const utils = api.useUtils()
     const pinM = api.maps.pin.getPinM.useMutation({
         onSuccess: (data) => {
             setPrevData(data)
@@ -143,8 +143,10 @@ const MapOptionModal = () => {
     }
 
     const DeletePin = api.maps.pin.deletePin.useMutation({
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             if (data.item) {
+                await utils.maps.pin.getCreatorPins.refetch()
+
                 toast.success("Pin deleted successfully")
                 handleClose()
             } else {
@@ -425,7 +427,7 @@ const MapOptionModal = () => {
                                                 variant="destructive"
                                                 className="col-span-1 flex h-auto items-center justify-start gap-2 py-3 md:col-span-2"
                                                 onClick={handleDelete}
-                                                disabled={DeletePin.isLoading}
+                                                disabled={DeletePin.isLoading || data.hidden}
                                             >
                                                 {DeletePin.isLoading ? (
                                                     <div className="flex items-center gap-2">
@@ -763,6 +765,8 @@ function PinInfoUpdate({
     const update = api.maps.pin.updatePin.useMutation({
         onSuccess: async (updatedData) => {
             await utils.maps.pin.getMyPins.refetch()
+            await utils.maps.pin.getCreatorPins.refetch()
+
             toast.success("Pin updated successfully")
             closePinDetailModal() // Close the main modal
             handleClose() // Close the form view

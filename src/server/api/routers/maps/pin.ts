@@ -1156,10 +1156,14 @@ export const pinRouter = createTRPCRouter({
   deletePin: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const isAdmin = await ctx.db.admin.findUnique({
+        where: { id: ctx.session.user.id },
+      });
+
       const items = await ctx.db.location.update({
         where: {
           id: input.id,
-          locationGroup: { creatorId: ctx.session.user.id },
+          ...(!isAdmin ? { locationGroup: { creatorId: ctx.session.user.id } } : {}),
         },
         data: { hidden: true },
       });
