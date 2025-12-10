@@ -24,13 +24,15 @@ const CopyCutPinModal = () => {
     setPrevData,
   } = useMapInteractionStore()
   const { setIsOpen, isOpen } = useCopyCutModalStore()
-
+  const utils = api.useUtils()
   const session = useSession()
   console.log("Cut", isPinCut)
   console.log("data", data)
   const PastePin = api.maps.pin.paste.useMutation({
     onSuccess: async (data) => {
       if (data.id) {
+        await utils.maps.pin.getCreatorPins.refetch()
+
         toast.success("Pin pasted successfully")
         setPinCopied(false)
         setPinCut(false)

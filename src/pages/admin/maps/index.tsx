@@ -267,14 +267,17 @@ const CreatorPins = memo(function CreatorPins({
                         }}
                     >
                         <div
-                            className={`relative flex items-center justify-center rounded-full border-3 border-white shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
+                            className={`relative flex items-center justify-center  shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
                 ${(isExpired ?? isRemainingZero) ? "opacity-60 grayscale" : "opacity-100"}
                 ${!isApproved ? "opacity-80 bg-gray-500" : "bg-white/80 hover:bg-white/100"}
+               ${pin.hidden ? "border-dashed border-red-500 border-2 opacity-60 disabled" : ""}
+                ${pin.autoCollect ? "rounded-none " : " ring-2 ring-green-400 rounded-full"}
+               }
                 transform hover:-translate-y-1
               `}
                         >
                             {!isExpired && !isRemainingZero && isApproved && (
-                                <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20" />
+                                <div className={`absolute inset-0  bg-blue-400 animate-ping opacity-20 ${pin.autoCollect ? "" : "rounded-full"}`} />
                             )}
 
                             {pin.locationGroup?.creator.profileUrl ? (

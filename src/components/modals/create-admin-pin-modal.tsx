@@ -25,6 +25,7 @@ import CopyCutPinModal from "./copy-cut-pin-modal"
 import { UploadS3Button } from "../common/upload-button"
 import { Switch } from "../shadcn/ui/switch"
 import { useSelectCreatorStore } from "../store/creator-selection-store"
+import { LocationAddressDisplay } from "../map/address-display"
 
 // Define types for assets and pins
 type AssetType = {
@@ -928,6 +929,11 @@ function ManualCoordinatesInput({ manual, position }: ManualCoordinatesInputProp
                         <Badge variant="secondary" className="font-mono text-xs">
                             {position?.lng?.toFixed(6)}
                         </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+
+                        <LocationAddressDisplay latitude={position?.lat ?? 0} longitude={position?.lng ?? 0} />
+
                     </div>
                 </div>
             </CardContent>
