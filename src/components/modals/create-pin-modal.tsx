@@ -436,6 +436,7 @@ export default function CreatePinModal() {
                                                                     />
                                                                 )}
                                                             />
+                                                            {errors.endDate && <p className="text-destructive text-sm">{errors.endDate.message}</p>}
                                                         </div>
                                                     </div>
                                                 </CardContent>
