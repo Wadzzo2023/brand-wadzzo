@@ -136,6 +136,7 @@ const selectedColumn = {
           code: true,
         },
       },
+      customPageAssetCodeIssuer: true,
     }
   }
 };
