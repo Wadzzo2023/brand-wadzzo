@@ -13,6 +13,7 @@ import {
 import { Toaster } from "~/components/shadcn/ui/toaster";
 import { Navigation } from "../common/navigation";
 import CreatorLayout from "./creatorLayout";
+import FallingSnowflakes from "../christmas/FallingSnowflakes";
 
 export default function RootLayout({
   children,
@@ -54,6 +55,7 @@ export default function RootLayout({
             </div>
           )}
         </main>
+        <FallingSnowflakes />
       </div>
     </>
   );

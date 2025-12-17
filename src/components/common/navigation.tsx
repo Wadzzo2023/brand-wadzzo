@@ -1,24 +1,22 @@
-"use client";
+"use client"
 
-import { ArrowLeftRight, LogOut, Settings, Shield, Sparkles, User, Wallet } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
-import Image from "next/image";
-import Link from "next/link";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "~/components/shadcn/ui/avatar";
-import { Button } from "~/components/shadcn/ui/button";
-import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances";
-import { api } from "~/utils/api";
-import { NavLinks } from "./navlinks";
-import { useRouter } from "next/router";
-
+import { ArrowLeftRight, LogOut, Settings, Shield, Sparkles, User, Wallet } from "lucide-react"
+import { signOut, useSession } from "next-auth/react"
+import Image from "next/image"
+import Link from "next/link"
+import Lottie from "lottie-react"
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/shadcn/ui/avatar"
+import { Button } from "~/components/shadcn/ui/button"
+import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances"
+import { api } from "~/utils/api"
+import { NavLinks } from "./navlinks"
+import { useRouter } from "next/router"
+import ChristmasSleigh from "../../../public/ChristmasSleigh.json"
+import ChristmasHat from "../../../public/ChristmasHat.json"
 export function Navigation() {
   const session = useSession()
   const router = useRouter()
-  const { pathname } = router;
+  const { pathname } = router
   const { setBalance, setActive, active, platformAssetBalance } = useUserStellarAcc()
 
   const admin = api.wallate.admin.checkAdmin.useQuery(undefined, {
@@ -58,15 +56,16 @@ export function Navigation() {
 
   return (
     <div className="group z-30 flex h-screen w-[72px] flex-col border-r border-border/40 bg-gradient-to-b from-background via-background to-muted/20 shadow-xl transition-all duration-300 ease-out hover:w-72">
-      {/* Logo Section */}
       <div
         className="cursor-pointer p-4 transition-colors hover:bg-muted/50"
         onClick={() => (window.location.href = isAdminMode ? "/admin/maps" : "/map")}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-2 ring-primary/20">
             <Image src="/images/loading.png" alt="Logo" width={100} height={100} className="h-7 w-7 object-contain" />
+
           </div>
+
           <div className="overflow-hidden opacity-0 transition-all duration-300 group-hover:opacity-100">
             <div className="flex items-center gap-2">
               <h1 className="whitespace-nowrap text-xl font-bold tracking-tight text-foreground">Wadzzo</h1>
@@ -82,7 +81,6 @@ export function Navigation() {
         </div>
       </div>
 
-      {/* Balance Card - only show in user mode */}
       {!isAdminMode && session.status === "authenticated" && active && (
         <div className="px-3 pb-2">
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 p-3 shadow-lg shadow-emerald-500/20">
@@ -104,12 +102,9 @@ export function Navigation() {
         </div>
       )}
 
-      {/* Navigation Links */}
       <NavLinks isAdminMode={isAdminMode} creatorPermission={!!creatorPermission.data} />
 
-      {/* Bottom Section */}
       <div className="mt-auto border-t border-border/40 p-3">
-        {/* Admin Switch Button */}
         {admin.data && session.status === "authenticated" && (
           <div className="mb-3">
             <Button
@@ -129,10 +124,8 @@ export function Navigation() {
           </div>
         )}
 
-        {/* User Profile */}
         {session.status === "authenticated" && <UserProfile />}
 
-        {/* Settings Link */}
         <Link href="/settings" className="mt-2 block">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <Settings className="h-5 w-5 flex-shrink-0" />
@@ -141,6 +134,10 @@ export function Navigation() {
             </span>
           </div>
         </Link>
+      </div>
+
+      <div className={`absolute ${admin.data ? "bottom-24" : "bottom-12"} left-0 right-0 z-50 h-32 w-72 opacity-0 transition-all duration-500 ease-out group-hover:opacity-100 pointer-events-none`}>
+        <Lottie animationData={ChristmasSleigh} loop={true} style={{ width: "100%", height: "100%" }} />
       </div>
     </div>
   )
@@ -167,7 +164,10 @@ function UserProfile() {
       <div className="flex-shrink-0">
         {session.data?.user?.image ? (
           <Avatar className="h-9 w-9 ring-2 ring-background">
-            <AvatarImage src={creator.data?.profileUrl ?? session.data.user.image ?? "/placeholder.svg"} alt="User Avatar" />
+            <AvatarImage
+              src={creator.data?.profileUrl ?? session.data.user.image ?? "/placeholder.svg"}
+              alt="User Avatar"
+            />
             <AvatarFallback className="bg-primary/10">
               <User className="h-4 w-4 text-primary" />
             </AvatarFallback>
@@ -183,7 +183,9 @@ function UserProfile() {
 
       <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         {(creator.data?.name ?? session.data?.user?.name) && (
-          <div className="truncate text-sm font-semibold text-foreground">{creator.data?.name ?? session.data?.user?.name}</div>
+          <div className="truncate text-sm font-semibold text-foreground">
+            {creator.data?.name ?? session.data?.user?.name}
+          </div>
         )}
         {creator.data?.id && (
           <div className="truncate font-mono text-[10px] text-muted-foreground">{truncateId(creator.data.id)}</div>
@@ -201,4 +203,3 @@ function UserProfile() {
     </div>
   )
 }
-
