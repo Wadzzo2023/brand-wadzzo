@@ -62,7 +62,7 @@ export const createAdminPinFormSchema = z.object({
     tokenAmount: z.number().nonnegative().optional(),
     pinNumber: z.number().nonnegative().min(1, "Number of pins must be at least 1"),
     radius: z.number().nonnegative("Radius cannot be negative").default(50), // Set default radius to 50
-    pinCollectionLimit: z.number().min(0, "Collection limit cannot be negative"),
+    pinCollectionLimit: z.number().min(1, "Collection limit must be greater than 0"),
     tier: z.string().optional(),
     multiPin: z.boolean().default(false),
     type: z.nativeEnum(PinType).default(PinType.OTHER),
