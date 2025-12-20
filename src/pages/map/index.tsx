@@ -234,50 +234,80 @@ const MyPins = memo(function MyPins({
 
     if (pinsQuery.isLoading) return null
 
+    // - Expired/Unapproved: opacity-50
+    // - Auto-Collect: Square (rounded-none)
+    // - Manual: Rounded (rounded-full)
+    // - Approved: opacity-100
+    // - Deleted/Hidden: border-red, opacity-40
     return (
         <>
             {myPins.map((pin) => {
                 const PinIcon = getPinIcon(pin.locationGroup?.type ?? PinType.OTHER)
-                const isExpired = pin.locationGroup?.endDate && new Date(pin.locationGroup.endDate) < new Date()
+
+                // Pin state calculations
+                const isExpired = (pin.locationGroup?.endDate && new Date(pin.locationGroup.endDate) < new Date()) ?? false
                 const isApproved = pin.locationGroup?.approved === true
                 const isRemainingZero = pin.locationGroup?.remaining !== undefined && pin.locationGroup?.remaining <= 0
+                const isHidden = pin.hidden === true
+                const isAutoCollect = pin.autoCollect === true
+
+                // Determine pin state
+                const isInactive = isExpired || isRemainingZero || !isApproved
+                const showAnimation = !isExpired && !isRemainingZero && isApproved && !isHidden
+
+                // Build class names based on state
+                const baseClasses = "relative flex items-center justify-center shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group transform hover:-translate-y-1"
+
+                const opacityClasses = isHidden
+                    ? "opacity-40"
+                    : isInactive
+                        ? "opacity-50"
+                        : "opacity-100"
+
+                const shapeClasses = isAutoCollect ? "rounded-none" : "rounded-full"
+
+                const borderClasses = isHidden
+                    ? "border-dashed border-red-500 border-2"
+                    : isApproved
+                        ? "ring-2 ring-green-400"
+                        : ""
+
+                const filterClasses = isInactive && !isHidden ? "grayscale" : ""
+
+                const bgClasses = !isApproved && !isHidden ? "bg-gray-500" : "bg-white/80 hover:bg-white/100"
 
                 return (
                     <AdvancedMarker
                         key={pin.id}
                         position={{ lat: pin.latitude, lng: pin.longitude }}
-                        onClick={() => {
-                            onPinClick(pin)
-                        }}
+                        onClick={() => onPinClick(pin)}
                     >
                         <div
-                            className={`relative flex items-center justify-center  shadow-xl transition-all duration-300 hover:scale-125 hover:shadow-2xl cursor-pointer group
-                ${(isExpired ?? isRemainingZero) ? "opacity-60 grayscale" : "opacity-100"}
-                ${!isApproved ? "opacity-80 bg-gray-500" : "bg-white/80 hover:bg-white/100"}
-               ${pin.hidden ? "border-dashed border-red-500 border-2 opacity-60 disabled" : ""}
-                ${pin.autoCollect ? "rounded-none " : " ring-2 ring-green-400 rounded-full"}
-               }
-                transform hover:-translate-y-1
-              `}
+                            className={`${baseClasses} ${opacityClasses} ${shapeClasses} ${borderClasses} ${filterClasses} ${bgClasses}`}
                         >
-                            {!isExpired && !isRemainingZero && isApproved && (
-                                <div className={`absolute inset-0  bg-blue-400 animate-ping opacity-20 ${pin.autoCollect ? "" : "rounded-full"}`} />
+                            {/* Ping animation for active approved pins */}
+                            {showAnimation && (
+                                <div
+                                    className={`absolute inset-0 bg-blue-400 animate-ping opacity-20 ${shapeClasses}`}
+                                />
                             )}
 
+                            {/* Pin icon or creator image */}
                             {pin.locationGroup?.creator.profileUrl ? (
                                 <Image
                                     src={pin.locationGroup.creator.profileUrl ?? "/placeholder.svg"}
                                     width={32}
                                     height={32}
                                     alt="Creator"
-                                    className="h-12 w-12 rounded-full object-cover ring-2 ring-white group-hover:ring-blue-400 transition-all duration-300"
+                                    className={`h-12 w-12 ${shapeClasses} object-cover ring-2  transition-all duration-300`}
                                 />
                             ) : (
-                                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center ring-2 ring-white group-hover:ring-blue-400 transition-all duration-300">
-                                    <PinIcon className="h-6 w-6 text-gray-600 group-hover:text-blue-600 transition-colors duration-300" />
+                                <div className={`h-12 w-12 ${shapeClasses} bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center ring-2  transition-all duration-300`}>
+                                    <PinIcon className="h-6 w-6 text-gray-600  transition-colors duration-300" />
                                 </div>
                             )}
 
+                            {/* Consumer count badge */}
                             {pin._count.consumers > 0 && (
                                 <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium shadow-lg">
                                     {pin._count.consumers > 99 ? "99+" : pin._count.consumers}
