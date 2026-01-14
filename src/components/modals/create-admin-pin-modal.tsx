@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins } from "lucide-react"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2 } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
@@ -352,7 +352,7 @@ export default function CreateAdminPinModal() {
                                                         {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
                                                     </div>
 
-                                                    <div className="space-y-2">
+                                                    <div className="space-y-2 relative">
                                                         <Label htmlFor="description" className="text-sm font-medium">
                                                             Description
                                                         </Label>
@@ -362,6 +362,7 @@ export default function CreateAdminPinModal() {
                                                             className="bg-input border-border focus:ring-ring min-h-[100px] resize-none"
                                                             placeholder="Describe what makes this pin special..."
                                                         />
+                                                        <EnhanceDescriptionButton className="absolute bottom-2 right-4" />
                                                         {errors.description && (
                                                             <p className="text-destructive text-sm">{errors.description.message}</p>
                                                         )}
@@ -1063,26 +1064,57 @@ function TiersOptions({ creatorId }: { creatorId: string }) {
                     )}
                 />
             </div>
-            // <div>
-            //     <h4 className="text-sm font-semibold text-gray-700">Tier Settings</h4>
-            //     <Controller
-            //         name="tier"
-            //         control={control}
-            //         render={({ field }) => (
-            //             <select {...field} className="select select-bordered ">
-            //                 <option disabled>Choose Tier</option>
-            //                 <option value="public">Public</option>
-            //                 <option value="private">Only Followers</option>
-            //                 {tiersQuery.data.map((model) => (
-            //                     <option
-            //                         key={model.id}
-            //                         value={model.id}
-            //                     >{`${model.name} : ${model.price} ${model.creator.pageAsset?.code}`}</option>
-            //                 ))}
-            //             </select>
-            //         )}
-            //     />
-            // </div>
+
         );
     }
+}
+function EnhanceDescriptionButton({ className }: { className?: string }) {
+    const { watch, setValue } = useFormContext<z.infer<typeof createAdminPinFormSchema>>()
+    const description = watch("description")
+    const [isLoading, setIsLoading] = useState(false)
+    const enhanceDescriptionMutation = api.pinAgent.enhanceDescription.useMutation({
+        onSuccess: (data) => {
+            setValue("description", data.enhancedDescription)
+            toast.success("Description enhanced!")
+        },
+        onError: (err) => {
+            toast.error(err.message || "Failed to enhance description")
+        },
+    })
+
+    const handleEnhance = async () => {
+        if (!description || description.trim().length === 0) {
+            toast.error("Please enter a description first")
+            return
+        }
+
+        setIsLoading(true)
+        enhanceDescriptionMutation.mutate({
+            description: description.trim(),
+        })
+        setIsLoading(false)
+    }
+
+    return (
+        <Button
+            type="button"
+
+            size="sm"
+            onClick={handleEnhance}
+            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isLoading}
+            className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10  rounded-full`}
+        >
+            {enhanceDescriptionMutation.isLoading ? (
+                <>
+                    <Loader className="w-3 h-3 animate-spin" />
+
+                </>
+            ) : (
+                <>
+                    <Wand2 className="w-3 h-3" />
+
+                </>
+            )}
+        </Button>
+    )
 }

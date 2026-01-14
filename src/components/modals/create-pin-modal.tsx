@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins } from "lucide-react"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2 } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
@@ -337,16 +337,20 @@ export default function CreatePinModal() {
                                                         {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
                                                     </div>
 
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="description" className="text-sm font-medium">
-                                                            Description
-                                                        </Label>
+                                                    <div className="space-y-2 relative">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label htmlFor="description" className="text-sm font-medium">
+                                                                Description
+                                                            </Label>
+
+                                                        </div>
                                                         <Textarea
                                                             id="description"
                                                             {...register("description")}
                                                             className="bg-input border-border focus:ring-ring min-h-[100px] resize-none"
                                                             placeholder="Describe what makes this pin special..."
                                                         />
+                                                        <EnhanceDescriptionButton className="absolute bottom-2 right-2" />
                                                         {errors.description && (
                                                             <p className="text-destructive text-sm">{errors.description.message}</p>
                                                         )}
@@ -1050,4 +1054,55 @@ function TiersOptions() {
             // </div>
         );
     }
+}
+
+function EnhanceDescriptionButton({ className }: { className?: string }) {
+    const { watch, setValue } = useFormContext<z.infer<typeof createPinFormSchema>>()
+    const description = watch("description")
+    const [isLoading, setIsLoading] = useState(false)
+    const enhanceDescriptionMutation = api.pinAgent.enhanceDescription.useMutation({
+        onSuccess: (data) => {
+            setValue("description", data.enhancedDescription)
+            toast.success("Description enhanced!")
+        },
+        onError: (err) => {
+            toast.error(err.message || "Failed to enhance description")
+        },
+    })
+
+    const handleEnhance = async () => {
+        if (!description || description.trim().length === 0) {
+            toast.error("Please enter a description first")
+            return
+        }
+
+        setIsLoading(true)
+        enhanceDescriptionMutation.mutate({
+            description: description.trim(),
+        })
+        setIsLoading(false)
+    }
+
+    return (
+        <Button
+            type="button"
+
+            size="sm"
+            onClick={handleEnhance}
+            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isLoading}
+            className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10  rounded-full`}
+        >
+            {enhanceDescriptionMutation.isLoading ? (
+                <>
+                    <Loader className="w-3 h-3 animate-spin" />
+
+                </>
+            ) : (
+                <>
+                    <Wand2 className="w-3 h-3" />
+
+                </>
+            )}
+        </Button>
+    )
 }
