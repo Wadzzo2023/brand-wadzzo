@@ -545,3 +545,4 @@ const QrCodeCreate = ({
     )
 }
 export default CreateQrCodeModal
+

@@ -15,6 +15,8 @@ import {
   Check,
   Loader2,
   Sparkles,
+  Loader,
+  Wand2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -60,6 +62,7 @@ import { UploadS3Button } from "../common/upload-button";
 import { Editor } from "../common/quill-editor";
 import { cn } from "~/lib/utils";
 import { PaymentChoose, usePaymentMethodStore } from "../common/payment-options";
+import ReactQuill from "react-quill";
 
 // Schema definitions
 const MediaInfo = z.object({
@@ -620,17 +623,19 @@ function DetailsStep() {
           )}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 relative">
           <Label htmlFor="description" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Description
           </Label>
-          <Editor
+          <ReactQuill
+
+            className="quill-editor min-h-24 resize-none transition-all duration-200 focus:ring-2 focus:ring-amber-500/20"
+
             value={getValues("content")}
-            onChange={handleEditorChange}
-            placeholder="Describe what users need to do to claim this bounty"
-            className="min-h-24 resize-none transition-all duration-200 focus:ring-2 focus:ring-amber-500/20"
+            onChange={(value) => setValue("content", value)}
           />
+          <EnhanceDescriptionButton className="absolute bottom-2 right-2" />
           {errors.content && (
             <p className="text-sm text-destructive">{errors.content.message}</p>
           )}
@@ -1056,3 +1061,54 @@ function ReviewStep({
 }
 
 export default CreateBountyModal;
+
+function EnhanceDescriptionButton({ className }: { className?: string }) {
+  const { watch, setValue } = useFormContext<z.infer<typeof BountySchema>>()
+  const description = watch("content")
+  const [isLoading, setIsLoading] = useState(false)
+  const enhanceDescriptionMutation = api.pinAgent.enhanceDescription.useMutation({
+    onSuccess: (data) => {
+      setValue("content", data.enhancedDescription)
+      toast.success("Description enhanced!")
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to enhance description")
+    },
+  })
+
+  const handleEnhance = async () => {
+    if (!description || description.trim().length === 0) {
+      toast.error("Please enter a description first")
+      return
+    }
+
+    setIsLoading(true)
+    enhanceDescriptionMutation.mutate({
+      description: description.trim(),
+    })
+    setIsLoading(false)
+  }
+
+  return (
+    <Button
+      type="button"
+
+      size="sm"
+      onClick={handleEnhance}
+      disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isLoading}
+      className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10  rounded-full`}
+    >
+      {enhanceDescriptionMutation.isLoading ? (
+        <>
+          <Loader className="w-3 h-3 animate-spin" />
+
+        </>
+      ) : (
+        <>
+          <Wand2 className="w-3 h-3" />
+
+        </>
+      )}
+    </Button>
+  )
+}

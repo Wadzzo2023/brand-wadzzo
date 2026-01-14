@@ -17,6 +17,10 @@ const chatInputSchema = z.object({
     pinIds: z.array(z.string()).optional(),
 })
 
+const enhanceDescriptionSchema = z.object({
+    description: z.string().min(1, "Description cannot be empty"),
+})
+
 async function formatPinDataForAnalysis(creatorId: string, pinIds?: string[]) {
     const whereClause: Prisma.LocationGroupWhereInput = {
         creatorId,
@@ -132,6 +136,76 @@ Provide clear, actionable insights with specific numbers and percentages.`
 }
 
 export const pinAgentRouter = createTRPCRouter({
+    enhanceDescription: creatorProcedure
+        .input(enhanceDescriptionSchema)
+        .mutation(async ({ input }) => {
+            try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are an expert copywriter specializing in creating engaging and compelling descriptions . 
+Your task is to enhance user-provided descriptions within 50-100 words by:
+- Making them more engaging and descriptive
+- Adding relevant details that would interest collectors
+- Keeping them concise but impactful
+- Maintaining the original intent and meaning
+- Using active voice and compelling language
+
+Return ONLY the enhanced description, nothing else.`,
+                            },
+                            {
+                                role: "user",
+                                content: `Please enhance this pin description:\n\n"${input.description}"`,
+                            },
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 300,
+                    }),
+                })
+
+                if (!response.ok) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    const error = await response.json()
+                    console.error("OpenAI API error:", error)
+                    throw new TRPCError({
+                        code: "INTERNAL_SERVER_ERROR",
+                        message: "Failed to enhance description",
+                    })
+                }
+
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                const data = await response.json()
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+                const enhancedDescription = data.choices[0]?.message?.content as string
+
+                if (!enhancedDescription) {
+                    throw new TRPCError({
+                        code: "INTERNAL_SERVER_ERROR",
+                        message: "No response from AI",
+                    })
+                }
+
+                return {
+                    enhancedDescription: enhancedDescription.trim(),
+                }
+            } catch (error) {
+                if (error instanceof TRPCError) throw error
+                console.error("Description enhancement error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to enhance description",
+                })
+            }
+        }),
+
     analyzePin: creatorProcedure.input(chatInputSchema).mutation(async ({ ctx, input }) => {
         console.log("Starting pin analysis for creator:", input.pinIds)
         try {

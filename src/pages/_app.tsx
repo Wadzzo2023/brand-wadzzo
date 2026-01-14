@@ -1,4 +1,6 @@
 import "mapbox-gl/dist/mapbox-gl.css";
+import "react-quill/dist/quill.snow.css";
+import "~/styles/globals.css";
 
 import { type Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
@@ -9,7 +11,6 @@ import { api } from "~/utils/api";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { Titillium_Web } from "next/font/google";
-import "~/styles/globals.css";
 import RootLayout from "~/components/layout/rootLayout";
 
 const queryClient = new QueryClient();
