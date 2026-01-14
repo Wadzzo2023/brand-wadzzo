@@ -41,7 +41,10 @@ import { motion, AnimatePresence } from "framer-motion"
 import CustomAvatar from "../common/custom-avatar"
 import { Editor } from "../common/quill-editor"
 import { UploadS3Button } from "../common/upload-button"
-const ReactQuill = dynamic(() => import("react-quill"));
+
+const ReactQuill = dynamic(() => import("react-quill"), {
+    ssr: false,
+});
 
 const mediaTypes = [
     { type: MediaType.IMAGE, icon: ImageIcon, label: "Image" },
