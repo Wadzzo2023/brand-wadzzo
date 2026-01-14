@@ -20,6 +20,7 @@ import {
   ArrowDownRight,
   ArrowLeft,
   Settings,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -93,12 +94,14 @@ type ConsumerType = {
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { PinAgentChatBox } from "~/components/agent/PinChat";
 
 const CreatorCollectionReport = () => {
   const session = useSession();
   const [selectedDays, setSelectedDays] = useState<number | undefined>(
     undefined,
   );
+  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [creatorId, setCreatorId] = useState<string | undefined>(session.data?.user.id);
@@ -418,6 +421,21 @@ const CreatorCollectionReport = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 rounded-full h-14 w-14 p-0 shadow-lg"
+        size="icon"
+      >
+        <div className="flex flex-col items-center justify-center">
+          <MessageCircle className="h-6 w-6 font-bold" />
+          <span className="text-xs">AGENT</span>
+        </div>
+      </Button>
+      <PinAgentChatBox
+        creatorId={session.data?.user.id}
+        isOpen={isOpen}
+        closeChat={() => setIsOpen(false)}
+      />
     </div>
   );
 };
