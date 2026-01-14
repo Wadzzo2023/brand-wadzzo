@@ -153,17 +153,17 @@ export const pinAgentRouter = createTRPCRouter({
                                 role: "system",
                                 content: `You are an expert copywriter specializing in creating engaging and compelling descriptions . 
 Your task is to enhance user-provided descriptions within 50-100 words by:
-- Making them more engaging and descriptive
-- Adding relevant details that would interest collectors
-- Keeping them concise but impactful
-- Maintaining the original intent and meaning
-- Using active voice and compelling language
+- Rewrite the user's description to be clearer, more professional, and well-structured.
+- Keep the original meaning.
+- Do NOT add new information.
+- Fix grammar, spelling, and sentence flow.
+- Make it concise and easy to understand.
 
 Return ONLY the enhanced description, nothing else.`,
                             },
                             {
                                 role: "user",
-                                content: `Please enhance this pin description:\n\n"${input.description}"`,
+                                content: `Please enhance this description:\n\n"${input.description}"`,
                             },
                         ],
                         temperature: 0.7,
