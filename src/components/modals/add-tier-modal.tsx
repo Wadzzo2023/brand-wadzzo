@@ -23,8 +23,9 @@ import { BADWORDS } from "~/utils/banned-word"
 import { Editor } from "../common/quill-editor"
 import { api } from "~/utils/api"
 import dynamic from "next/dynamic"
-const ReactQuill = dynamic(() => import("react-quill"));
-
+const ReactQuill = dynamic(() => import("react-quill"), {
+    ssr: false,
+});
 export const TierSchema = z.object({
     name: z
         .string()

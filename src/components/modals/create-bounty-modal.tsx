@@ -61,8 +61,9 @@ import { api } from "~/utils/api";
 import { UploadS3Button } from "../common/upload-button";
 import { cn } from "~/lib/utils";
 import { PaymentChoose, usePaymentMethodStore } from "../common/payment-options";
-const ReactQuill = dynamic(() => import("react-quill"));
-
+const ReactQuill = dynamic(() => import("react-quill"), {
+  ssr: false,
+});
 // Schema definitions
 const MediaInfo = z.object({
   url: z.string(),
