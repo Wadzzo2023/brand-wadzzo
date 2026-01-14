@@ -256,7 +256,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                             </div>
 
                             {/* Pin List */}
-                            <ScrollArea className="flex-1 px-3 py-3">
+                            <ScrollArea className="flex-1 px-3 py-3 h-[90vh] overflow-y-auto scrollbar-hide">
                                 {pinsLoading ? (
                                     <div className="flex justify-center items-center py-8">
                                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
