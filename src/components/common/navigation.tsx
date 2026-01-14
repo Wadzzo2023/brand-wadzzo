@@ -11,8 +11,7 @@ import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances"
 import { api } from "~/utils/api"
 import { NavLinks } from "./navlinks"
 import { useRouter } from "next/router"
-import ChristmasSleigh from "../../../public/ChristmasSleigh.json"
-import ChristmasHat from "../../../public/ChristmasHat.json"
+
 export function Navigation() {
   const session = useSession()
   const router = useRouter()
@@ -136,9 +135,7 @@ export function Navigation() {
         </Link>
       </div>
 
-      <div className={`absolute ${admin.data ? "bottom-24" : "bottom-12"} left-0 right-0 z-50 h-32 w-72 opacity-0 transition-all duration-500 ease-out group-hover:opacity-100 pointer-events-none`}>
-        <Lottie animationData={ChristmasSleigh} loop={true} style={{ width: "100%", height: "100%" }} />
-      </div>
+
     </div>
   )
 }

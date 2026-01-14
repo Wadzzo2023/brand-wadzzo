@@ -94,21 +94,7 @@ export default function CreatorLayout({
         </>
 
       </div>
-      <div className="absolute top-0 left-0 right-0 w-full z-50 flex overflow-hidden  pointer-events-none">
-        <div className="flex  h-12 pointer-events-none">
-          {Array.from({ length: 20 }, (_, index) => (
-            <Image
-              key={index}
-              src="/tn-christmas-lights.webp"
-              alt=""
-              width={1000}
-              height={1000}
-              className="object-cover w-full h-full"
-              priority={index === 0}
-            />
-          ))}
-        </div>
-      </div>
+
     </div>
   )
 }
