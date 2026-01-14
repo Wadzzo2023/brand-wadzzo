@@ -1,5 +1,5 @@
 "use client";
-
+import dynamic from "next/dynamic";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MediaType } from "@prisma/client";
 import {
@@ -59,10 +59,9 @@ import { clientSelect } from "~/lib/stellar/fan/utils";
 import { api } from "~/utils/api";
 
 import { UploadS3Button } from "../common/upload-button";
-import { Editor } from "../common/quill-editor";
 import { cn } from "~/lib/utils";
 import { PaymentChoose, usePaymentMethodStore } from "../common/payment-options";
-import ReactQuill from "react-quill";
+const ReactQuill = dynamic(() => import("react-quill"));
 
 // Schema definitions
 const MediaInfo = z.object({
