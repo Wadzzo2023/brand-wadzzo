@@ -1,5 +1,5 @@
 "use client"
-
+import dynamic from "next/dynamic";
 import { useState, useRef } from "react"
 import { useForm, type SubmitHandler, Controller, useFormContext, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -41,7 +41,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import CustomAvatar from "../common/custom-avatar"
 import { Editor } from "../common/quill-editor"
 import { UploadS3Button } from "../common/upload-button"
-import ReactQuill from "react-quill"
+const ReactQuill = dynamic(() => import("react-quill"));
 
 const mediaTypes = [
     { type: MediaType.IMAGE, icon: ImageIcon, label: "Image" },

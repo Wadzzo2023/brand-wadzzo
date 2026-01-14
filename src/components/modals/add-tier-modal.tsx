@@ -22,7 +22,8 @@ import { Label } from "~/components/shadcn/ui/label"
 import { BADWORDS } from "~/utils/banned-word"
 import { Editor } from "../common/quill-editor"
 import { api } from "~/utils/api"
-import ReactQuill from "react-quill"
+import dynamic from "next/dynamic"
+const ReactQuill = dynamic(() => import("react-quill"));
 
 export const TierSchema = z.object({
     name: z
