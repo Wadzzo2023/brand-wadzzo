@@ -1901,7 +1901,7 @@ export default function ArtistOnboarding() {
                                                         </Label>
                                                         <div className="flex items-center">
                                                             <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                                                                bandcoin.io/
+                                                                app.wadzzo.com/
                                                             </span>
                                                             <Input
                                                                 id="vanityUrl"
@@ -1960,7 +1960,7 @@ export default function ArtistOnboarding() {
                                                         <h3 className="font-medium">Your Complete URL</h3>
                                                         <div className="mt-3 rounded-md border border-border bg-background/80 p-3 backdrop-blur-sm">
                                                             <p className="break-all font-mono text-sm">
-                                                                bandcoin.io/{formData.vanityUrl || "your-name"}
+                                                                app.wadzzo.com/{formData.vanityUrl || "your-name"}
                                                             </p>
                                                         </div>
 
@@ -2196,7 +2196,7 @@ export default function ArtistOnboarding() {
 
                                                             <div className="rounded-md bg-muted/50 p-3">
                                                                 <p className="font-mono text-sm">
-                                                                    bandcoin.io/
+                                                                    app.wadzzo.com/
                                                                     <span className="font-bold ">
                                                                         {formData.vanityUrl || "your-name"}
                                                                     </span>

@@ -13,6 +13,7 @@ import {
 import { Toaster } from "~/components/shadcn/ui/toaster";
 import { Navigation } from "../common/navigation";
 import CreatorLayout from "./creatorLayout";
+import AdminLayout from "./adminLayout";
 
 export default function RootLayout({
   children,
@@ -24,7 +25,7 @@ export default function RootLayout({
   const router = useRouter();
 
   const session = useSession();
-
+  const adminRoute = router.pathname.startsWith("/admin");
   return (
     <>
       <div className="flex h-screen ">
@@ -47,7 +48,15 @@ export default function RootLayout({
           ) : (
             <div className="w-full  overflow-y-auto    scrollbar-hide ">
               <>
-                <CreatorLayout>{children}</CreatorLayout>
+                {adminRoute ? (
+                  <div className="w-full">
+                    <AdminLayout>{children}</AdminLayout>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <CreatorLayout>{children}</CreatorLayout>
+                  </div>
+                )}
               </>
 
               <Toaster />

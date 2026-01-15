@@ -423,13 +423,11 @@ const CreatorCollectionReport = () => {
       </Tabs>
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 rounded-full h-14 w-14 p-0 shadow-lg"
+        className="fixed bottom-6 right-6 rounded-full h-14 w-14 p-0 shadow-lg animate-bounce"
         size="icon"
       >
-        <div className="flex flex-col items-center justify-center">
-          <MessageCircle className="h-6 w-6 font-bold" />
-          <span className="text-xs">AGENT</span>
-        </div>
+        <MessageCircle className="h-7 w-7 fill-current" />
+
       </Button>
       <PinAgentChatBox
         creatorId={session.data?.user.id}
