@@ -591,7 +591,7 @@ Return ONLY the enhanced description, nothing else.`,
                 },
             },
             orderBy: { createdAt: "desc" },
-            take: 20,
+
         })
 
         return pins.map((pin) => {
