@@ -12,6 +12,7 @@ const chatMessageSchema = z.object({
 })
 
 const chatInputSchema = z.object({
+    sessionId: z.string(),
     message: z.string().min(1, "Message cannot be empty"),
     conversationHistory: z.array(chatMessageSchema).optional(),
     pinIds: z.array(z.string()).optional(),
@@ -136,6 +137,255 @@ Provide clear, actionable insights with specific numbers and percentages.`
 }
 
 export const pinAgentRouter = createTRPCRouter({
+    // Chat Session Management
+    createChatSession: creatorProcedure
+        .input(
+            z.object({
+                title: z.string().min(1, "Title cannot be empty").max(100, "Title too long"),
+            }),
+        )
+        .mutation(async ({ ctx, input }) => {
+            try {
+                const session = await ctx.db.pinAgentChatSession.create({
+                    data: {
+                        creatorId: ctx.session.user.id,
+                        title: input.title,
+                    },
+                    select: {
+                        id: true,
+                        title: true,
+                        createdAt: true,
+                    },
+                })
+
+                return session
+            } catch (error) {
+                console.error("Create chat session error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to create chat session",
+                })
+            }
+        }),
+
+    getChatSessions: creatorProcedure.query(async ({ ctx }) => {
+        try {
+            const sessions = await ctx.db.pinAgentChatSession.findMany({
+                where: {
+                    creatorId: ctx.session.user.id,
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    _count: {
+                        select: { messages: true },
+                    },
+                },
+                orderBy: {
+                    updatedAt: "desc",
+                },
+            })
+
+            return sessions.map((session) => ({
+                id: session.id,
+                title: session.title,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                messageCount: session._count.messages,
+            }))
+        } catch (error) {
+            console.error("Get chat sessions error:", error)
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Failed to retrieve chat sessions",
+            })
+        }
+    }),
+
+    deleteChatSession: creatorProcedure
+        .input(z.object({ sessionId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+                // Verify the session belongs to the user
+                const session = await ctx.db.pinAgentChatSession.findFirst({
+                    where: {
+                        id: input.sessionId,
+                        creatorId: ctx.session.user.id,
+                    },
+                })
+
+                if (!session) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Chat session not found",
+                    })
+                }
+
+                await ctx.db.pinAgentChatSession.delete({
+                    where: { id: input.sessionId },
+                })
+
+                return { success: true }
+            } catch (error) {
+                if (error instanceof TRPCError) throw error
+                console.error("Delete chat session error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to delete chat session",
+                })
+            }
+        }),
+
+    saveChatMessage: creatorProcedure
+        .input(
+            z.object({
+                sessionId: z.string(),
+                role: z.enum(["user", "assistant"]),
+                content: z.string().min(1, "Message cannot be empty"),
+            }),
+        )
+        .mutation(async ({ ctx, input }) => {
+            try {
+                // Verify the session belongs to the user
+                const session = await ctx.db.pinAgentChatSession.findFirst({
+                    where: {
+                        id: input.sessionId,
+                        creatorId: ctx.session.user.id,
+                    },
+                })
+
+                if (!session) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Chat session not found",
+                    })
+                }
+
+                const message = await ctx.db.pinAgentChatHistory.create({
+                    data: {
+                        creatorId: ctx.session.user.id,
+                        sessionId: input.sessionId,
+                        role: input.role,
+                        content: input.content,
+                    },
+                })
+
+                // Update session's updatedAt timestamp
+                await ctx.db.pinAgentChatSession.update({
+                    where: { id: input.sessionId },
+                    data: { updatedAt: new Date() },
+                })
+
+                return {
+                    id: message.id,
+                    success: true,
+                }
+            } catch (error) {
+                if (error instanceof TRPCError) throw error
+                console.error("Save chat message error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to save chat message",
+                })
+            }
+        }),
+
+    getChatHistory: creatorProcedure
+        .input(
+            z.object({
+                sessionId: z.string(),
+                limit: z.number().optional().default(50),
+            }),
+        )
+        .query(async ({ ctx, input }) => {
+            try {
+                // Verify the session belongs to the user
+                const session = await ctx.db.pinAgentChatSession.findFirst({
+                    where: {
+                        id: input.sessionId,
+                        creatorId: ctx.session.user.id,
+                    },
+                })
+
+                if (!session) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Chat session not found",
+                    })
+                }
+
+                const messages = await ctx.db.pinAgentChatHistory.findMany({
+                    where: {
+                        sessionId: input.sessionId,
+                    },
+                    select: {
+                        id: true,
+                        role: true,
+                        content: true,
+                        createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: "asc",
+                    },
+                    take: input.limit,
+                })
+
+                return messages.map((msg) => ({
+                    role: msg.role as "user" | "assistant",
+                    content: msg.content,
+                    timestamp: msg.createdAt,
+                }))
+            } catch (error) {
+                if (error instanceof TRPCError) throw error
+                console.error("Get chat history error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to retrieve chat history",
+                })
+            }
+        }),
+
+    clearChatSession: creatorProcedure
+        .input(z.object({ sessionId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+                // Verify the session belongs to the user
+                const session = await ctx.db.pinAgentChatSession.findFirst({
+                    where: {
+                        id: input.sessionId,
+                        creatorId: ctx.session.user.id,
+                    },
+                })
+
+                if (!session) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Chat session not found",
+                    })
+                }
+
+                const result = await ctx.db.pinAgentChatHistory.deleteMany({
+                    where: {
+                        sessionId: input.sessionId,
+                    },
+                })
+
+                return {
+                    deletedCount: result.count,
+                    success: true,
+                }
+            } catch (error) {
+                if (error instanceof TRPCError) throw error
+                console.error("Clear chat session error:", error)
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to clear chat session",
+                })
+            }
+        }),
+
     enhanceDescription: creatorProcedure
         .input(enhanceDescriptionSchema)
         .mutation(async ({ input }) => {
@@ -275,6 +525,33 @@ Return ONLY the enhanced description, nothing else.`,
                     message: "No response from AI",
                 })
             }
+
+            // Save user message to chat history
+            await ctx.db.pinAgentChatHistory.create({
+                data: {
+                    creatorId: ctx.session.user.id,
+                    sessionId: input.sessionId,
+                    role: "user",
+                    content: input.message,
+                },
+            })
+
+            // Save assistant message to chat history
+            await ctx.db.pinAgentChatHistory.create({
+                data: {
+                    creatorId: ctx.session.user.id,
+                    sessionId: input.sessionId,
+                    role: "assistant",
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    content: assistantMessage,
+                },
+            })
+
+            // Update session's updatedAt timestamp
+            await ctx.db.pinAgentChatSession.update({
+                where: { id: input.sessionId },
+                data: { updatedAt: new Date() },
+            })
 
             return {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
