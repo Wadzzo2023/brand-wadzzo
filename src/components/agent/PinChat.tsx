@@ -27,7 +27,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
     const [isLoading, setIsLoading] = useState(false)
     const [selectedPins, setSelectedPins] = useState<string[]>([])
     const [showPinSelector, setShowPinSelector] = useState(false)
-    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+    const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined)
     const [isCreatingSession, setIsCreatingSession] = useState(false)
     const [newSessionTitle, setNewSessionTitle] = useState("")
     const [showNewSessionInput, setShowNewSessionInput] = useState(false)
@@ -88,7 +88,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
     const handleCreateNewSession = async (title?: string) => {
         setIsCreatingSession(true)
         try {
-            const sessionTitle = title || newSessionTitle || `Chat ${new Date().toLocaleDateString()}`
+            const sessionTitle = title ?? newSessionTitle ?? `Chat ${new Date().toLocaleDateString()}`
             const newSession = await createSessionMutation.mutateAsync({
                 title: sessionTitle,
             })
@@ -115,11 +115,11 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
             if (currentSessionId === sessionId) {
                 const remainingSessions = sessions?.filter((s) => s.id !== sessionId) ?? []
                 if (remainingSessions.length > 0) {
-                    setCurrentSessionId(remainingSessions[0].id)
+                    setCurrentSessionId(remainingSessions[0]?.id)
                     setIsLoadingMessages(true)
                     setMessages([])
                 } else {
-                    setCurrentSessionId(null)
+                    setCurrentSessionId(undefined)
                     setMessages([])
                 }
             }
