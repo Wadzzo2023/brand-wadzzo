@@ -45,7 +45,6 @@ import {
   PLATFORM_ASSET,
   PLATFORM_FEE,
 
-  SIMPLIFIED_FEE_IN_XLM,
   TrxBaseFeeInPlatformAsset,
 
 } from "~/lib/stellar/constant";
@@ -151,7 +150,7 @@ type NFTCreateProps = {
 export default function NftCreateModal({ isOpen, onClose }: NFTCreateProps) {
   // cost in xlm
   const requiredXlm = 2;
-  const feeInXLM = SIMPLIFIED_FEE_IN_XLM; //Number(trxBaseFeeInXLM) + Number(PLATFORM_FEE_IN_XLM);
+  const feeInXLM = 2;
   const totalXlmCost = requiredXlm + feeInXLM;
 
 
