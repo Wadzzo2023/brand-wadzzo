@@ -1,5 +1,5 @@
 "use client"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Target } from "lucide-react"
 import { Button } from "~/components/shadcn/ui/button"
 import { Input } from "~/components/shadcn/ui/input"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "~/components/shadcn/ui/select"
@@ -19,6 +19,8 @@ interface MapHeaderProps {
     setZoom: (zoom: number) => void
     setShowExpired: (value: boolean) => void
     onManualPinClick: () => void
+    onCreateHotspot?: () => void
+
 }
 
 export function MapHeader({
@@ -32,6 +34,8 @@ export function MapHeader({
     showExpired,
     setShowExpired,
     onManualPinClick,
+    onCreateHotspot,
+
 }: MapHeaderProps) {
     const creator = api.fan.creator.getCreators.useQuery(undefined, {
         enabled: showCreatorList,
@@ -95,16 +99,30 @@ export function MapHeader({
 
                     {
                         (!showCreatorList || (showCreatorList && selectedCreator)) && (
-                            <Button
-                                variant="default"
-                                size="lg"
-                                className="md:px-6 px-3  md:rounded-2xl"
-                                onClick={onManualPinClick}
-                                aria-label="Create manual pin"
-                            >
-                                <Plus className="" />
-                                <span className="hidden md:block"> Create Pin</span>
-                            </Button>
+                            <div className="flex gap-2">
+                                {onCreateHotspot && (
+                                    <Button
+                                        variant="accent"
+                                        size="lg"
+                                        className="md:px-6 px-3 md:rounded-2xl"
+                                        onClick={onCreateHotspot}
+                                        aria-label="Create hotspot area selection"
+                                    >
+                                        <Target className="h-5 w-5" />
+                                        <span className="hidden md:block"> Create Hotspot</span>
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="default"
+                                    size="lg"
+                                    className="md:px-6 px-3 md:rounded-2xl"
+                                    onClick={onManualPinClick}
+                                    aria-label="Create manual pin"
+                                >
+                                    <Plus className="" />
+                                    <span className="hidden md:block"> Create Pin</span>
+                                </Button>
+                            </div>
                         )
                     }
                 </div>
