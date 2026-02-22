@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { APIProvider, AdvancedMarker, Map, Marker } from "@vis.gl/react-google-maps"
 import { useMapInteractionStore, useNearbyPinsStore } from "~/store/map-stores"
 import { useSelectedAutoSuggestion } from "~/hooks/use-selectedAutoSuggestion"
@@ -20,6 +20,7 @@ import { MapControls } from "~/components/map/map-controls"
 import AgentChat from "~/components/agent/AgentChat"
 import { useSelectCreatorStore } from "~/components/store/creator-selection-store"
 import CreateAdminPinModal from "~/components/modals/create-admin-pin-modal"
+import { GoogleMapDrawing } from "~/components/map/google-map-drawing"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
@@ -67,10 +68,17 @@ function AdminMapDashboardContent() {
         setCordSearchCords,
     } = useMapState()
     const [showExpired, setShowExpired] = useState<boolean>(false)
+    const mapContainerRef = useRef<HTMLDivElement>(null)
 
     const { filterNearbyPins, clearAdminPins } = useNearbyPinsStore()
     const { selectedPlace: alreadySelectedPlace } = useSelectedAutoSuggestion()
-
+    const [isCreatingHotspot, setIsCreatingHotspot] = useState(false);
+    const handleCreateHotspot = () => {
+        setIsCreatingHotspot(true);
+    };
+    const handleHotspotSelection = (feature: GeoJSON.Feature | null) => {
+        console.log("Selected feature for hotspot:", feature);
+    };
     // Custom hooks for logic separation
     useGeolocation(setMapCenter, setMapZoom)
 
@@ -146,11 +154,23 @@ function AdminMapDashboardContent() {
                 setCordSearchLocation={setCordSearchCords}
                 setZoom={setMapZoom}
                 showCreatorList={true}
+                onCreateHotspot={handleCreateHotspot}
+
             />
 
-            <div className="relative h-screen w-full overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/5 via-transparent to-transparent pointer-events-none z-10" />
+            {!isCreatingHotspot && (
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-50/5 via-transparent to-transparent pointer-events-none z-10" />
+            )}
 
+            <div className="relative h-screen w-full overflow-hidden" ref={mapContainerRef}>
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/5 via-transparent to-transparent pointer-events-none z-10" />
+                {isCreatingHotspot && mapContainerRef.current && (
+                    <GoogleMapDrawing
+                        onSelectionChange={handleHotspotSelection}
+                        onClose={() => setIsCreatingHotspot(false)}
+                        mapElement={mapContainerRef.current}
+                    />
+                )}
                 <Map
                     onCenterChanged={(center) => {
                         setMapCenter(center.detail.center)

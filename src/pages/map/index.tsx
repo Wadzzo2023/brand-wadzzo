@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useState } from "react"
+import { memo, useEffect, useState, useRef } from "react"
 import { APIProvider, AdvancedMarker, Map, Marker } from "@vis.gl/react-google-maps"
 import { useMapInteractionStore, useNearbyPinsStore } from "~/store/map-stores"
 import { useSelectedAutoSuggestion } from "~/hooks/use-selectedAutoSuggestion"
@@ -8,7 +8,6 @@ import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
 import { api } from "~/utils/api"
 import { MapPin } from "lucide-react"
 import Image from "next/image"
-import CreatePinModal from "~/components/modals/create-pin-modal"
 import { MapHeader } from "~/components/map/map-header"
 import { NearbyLocationsPanel } from "~/components/map/nearby-locations-panel"
 import { getPinIcon } from "~/utils/map-helpers"
@@ -20,6 +19,8 @@ import { usePinsData } from "~/hooks/use-pins-data"
 import { PinType, type Location, type LocationGroup } from "@prisma/client"
 import { MapControls } from "~/components/map/map-controls"
 import AgentChat from "~/components/agent/AgentChat"
+import { GoogleMapDrawing } from "~/components/map/google-map-drawing"
+import CreatePinModal from "~/components/modals/create-pin-modal"
 
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
@@ -36,14 +37,11 @@ type Pin = Location & {
 function CreatorMapDashboardContent() {
     const {
         duplicate,
-        manual,
         setManual,
         position,
         setPosition,
         openCreatePinModal,
         openPinDetailModal,
-        selectedPinForDetail,
-        closePinDetailModal,
         setPrevData,
         isPinCopied,
         isPinCut,
@@ -67,9 +65,17 @@ function CreatorMapDashboardContent() {
         setCordSearchCords,
     } = useMapState()
     const [showExpired, setShowExpired] = useState<boolean>(false)
+    const mapContainerRef = useRef<HTMLDivElement>(null)
 
     const { filterNearbyPins } = useNearbyPinsStore()
     const { selectedPlace: alreadySelectedPlace } = useSelectedAutoSuggestion()
+    const [isCreatingHotspot, setIsCreatingHotspot] = useState(false);
+    const handleCreateHotspot = () => {
+        setIsCreatingHotspot(true);
+    };
+    const handleHotspotSelection = (feature: GeoJSON.Feature | null) => {
+        console.log("Selected feature for hotspot:", feature);
+    };
 
     // Custom hooks for logic separation
     useGeolocation(setMapCenter, setMapZoom)
@@ -119,7 +125,7 @@ function CreatorMapDashboardContent() {
             setMapCenter(position)
             setMapZoom(14)
         }
-    }, [position])
+    }, [position, setMapCenter, setMapZoom])
 
     const handleManualPinClick = () => {
         setManual(true)
@@ -146,10 +152,20 @@ function CreatorMapDashboardContent() {
                 setSearchCoordinates={setSearchCoordinates}
                 setCordSearchLocation={setCordSearchCords}
                 setZoom={setMapZoom}
+                onCreateHotspot={handleCreateHotspot}
+
             />
 
-            <div className="relative h-screen w-full overflow-hidden">
+
+            <div className="relative h-screen w-full overflow-hidden" ref={mapContainerRef}>
                 <div className="absolute inset-0 bg-gradient-to-b from-slate-900/5 via-transparent to-transparent pointer-events-none z-10" />
+                {isCreatingHotspot && mapContainerRef.current && (
+                    <GoogleMapDrawing
+                        onSelectionChange={handleHotspotSelection}
+                        onClose={() => setIsCreatingHotspot(false)}
+                        mapElement={mapContainerRef.current}
+                    />
+                )}
 
                 <Map
                     onCenterChanged={(center) => {
@@ -187,8 +203,12 @@ function CreatorMapDashboardContent() {
                             </div>
                         </AdvancedMarker>
                     )}
+                    {
+                        !isCreatingHotspot && (
+                            <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
 
-                    <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
+                        )
+                    }
                     <MyPins
                         onPinClick={(pin) => {
                             openPinDetailModal(pin)
@@ -199,13 +219,17 @@ function CreatorMapDashboardContent() {
                 </Map>
             </div>
 
-            <NearbyLocationsPanel
-                onSelectPlace={(coords) => {
-                    setMapCenter(coords)
-                    setMapZoom(13)
-                    setPosition(coords)
-                }}
-            />
+            {
+                !isCreatingHotspot && (
+                    <NearbyLocationsPanel
+                        onSelectPlace={(coords) => {
+                            setMapCenter(coords)
+                            setMapZoom(13)
+                            setPosition(coords)
+                        }}
+                    />
+                )
+            }
 
             <CreatePinModal />
             <PinDetailAndActionsModal />
