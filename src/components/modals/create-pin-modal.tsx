@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2 } from "lucide-react"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2, Calendar } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
@@ -397,77 +397,89 @@ export default function CreatePinModal() {
 
                                                     <ImageUploadField coverUrl={coverUrl} setCover={setCover} setValue={setValue} />
 
-                                                    <div className="flex flex-col gap-2">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="startDate" className="text-sm font-medium">
-                                                                Start Date
-                                                            </Label>
-                                                            <Controller
-                                                                name="startDate"
-                                                                control={control}
-                                                                render={({ field }) => (
-                                                                    <Input
-                                                                        type="datetime-local"
-                                                                        id="startDate"
-                                                                        value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(today)}
-                                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                                                            const v = e.target.value
-                                                                            field.onChange(v ? new Date(v) : undefined)
-                                                                        }}
-                                                                        className="bg-input border-border focus:ring-ring"
-                                                                    />
-                                                                )}
-                                                            />
-                                                        </div>
 
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="endDate" className="text-sm font-medium">
-                                                                End Date
-                                                            </Label>
-                                                            <Controller
-                                                                name="endDate"
-                                                                control={control}
-                                                                render={({ field }) => (
-                                                                    <Input
-                                                                        type="datetime-local"
-                                                                        id="endDate"
-                                                                        value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(tomorrow)}
-                                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                                                            const v = e.target.value
-                                                                            field.onChange(v ? new Date(v) : undefined)
-                                                                        }}
-                                                                        className="bg-input border-border focus:ring-ring "
-                                                                    />
-                                                                )}
-                                                            />
-                                                            {errors.endDate && <p className="text-destructive text-sm">{errors.endDate.message}</p>}
-                                                        </div>
-                                                    </div>
                                                 </CardContent>
                                             </Card>
 
-                                            <Card>
-                                                <CardHeader>
-                                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                                        <Settings className="w-5 h-5 text-primary" />
-                                                        Collection & Tier Settings
-                                                    </CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="flex flex-col gap-2">
-                                                    <TiersOptions />
-                                                    <CollectionInputs
+                                            <div className="flex flex-col gap-8">
+                                                <Card>
+                                                    <CardHeader>
+                                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                                            <Settings className="w-5 h-5 text-primary" />
+                                                            Collection & Tier Settings
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="flex flex-col gap-2">
+                                                        <TiersOptions />
+                                                        <CollectionInputs
 
 
-                                                        setSelectedToken={setSelectedToken}
-                                                        setRemainingBalance={setRemainingBalance}
-                                                        assetsQuery={assetsQuery}
+                                                            setSelectedToken={setSelectedToken}
+                                                            setRemainingBalance={setRemainingBalance}
+                                                            assetsQuery={assetsQuery}
 
-                                                        selectedToken={selectedToken}
-                                                        remainingBalance={remainingBalance}
-                                                    />
-                                                </CardContent>
-                                            </Card>
+                                                            selectedToken={selectedToken}
+                                                            remainingBalance={remainingBalance}
+                                                        />
+                                                    </CardContent>
+                                                </Card>
+                                                <Card>
+                                                    <CardHeader>
+                                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                                            <Calendar className="w-5 h-5 text-primary" />
+                                                            Schedule
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="startDate" className="text-sm font-medium">
+                                                                    Start Date <span className="text-destructive">*</span>
+                                                                </Label>
+                                                                <Controller
+                                                                    name="startDate"
+                                                                    control={control}
+                                                                    render={({ field }) => (
+                                                                        <Input
+                                                                            type="datetime-local"
+                                                                            id="startDate"
+                                                                            value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(today)}
+                                                                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                                const v = e.target.value
+                                                                                field.onChange(v ? new Date(v) : undefined)
+                                                                            }}
+                                                                            className="bg-input border-border focus:ring-ring"
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
 
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="endDate" className="text-sm font-medium">
+                                                                    End Date <span className="text-destructive">*</span>
+                                                                </Label>
+                                                                <Controller
+                                                                    name="endDate"
+                                                                    control={control}
+                                                                    render={({ field }) => (
+                                                                        <Input
+                                                                            type="datetime-local"
+                                                                            id="endDate"
+                                                                            value={field.value ? formatDateForInput(new Date(field.value)) : formatDateForInput(tomorrow)}
+                                                                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                                const v = e.target.value
+                                                                                field.onChange(v ? new Date(v) : undefined)
+                                                                            }}
+                                                                            className="bg-input border-border focus:ring-ring "
+                                                                        />
+                                                                    )}
+                                                                />
+                                                                {errors.endDate && <p className="text-destructive text-sm">{errors.endDate.message}</p>}
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
                                         </div>
 
                                         <PinTypeToggles />
