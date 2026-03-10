@@ -212,65 +212,107 @@ export const pinRouter = createTRPCRouter({
       return { hotspotId: hotspot.id }
     }),
 
-  // Full nested tree: Hotspot → LocationGroup[] → Location[] → consumers
-  getHotspot: creatorProcedure
-    .input(z.object({ hotspotId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-        include: {
-          locationGroups: {
-            orderBy: { startDate: "desc" },
-            include: {
-              locations: {
-                include: { consumers: true },
-              },
-            },
-          },
-        },
-      })
-    }),
+
 
   // Lightweight list — title + image come from Hotspot directly, no join needed
   myHotspots: creatorProcedure.query(async ({ ctx }) => {
     return ctx.db.hotspot.findMany({
       where: { creatorId: ctx.session.user.id },
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { locationGroups: true } } },
     })
   }),
-
-  // All drops for one hotspot with full Location + consumer detail
-  getDropHistory: creatorProcedure
+  getHotspot: creatorProcedure
     .input(z.object({ hotspotId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.locationGroup.findMany({
-        where: { hotspotId: input.hotspotId, creatorId: ctx.session.user.id },
-        orderBy: { startDate: "desc" },
-        include: {
-          locations: {
-            include: { consumers: true },
-          },
-        },
-      })
-    }),
-
-  deleteHotspot: creatorProcedure
-    .input(z.object({ hotspotId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
       const hotspot = await ctx.db.hotspot.findFirst({
         where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-      })
-      if (!hotspot) throw new Error("Hotspot not found")
+        include: {
+          locationGroups: {
+            orderBy: { startDate: "desc" },
+            include: {
+              locations: { include: { consumers: true } },
+            },
+          },
+        },
+      });
+      if (!hotspot) return null;
 
+
+      // ask qstash for the schedule if we have an id
+      let qstashInfo: Awaited<ReturnType<typeof qstash.schedules.get>> | null =
+        null;
       if (hotspot.qstashScheduleId) {
-        await qstash.schedules.delete(hotspot.qstashScheduleId).catch(() => null)
+        console.log("Fetching QStash schedule info for ID:", hotspot.qstashScheduleId);
+        qstashInfo = await qstash.schedules
+          .get(hotspot.qstashScheduleId)
+          .catch(() => null);
+        console.log("QStash schedule info:", qstashInfo);
+      }
+      return { ...hotspot, qstash: qstashInfo ?? undefined, };
+    }),
+  pauseHotspotSchedule: creatorProcedure
+    .input(z.object({ hotspotId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const h = await ctx.db.hotspot.findFirst({
+        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
+      });
+      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (h.qstashScheduleId) {
+        await qstash.schedules.pause({
+          schedule: h.qstashScheduleId,
+        }).catch(() => null);
       }
       await ctx.db.hotspot.update({
-        where: { id: hotspot.id },
+        where: { id: input.hotspotId },
         data: { isActive: false },
-      })
-      return { ok: true }
+      });
+      return { ok: true };
+    }),
+  resumeHotspotSchedule: creatorProcedure
+    .input(z.object({ hotspotId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const h = await ctx.db.hotspot.findFirst({
+        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
+      });
+      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (h.qstashScheduleId) {
+        await qstash.schedules.resume({
+          schedule: h.qstashScheduleId,
+        }).catch(() => null);
+      }
+      await ctx.db.hotspot.update({
+        where: { id: input.hotspotId },
+        data: { isActive: true },
+      });
+      return { ok: true };
+    }),
+  deleteHotspotCascade: creatorProcedure
+    .input(z.object({ hotspotId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const h = await ctx.db.hotspot.findFirst({
+        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
+      });
+      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (h.qstashScheduleId) {
+        await qstash.schedules.pause({
+          schedule: h.qstashScheduleId
+        }).catch(() => null)
+
+        await qstash.schedules.delete(h.qstashScheduleId).catch((e) => console.log("Failed to delete QStash schedule:", e));
+      }
+      // hide all children groups
+      await ctx.db.locationGroup.updateMany({
+        where: { hotspotId: input.hotspotId },
+        data: { hidden: true },
+      });
+      await ctx.db.hotspot.update({
+        where: { id: input.hotspotId },
+        data: { isActive: false },
+      });
+      return { ok: true };
     }),
   createPin: creatorProcedure
     .input(createPinFormSchema)
@@ -1419,6 +1461,10 @@ export async function dropPinsForHotspot(db: PrismaClient, hotspotId: string) {
   if (now > new Date(hotspot.hotspotEndDate)) {
     await db.hotspot.update({ where: { id: hotspotId }, data: { isActive: false } })
     if (hotspot.qstashScheduleId) {
+      await qstash.schedules.pause({
+        schedule: hotspot.qstashScheduleId
+      }).catch(() => null)
+
       await qstash.schedules.delete(hotspot.qstashScheduleId).catch(() => null)
     }
     return { expired: true }

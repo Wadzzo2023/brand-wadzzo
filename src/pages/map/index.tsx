@@ -23,6 +23,7 @@ import AgentChat from "~/components/agent/AgentChat"
 import { GoogleMapDrawing } from "~/components/map/google-map-drawing"
 import CreatePinModal from "~/components/modals/create-pin-modal"
 import CreateHotspotModal from "~/components/modals/create-hotspot-modal"
+import HotspotDetailModal from "~/components/modals/hotspot-details-modal"
 
 type Pin = Location & {
     locationGroup:
@@ -234,6 +235,7 @@ function CreatorMapDashboardContent() {
                         }}
                         showExpired={showExpired}
                     />
+                    <MyHotspots />
 
                     {/* ✅ MapDrawingLayer is inside <Map>, so useMap() returns the instance */}
                     <MapDrawingLayer
@@ -350,3 +352,110 @@ const MyPins = memo(function MyPins({
         </>
     )
 })
+
+// ---- My Hotspot --------------------------------------------------------------
+
+// ---- My Hotspot --------------------------------------------------------------
+
+type HotspotGeoJson = {
+    type: "Feature"
+    geometry: {
+        type: "Polygon" | "Circle" | "Rectangle"
+        coordinates: [number, number][][]
+    }
+    properties: {
+        center?: [number, number]
+        radiusMetres?: number
+    } | null
+}
+
+
+
+const MyHotspots = memo(function MyHotspots() {
+    const map = useMap();
+    const hotspotQuery = api.maps.pin.myHotspots.useQuery();
+    const overlaysRef = useRef<
+        (google.maps.Polygon | google.maps.Circle | google.maps.Rectangle)[]
+    >([]);
+
+    const [selectedHotspot, setSelectedHotspot] = useState<string | null>(
+        null,
+    );
+    const [showHotspotModal, setShowHotspotModal] = useState(false);
+
+    useEffect(() => {
+        if (!map || !hotspotQuery.data) return;
+
+        overlaysRef.current.forEach((o) => o.setMap(null));
+        overlaysRef.current = [];
+
+        hotspotQuery.data.forEach((hs) => {
+            const geoJson = hs.geoJson as HotspotGeoJson;
+            if (!geoJson?.geometry) return;
+
+            const isActive = hs.isActive;
+            const isAutoCollect = hs.autoCollect;
+
+            const shapeOptions = {
+                map,
+                strokeColor: isAutoCollect ? "#22c55e" : "#3b82f6",
+                strokeOpacity: isActive ? 0.9 : 0.4,
+                strokeWeight: 2,
+                fillColor: "#22c55e",
+                fillOpacity: isActive ? 0.2 : 0.05,
+            };
+
+            let overlay:
+                | google.maps.Polygon
+                | google.maps.Circle
+                | google.maps.Rectangle;
+
+            if (hs.shape === "circle") {
+                const props = geoJson.properties;
+                if (!props?.center || !props?.radiusMetres) return;
+                overlay = new window.google.maps.Circle({
+                    ...shapeOptions,
+                    center: { lat: props.center[0], lng: props.center[1] },
+                    radius: props.radiusMetres,
+                });
+            } else if (hs.shape === "rectangle") {
+                const coords = geoJson.geometry.coordinates[0]
+                const lats = coords.map(([lat]) => lat);
+                const lngs = coords.map(([, lng]) => lng);
+                const bounds = new window.google.maps.LatLngBounds(
+                    { lat: Math.min(...lats), lng: Math.min(...lngs) },
+                    { lat: Math.max(...lats), lng: Math.max(...lngs) },
+                );
+                overlay = new window.google.maps.Rectangle({ ...shapeOptions, bounds });
+            } else {
+                const coords = geoJson.geometry.coordinates[0];
+                const paths = coords.map(([lat, lng]) => ({ lat, lng }));
+                overlay = new window.google.maps.Polygon({ ...shapeOptions, paths });
+            }
+
+            overlay.addListener("click", () => {
+                setSelectedHotspot(hs.id);
+                setShowHotspotModal(true);
+            });
+
+            overlaysRef.current.push(overlay);
+        });
+
+        return () => {
+            overlaysRef.current.forEach((o) => o.setMap(null));
+            overlaysRef.current = [];
+        };
+    }, [map, hotspotQuery.data]);
+
+    return (
+        <>
+            {/* the overlays are drawn in the effect above; this component
+          doesn’t render anything itself */}
+            <HotspotDetailModal
+                isOpen={showHotspotModal}
+                setIsOpen={setShowHotspotModal}
+                hotspotId={selectedHotspot}
+            />
+        </>
+    );
+});
