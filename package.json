@@ -15,11 +15,13 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^0.0.66",
     "@albedo-link/intent": "^0.12.0",
     "@albedo-link/signature-verification": "^0.1.2",
     "@aws-sdk/client-s3": "^3.717.0",
     "@aws-sdk/s3-request-presigner": "^3.717.0",
     "@creit-tech/xbull-wallet-connect": "github:Creit-Tech/xBull-Wallet-Connect",
+    "@google/generative-ai": "^0.24.1",
     "@headlessui/react": "^1.7.19",
     "@heroicons/react": "^2.1.5",
     "@hookform/resolvers": "^3.9.0",
@@ -81,6 +83,7 @@
     "@web3modal/react": "^2.7.1",
     "@web3modal/standalone": "^2.4.3",
     "@web3modal/ui": "2.0.0-beta.7",
+    "ai": "^3.4.33",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -147,7 +150,7 @@
     "ts-pattern": "^5.2.0",
     "use-places-autocomplete": "^4.0.1",
     "vaul": "^0.9.1",
-    "zod": "^3.23.8",
+    "zod": "^3.25.76",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
