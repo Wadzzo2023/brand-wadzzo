@@ -923,8 +923,7 @@ export default function AgentChat() {
 
             {/* Chat drawer */}
             {isOpen && !isMinimized && (
-                <div className="fixed inset-x-0 bottom-24 z-40 mx-auto flex h-[75vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl animate-in slide-in-from-bottom-5 duration-300 md:h-[70vh]">
-
+                <div className="fixed inset-x-0 bottom-40 z-40 mx-auto flex h-[70vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl animate-in slide-in-from-bottom-5 duration-300 ">
                     {/* Header */}
                     <div className="flex flex-shrink-0 items-center justify-between bg-primary px-5 py-3 text-primary-foreground">
                         <div className="flex items-center gap-3">
