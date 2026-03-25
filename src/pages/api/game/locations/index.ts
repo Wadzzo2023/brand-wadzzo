@@ -116,6 +116,7 @@ export default async function handler(
             consumers: {
               select: {
                 userId: true,
+                redeemCode: true,
               },
             },
           },
@@ -206,6 +207,7 @@ export default async function handler(
         brand_image_url: location.creator.profileUrl ?? abaterIconUrl,
         brand_id: location.creatorId,
         public: true,
+        redeemCode: location.consumers.find((c) => c.userId === userId)?.redeemCode ?? null,
       };
     });
 

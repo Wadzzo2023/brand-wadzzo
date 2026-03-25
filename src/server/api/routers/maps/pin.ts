@@ -1441,6 +1441,118 @@ export const pinRouter = createTRPCRouter({
         nextCursor,
       };
     }),
+  redeemByCode: publicProcedure // swap to protectedProcedure if creators must be logged in
+    .input(
+      z.object({
+        code: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .length(6, "Code must be exactly 6 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const consumer = await ctx.db.locationConsumer.findUnique({
+        where: { redeemCode: input.code },
+        include: {
+          user: { select: { name: true, image: true, email: true } },
+          location: {
+            include: {
+              locationGroup: {
+                select: {
+                  title: true,
+                  creator: { select: { name: true } },
+                },
+              }
+            }
+          },
+        },
+      })
+
+      if (!consumer) {
+        return { status: "not_found" as const }
+      }
+
+      if (consumer.isRedeemed) {
+        return {
+          status: "already_redeemed" as const,
+          redeemedAt: consumer.redeemedAt?.toISOString() ?? null,
+          user: consumer.user,
+          location: consumer.location.locationGroup,
+        }
+      }
+
+      const updated = await ctx.db.locationConsumer.update({
+        where: { id: consumer.id },
+        data: { isRedeemed: true, redeemedAt: new Date() },
+        include: {
+          user: { select: { name: true, image: true, email: true } },
+          location: {
+            include: {
+              locationGroup: {
+                select: {
+                  title: true,
+                  creator: { select: { name: true } },
+                },
+              }
+            }
+          },
+        },
+      })
+
+      return {
+        status: "success" as const,
+        redeemedAt: updated.redeemedAt?.toISOString() ?? null,
+        user: updated.user,
+        location: updated.location.locationGroup,
+      }
+    }),
+  getRedeemedByCreator: protectedProcedure
+    .query(async ({ ctx }) => {
+      const creatorId = ctx.session.user.id
+
+      const redeemed = await ctx.db.locationConsumer.findMany({
+        where: {
+          isRedeemed: true,
+          location: {
+            locationGroup: {
+              creatorId: creatorId, // adjust field name to match your schema
+            },
+          },
+        },
+        include: {
+          user: { select: { id: true, name: true, image: true, email: true } },
+          location: {
+            include: {
+              locationGroup: {
+                select: {
+                  id: true,
+                  title: true,
+                  image: true,
+                  creator: {
+                    select: {
+                      name: true,
+                      id: true,
+                      profileUrl: true,
+                    }
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { redeemedAt: "desc" },
+      })
+
+      return redeemed.map((c) => ({
+        id: c.id,
+        redeemCode: c.redeemCode,
+        redeemedAt: c.redeemedAt?.toISOString() ?? null,
+        claimedAt: c.claimedAt?.toISOString() ?? null,
+        user: c.user,
+        location: c.location,
+      }))
+    }),
 });
 
 

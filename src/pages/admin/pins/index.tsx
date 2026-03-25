@@ -104,7 +104,7 @@ export default function Pins() {
     }
 
     return (
-        <div className="w-full p-6 space-y-6">
+        <div className="w-full p-6 space-y-6 overflow-y-auto">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900">Pin Management</h1>
                 <Badge variant="outline" className="text-sm">
