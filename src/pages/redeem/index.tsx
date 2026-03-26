@@ -163,8 +163,8 @@ function RedeemTab() {
                             className={`
                 w-full h-12 rounded-2xl font-bold text-sm transition-all duration-200
                 ${isReady
-                                    ? "[background-color:hsl(var(--success))] hover:[background-color:hsl(var(--success)/0.8)] [color:hsl(var(--foreground))] shadow-lg [box-shadow:0_0_20px_hsl(var(--success)/0.2)]"
-                                    : "[background-color:hsl(var(--card)/0.6)] [color:hsl(var(--muted-foreground))] cursor-not-allowed"
+                                    ? "[background-color:hsl(var(--primary))] hover:[background-color:hsl(var(--primary))] [color:hsl(var(--foreground))] shadow-lg [box-shadow:0_0_20px_hsl(var(--success))]"
+                                    : "[background-color:hsl(var(--muted))] [color:hsl(var(--muted-foreground))] cursor-not-allowed"
                                 }
               `}
                         >
