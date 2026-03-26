@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, FileText, Flag, Gift, Map, MapPin, Shield, Store, Target, Users, Wallet2 } from "lucide-react"
+import { BarChart3, FileText, Flag, Gift, HandCoins, Map, MapPin, Shield, Store, Target, Users, Wallet2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/router";
 import { cn } from "~/lib/utils"
@@ -14,6 +14,7 @@ const userNavItems = [
   { href: "/gifts", label: "Gifts", icon: Gift, needProval: true },
   { href: "/membership", label: "Membership", icon: Wallet2, needProval: true },
   { href: "/report", label: "Report & Analytics", icon: BarChart3 },
+  { href: "/redeem", label: "Redeem", icon: HandCoins },
 ]
 
 // Admin nav items
