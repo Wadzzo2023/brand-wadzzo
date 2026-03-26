@@ -1,4 +1,3 @@
-// src/lib/agent/tools.ts
 // Tool definitions using Vercel AI SDK `tool()` helper.
 // Real data fetched via OpenAI Responses API `web_search_preview` built-in tool.
 // A second `gpt-4o` call with `response_format: json_object` parses results into typed structs.
