@@ -1550,7 +1550,7 @@ export const pinRouter = createTRPCRouter({
         redeemedAt: c.redeemedAt?.toISOString() ?? null,
         claimedAt: c.claimedAt?.toISOString() ?? null,
         user: c.user,
-        location: c.location,
+        location: c.location.locationGroup,
       }))
     }),
 });
