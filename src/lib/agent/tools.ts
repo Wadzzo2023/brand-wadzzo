@@ -440,9 +440,9 @@ async function searchLandmarksViaGooglePlaces(
     return cached;
   }
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY;
   if (!apiKey) {
-    console.warn("[Agent] GOOGLE_PLACES_API_KEY not configured");
+    console.warn("[Agent] GOOGLE_MAP_API_KEY not configured");
     return [];
   }
 
