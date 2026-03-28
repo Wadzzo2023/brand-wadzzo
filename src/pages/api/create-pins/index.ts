@@ -9,6 +9,11 @@ import { randomLocation as getLocationInLatLngRad } from "~/utils/map"
 import type { PinItem } from "~/lib/agent/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+}
 
 interface JobPayload {
     jobId: string
