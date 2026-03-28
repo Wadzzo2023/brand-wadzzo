@@ -204,5 +204,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ ok: true })
 }
-
-export default process.env.NODE_ENV === "development" ? handler : verifySignature(handler)
+export default verifySignature(handler)

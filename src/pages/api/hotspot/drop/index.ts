@@ -38,4 +38,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default process.env.NODE_ENV === "development" ? handler : verifySignature(handler)
+export default verifySignature(handler)
