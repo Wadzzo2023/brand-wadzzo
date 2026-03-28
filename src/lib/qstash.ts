@@ -1,10 +1,8 @@
 import { Client } from "@upstash/qstash"
 import { env } from "~/env"
+import { db } from "~/server/db" // your Prisma client
 
-// Initialize QStash client for background jobs
 export const qstash = new Client({
     token: env.QSTASH_TOKEN,
 })
-
-
 

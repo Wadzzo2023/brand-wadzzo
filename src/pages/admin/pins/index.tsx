@@ -361,7 +361,7 @@ function PinsList({
                                                                                         }`}
                                                                                 >
                                                                                     <td className="py-3 px-3">
-                                                                                        <Image
+                                                                                        <img
                                                                                             alt="pin image"
                                                                                             width={40}
                                                                                             height={40}
