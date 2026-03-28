@@ -13,6 +13,7 @@ export type AgentStep =
   | "event_final_confirm"
   | "landmark_search"
   | "landmark_confirm_list"
+  | "landmark_redeem_mode"
   | "landmark_pin_dates"
   | "landmark_pin_config"
   | "landmark_final_confirm"
@@ -52,7 +53,6 @@ export interface PinConfig {
   pinCollectionLimit?: number;
   pinNumber?: number;
   autoCollect?: boolean;
-  multiPin?: boolean;
   radius?: number;
 }
 
@@ -85,6 +85,7 @@ export interface AgentState {
   selectedLandmarks?: LandmarkData[];
   pinConfig?: Partial<PinConfig>;
   pins?: PinItem[];
+  redeemMode?: "separate" | "single";
   pendingModification?: {
     indices?: number[];
     names?: string[];
@@ -104,7 +105,8 @@ export interface Message {
     | "confirm"
     | "task_select"
     | "pin_result"
-    | "next_action";
+    | "next_action"
+    | "redeem_mode_select";
     data: unknown;
   };
 }
