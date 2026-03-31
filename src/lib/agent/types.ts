@@ -72,6 +72,7 @@ export interface PinItem {
   autoCollect?: boolean;
   multiPin?: boolean;
   radius?: number;
+  type?: "EVENT" | "LANDMARK";
 }
 
 export interface AgentState {

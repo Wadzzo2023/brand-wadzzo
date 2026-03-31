@@ -542,7 +542,7 @@ export default function CreateHotspotModal({
                                                 <div className="space-y-4">
                                                     <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                                                         {coverUrl ? (
-                                                            <Image
+                                                            <img
                                                                 src={coverUrl}
                                                                 alt="Hotspot preview"
                                                                 width={400}
@@ -979,7 +979,7 @@ function ImageUploadField({ coverUrl, setCover, setValue }: {
                     {coverUrl && (
                         <div className="mt-6 flex justify-center">
                             <div className="relative group">
-                                <Image
+                                <img
                                     className="rounded-xl shadow-lg transition-transform duration-200 group-hover:scale-105 border border-gray-200"
                                     width={200}
                                     height={200}

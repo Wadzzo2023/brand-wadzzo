@@ -39,7 +39,7 @@ export default function AssetView({ code, thumbnail, isNFT = true, isPinned = fa
                 <CardContent className="p-2 min-h-full max-h-full">
                     <div className="relative overflow-hidden rounded-md group">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
-                        <Image
+                        <img
                             src={thumbnail ?? "/images/logo.png"}
                             alt="Concert stage with lights"
                             height={192}

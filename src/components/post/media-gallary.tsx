@@ -582,7 +582,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                                     transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
                                                     className="w-full h-full rounded-full overflow-hidden border-4 border-gray-300"
                                                 >
-                                                    <Image
+                                                    <img
                                                         src={currentMedia.thumbnail ?? "/images/logo.png"}
                                                         alt={currentMedia.title ?? "Album Art"}
                                                         fill

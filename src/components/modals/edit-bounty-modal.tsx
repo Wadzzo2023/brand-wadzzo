@@ -204,7 +204,7 @@ const EditBountyModal = ({ isOpen, onClose, bountyId }: EditBountyModalProps) =>
                         <div className="flex flex-wrap gap-2">
                             {media.map((el, id) => (
                                 <div key={id} className="relative">
-                                    <Image
+                                    <img
                                         src={el.url ?? "/placeholder.svg"}
                                         alt="media"
                                         height={100}

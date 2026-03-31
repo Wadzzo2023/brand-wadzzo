@@ -61,7 +61,7 @@ export function Navigation() {
       >
         <div className="flex items-center gap-3 relative">
           <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-2 ring-primary/20">
-            <Image src="/images/loading.png" alt="Logo" width={100} height={100} className="h-7 w-7 object-contain" />
+            <img src="/images/loading.png" alt="Logo" width={100} height={100} className="h-7 w-7 object-contain" />
 
           </div>
 

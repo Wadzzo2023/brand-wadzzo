@@ -80,12 +80,15 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({ onSelec
 
                                             <div className="flex items-center gap-2 mt-2">
                                                 <Avatar className="h-6 w-6 ring-2 ring-white shadow-sm">
-                                                    <Image
+                                                    <img
                                                         width={24}
                                                         height={24}
                                                         src={pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl ?? "/default-avatar.png"}
                                                         alt="Creator"
                                                         className="rounded-full object-cover"
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = "/images/logo.png"
+                                                        }}
                                                     />
                                                 </Avatar>
                                                 <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">

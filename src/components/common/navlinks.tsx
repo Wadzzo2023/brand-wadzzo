@@ -15,6 +15,8 @@ const userNavItems = [
   { href: "/membership", label: "Membership", icon: Wallet2, needProval: true },
   { href: "/report", label: "Report & Analytics", icon: BarChart3 },
   { href: "/redeem", label: "Redeem", icon: HandCoins },
+  { href: "/pin-manage", label: "Pin Management", icon: MapPin },
+
 ]
 
 // Admin nav items

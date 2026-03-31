@@ -840,7 +840,7 @@ function MediaStep({
                 key={index}
                 className="relative aspect-square overflow-hidden rounded-md border"
               >
-                <Image
+                <img
                   src={item.url || "/placeholder.svg"}
                   alt={`Uploaded media ${index + 1}`}
                   fill
@@ -1024,7 +1024,7 @@ function ReviewStep({
                     key={index}
                     className="relative aspect-square overflow-hidden rounded-md border"
                   >
-                    <Image
+                    <img
                       src={item.url || "/placeholder.svg"}
                       alt={`Thumbnail ${index + 1}`}
                       fill

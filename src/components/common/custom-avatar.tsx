@@ -25,7 +25,7 @@ export default function CustomAvatar({
         className={cn("h-14 w-14 overflow-hidden  mask mask-hexagon     rounded-full", className)}
       >
         {url ? (
-          <Image
+          <img
             src={url}
             alt="Avatar"
             width={size}
@@ -33,7 +33,7 @@ export default function CustomAvatar({
             className="h-14 w-14 rounded-full  object-cover -rotate-90"
           />
         ) : (
-          <Image
+          <img
             src={"/images/icons/avatar-icon.png"}
             alt="Avatar"
             width={size}
@@ -67,7 +67,7 @@ export default function CustomAvatar({
 //   return (
 //     <div className="avatar">
 //       <div className="mask mask-hexagon ">
-//         <Image src={url}
+//         <img src={url}
 //           alt="Avatar"
 //           width={40}
 //           height={40}
