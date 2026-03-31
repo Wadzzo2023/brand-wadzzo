@@ -17,7 +17,6 @@ export default async function handler(
   }
 
   const pubkey = token.sub;
-
   if (!pubkey) {
     return res.status(404).json({ error: "pubkey not found" });
   }
