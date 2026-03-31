@@ -25,7 +25,7 @@ export default function Loading({ className, text }: LoadingProps) {
                     <ShieldAlert className="mx-2 h-12 w-12 text-gray-400" />
                 ) : (
                     <>
-                        <Image
+                        <img
                             className="h-20 w-20"
                             height={80}
                             width={80}

@@ -522,7 +522,7 @@ function PinInfo({
         <div className="space-y-4">
             {locationGroup.image && (
                 <div className="relative h-48 w-full overflow-hidden rounded-lg">
-                    <Image
+                    <img
                         src={locationGroup.image ?? "/placeholder.svg"}
                         alt={locationGroup.title ?? "Pin image"}
                         fill
@@ -957,7 +957,7 @@ function PinInfoUpdate({
                                                 transition={{ duration: 0.2 }}
                                                 className="mt-2 rounded-lg border p-2"
                                             >
-                                                <Image
+                                                <img
                                                     className="rounded  "
                                                     width={120}
                                                     height={120}

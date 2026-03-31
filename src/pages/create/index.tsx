@@ -894,7 +894,7 @@ export default function ArtistOnboarding() {
                                                                             transition={{ duration: 0.5 }}
                                                                             className="relative h-64 w-64 overflow-hidden rounded-2xl border-2 border-primary shadow-lg"
                                                                         >
-                                                                            <Image
+                                                                            <img
                                                                                 src={
                                                                                     formData.profileUrlPreview ||
                                                                                     "/placeholder.svg"
@@ -1045,7 +1045,7 @@ export default function ArtistOnboarding() {
                                                                             transition={{ duration: 0.5 }}
                                                                             className="relative h-48 w-full overflow-hidden rounded-xl border-2 border-primary shadow-lg"
                                                                         >
-                                                                            <Image
+                                                                            <img
                                                                                 src={
                                                                                     formData.coverImagePreview ||
                                                                                     "/placeholder.svg"
@@ -1215,7 +1215,7 @@ export default function ArtistOnboarding() {
                                                                     transition={{ duration: 0.5 }}
                                                                     className="relative h-48 w-48 overflow-hidden rounded-2xl border-2 border-primary shadow-lg"
                                                                 >
-                                                                    <Image
+                                                                    <img
                                                                         src={
                                                                             formData.profileUrlPreview ||
                                                                             "/placeholder.svg"
@@ -1234,7 +1234,7 @@ export default function ArtistOnboarding() {
                                                                     transition={{ duration: 0.5, delay: 0.2 }}
                                                                     className="relative mt-4 h-24 w-full overflow-hidden rounded-lg border border-border shadow-md"
                                                                 >
-                                                                    <Image
+                                                                    <img
                                                                         src={
                                                                             formData.coverImagePreview ||
                                                                             "/placeholder.svg"
@@ -1544,7 +1544,7 @@ export default function ArtistOnboarding() {
                                                                                     transition={{ duration: 0.5 }}
                                                                                     className="relative h-40 w-full overflow-hidden rounded-lg border-2 border-primary shadow-md"
                                                                                 >
-                                                                                    <Image
+                                                                                    <img
                                                                                         src={
                                                                                             formData.assetImagePreview ||
                                                                                             "/placeholder.svg"
@@ -2033,7 +2033,7 @@ export default function ArtistOnboarding() {
                                                             <div className="flex items-center gap-4">
                                                                 {formData.profileUrlPreview ? (
                                                                     <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-primary">
-                                                                        <Image
+                                                                        <img
                                                                             src={
                                                                                 formData.profileUrlPreview ||
                                                                                 "/placeholder.svg"
@@ -2065,7 +2065,7 @@ export default function ArtistOnboarding() {
                                                                         Cover Image
                                                                     </h4>
                                                                     <div className="relative h-16 w-full overflow-hidden rounded-md border border-border">
-                                                                        <Image
+                                                                        <img
                                                                             src={
                                                                                 formData.coverImagePreview ||
                                                                                 "/placeholder.svg"
@@ -2124,7 +2124,7 @@ export default function ArtistOnboarding() {
                                                                         <div className="flex items-center gap-3">
                                                                             {formData.assetImagePreview ? (
                                                                                 <div className="relative h-12 w-12 overflow-hidden rounded-md border border-border">
-                                                                                    <Image
+                                                                                    <img
                                                                                         src={
                                                                                             formData.assetImagePreview ||
                                                                                             "/placeholder.svg"

@@ -412,7 +412,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                                                     <div className="aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer border-2 border-transparent hover:border-purple-500 transition-all duration-300">
                                                                         {el.type === MediaType.IMAGE ? (
                                                                             <div className="relative h-full w-full">
-                                                                                <Image
+                                                                                <img
                                                                                     src={el.url ?? "/placeholder.svg"}
                                                                                     alt="Uploaded media"
                                                                                     fill
@@ -607,7 +607,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                                                             onClick={() => openMediaPreview(item)}
                                                         >
                                                             {item.type === MediaType.IMAGE ? (
-                                                                <Image
+                                                                <img
                                                                     src={item.url ?? "/placeholder.svg"}
                                                                     alt="Media preview"
                                                                     fill
@@ -678,7 +678,7 @@ export function CreatePostModal({ isOpen, setIsOpen }: CreatePostModalProps) {
                         <div className="relative">
                             {previewMedia?.type === MediaType.IMAGE && (
                                 <div className="flex items-center justify-center p-4 h-[80vh] max-h-[600px]">
-                                    <Image
+                                    <img
                                         src={previewMedia.url ?? "/placeholder.svg"}
                                         alt="Media preview"
                                         width={800}

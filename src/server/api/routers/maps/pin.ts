@@ -1,4 +1,5 @@
-import { ItemPrivacy, Prisma, PrismaClient } from "@prisma/client";
+import { ItemPrivacy, PrismaClient, db } from "@prisma/client";
+import { PinType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createHotspotFormSchema } from "~/components/modals/create-hotspot-modal";
@@ -786,7 +787,7 @@ export const pinRouter = createTRPCRouter({
       return pins;
     }),
 
-  getLocationGroups: adminProcedure.query(async ({ ctx, input }) => {
+  getAdminLocationGroups: adminProcedure.query(async ({ ctx, input }) => {
     const locationGroups = await ctx.db.locationGroup.findMany({
       where: { approved: { equals: null }, endDate: { gte: new Date() }, hidden: false },
       include: {
@@ -1386,20 +1387,20 @@ export const pinRouter = createTRPCRouter({
       };
     }),
 
-  deleteLocationGroup: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.locationGroup.update({
-        where: {
-          id: input.id,
-          creatorId: ctx.session.user.id,
-        },
-        data: { hidden: true },
-      });
-      return {
-        item: items.id,
-      };
-    }),
+  // deleteLocationGroup: protectedProcedure
+  //   .input(z.object({ id: z.string() }))
+  //   .mutation(async ({ ctx, input }) => {
+  //     const items = await ctx.db.locationGroup.update({
+  //       where: {
+  //         id: input.id,
+  //         creatorId: ctx.session.user.id,
+  //       },
+  //       data: { hidden: true },
+  //     });
+  //     return {
+  //       item: items.id,
+  //     };
+  //   }),
 
   getMyCollectedPins: protectedProcedure
     .input(
@@ -1553,6 +1554,306 @@ export const pinRouter = createTRPCRouter({
         location: c.location.locationGroup,
       }))
     }),
+  // ─── Summary counts ─────────────────────────────────────────────────────────
+  getSummary: protectedProcedure.query(async ({ ctx }) => {
+    const creatorId = ctx.session.user.id;
+
+    const [general, landmark, event, hotspot] = await Promise.all([
+      ctx.db.locationGroup.count({
+        where: { creatorId, hotspotId: null, type: PinType.OTHER },
+      }),
+      ctx.db.locationGroup.count({
+        where: { creatorId, hotspotId: null, type: PinType.LANDMARK },
+      }),
+      ctx.db.locationGroup.count({
+        where: { creatorId, hotspotId: null, type: PinType.EVENT },
+      }),
+      ctx.db.hotspot.count({ where: { creatorId } }),
+    ]);
+
+    return { general, landmark, event, hotspot };
+  }),
+
+  // ─── Location groups (General / Landmark / Event) ────────────────────────────
+  getLocationGroups: protectedProcedure
+    .input(
+      z.object({
+        type: z.enum(["general", "landmark", "event"]),
+        search: z.string().optional(),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(100).default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const pinTypeMap: Record<string, PinType> = {
+        general: PinType.OTHER,
+        landmark: PinType.LANDMARK,
+        event: PinType.EVENT,
+      };
+
+      const groups = await ctx.db.locationGroup.findMany({
+        where: {
+          creatorId,
+          hotspotId: null,
+          type: pinTypeMap[input.type],
+          ...(input.search
+            ? {
+              title: { contains: input.search, mode: "insensitive" },
+            }
+            : {}),
+        },
+        include: {
+          locations: {
+            include: {
+              _count: { select: { consumers: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+      });
+
+      let nextCursor: string | undefined;
+      if (groups.length > input.limit) {
+        nextCursor = groups.pop()!.id;
+      }
+
+      return { groups, nextCursor };
+    }),
+
+  // ─── Update location group ────────────────────────────────────────────────────
+  updateLocationGroup: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        image: z.string().optional(),
+        link: z.string().optional(),
+        hidden: z.boolean().optional(),
+        remaining: z.number().optional(),
+        multiPin: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+      const { id, ...data } = input;
+
+      const group = await ctx.db.locationGroup.findFirst({
+        where: { id, creatorId },
+      });
+      if (!group)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+
+      return ctx.db.locationGroup.update({ where: { id }, data });
+    }),
+
+  // ─── Delete single location group ─────────────────────────────────────────────
+  deleteLocationGroup: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+      const group = await ctx.db.locationGroup.findFirst({
+        where: { id: input.id, creatorId },
+      });
+      if (!group)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+
+      await ctx.db.locationGroup.update({
+        where: { id: input.id },
+        data: { hidden: true },
+      });
+      return { success: true };
+    }),
+
+  // ─── Bulk delete location groups ─────────────────────────────────────────────
+  bulkDeleteLocationGroups: protectedProcedure
+    .input(z.object({ ids: z.array(z.string()).min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      // Verify ownership of all groups
+      const count = await ctx.db.locationGroup.count({
+        where: { id: { in: input.ids }, creatorId },
+      });
+      if (count !== input.ids.length)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Some groups do not belong to you",
+        });
+
+      await ctx.db.locationGroup.updateMany({
+        where: { id: { in: input.ids } },
+        data: { hidden: true },
+      });
+      return { deleted: input.ids.length };
+    }),
+
+  // ─── Delete single location (pin) ─────────────────────────────────────────────
+  deleteLocation: protectedProcedure
+    .input(z.object({ locationId: z.string(), locationGroupId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      // Verify the location belongs to a group owned by this creator
+      const group = await ctx.db.locationGroup.findFirst({
+        where: { id: input.locationGroupId, creatorId },
+      });
+      if (!group)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+
+      await ctx.db.location.update({ where: { id: input.locationId }, data: { hidden: true } });
+      return { success: true };
+    }),
+
+  // ─── Bulk delete locations ────────────────────────────────────────────────────
+  bulkDeleteLocations: protectedProcedure
+    .input(
+      z.object({
+        locationIds: z.array(z.string()).min(1),
+        locationGroupId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const group = await ctx.db.locationGroup.findFirst({
+        where: { id: input.locationGroupId, creatorId },
+      });
+      if (!group)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+
+      await ctx.db.location.updateMany({
+        where: { id: { in: input.locationIds }, locationGroupId: input.locationGroupId },
+        data: { hidden: true },
+      });
+      return { deleted: input.locationIds.length };
+    }),
+
+  // ─── Hotspots ──────────────────────────────────────────────────────────────────
+  getHotspots: protectedProcedure
+    .input(
+      z.object({
+        search: z.string().optional(),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(100).default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const hotspots = await ctx.db.hotspot.findMany({
+        where: { creatorId },
+        include: {
+          locationGroups: {
+            include: {
+              locations: {
+                include: { _count: { select: { consumers: true } } },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+      });
+
+      let nextCursor: string | undefined;
+      if (hotspots.length > input.limit) {
+        nextCursor = hotspots.pop()!.id;
+      }
+
+      return { hotspots, nextCursor };
+    }),
+
+  // ─── Toggle hotspot active ────────────────────────────────────────────────────
+  toggleHotspotActive: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const hotspot = await ctx.db.hotspot.findFirst({
+        where: { id: input.id, creatorId },
+      });
+      if (!hotspot)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Hotspot not found" });
+
+      const active = hotspot.isActive;
+
+      if (active) {
+        if (hotspot.qstashScheduleId) {
+          await qstash.schedules.pause({
+            schedule: hotspot.qstashScheduleId,
+          }).catch(() => null);
+        }
+      }
+      else {
+        if (hotspot.qstashScheduleId) {
+          await qstash.schedules.resume({
+            schedule: hotspot.qstashScheduleId,
+          }).catch(() => null);
+        }
+      }
+
+      return ctx.db.hotspot.update({
+        where: { id: input.id },
+        data: { isActive: !hotspot.isActive },
+      });
+    }),
+
+  // ─── Delete hotspot drop group ────────────────────────────────────────────────
+  deleteHotspotDropGroup: protectedProcedure
+    .input(z.object({ locationGroupId: z.string(), hotspotId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const hotspot = await ctx.db.hotspot.findFirst({
+        where: { id: input.hotspotId, creatorId },
+      });
+      if (!hotspot)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+
+      await ctx.db.locationGroup.update({
+        where: { id: input.locationGroupId },
+        data: { hidden: true },
+      });
+      return { success: true };
+    }),
+
+  // ─── Bulk delete hotspot drop groups ─────────────────────────────────────────
+  bulkDeleteHotspotDropGroups: protectedProcedure
+    .input(
+      z.object({
+        locationGroupIds: z.array(z.string()).min(1),
+        hotspotId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+
+      const hotspot = await ctx.db.hotspot.findFirst({
+        where: { id: input.hotspotId, creatorId },
+      });
+      if (!hotspot)
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+
+      await ctx.db.locationGroup.updateMany({
+        where: {
+          id: { in: input.locationGroupIds },
+          hotspotId: input.hotspotId,
+        },
+        data: { hidden: true },
+      });
+      return { deleted: input.locationGroupIds.length };
+    }),
+
+
 });
 
 

@@ -96,7 +96,7 @@ export default function SinglePinPage() {
                     <Card className="overflow-hidden rounded-xl shadow-lg">
                         <CardContent className="p-0 md:flex">
                             <div className="relative h-64 w-full md:h-auto md:w-1/2">
-                                <Image
+                                <img
                                     src={demoPin.image ?? "/placeholder.svg?height=600&width=600&query=abstract map pin"}
                                     alt={demoPin.title ?? "Pin image"}
                                     fill

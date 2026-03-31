@@ -544,7 +544,7 @@ export default function NftCreateModal({ isOpen, onClose }: NFTCreateProps) {
                                   exit={{ opacity: 0, scale: 0.9 }}
                                   className="relative h-36 overflow-hidden rounded-md"
                                 >
-                                  <Image
+                                  <img
                                     fill
                                     alt="preview image"
                                     src={coverUrl ?? "/placeholder.svg"}
@@ -966,7 +966,7 @@ function PlayableMedia({
       case MediaType.IMAGE:
         return (
           <div className="relative aspect-square w-full overflow-hidden rounded-md">
-            <Image
+            <img
               alt="NFT preview"
               src={mediaUrl ?? "/placeholder.svg"}
               fill

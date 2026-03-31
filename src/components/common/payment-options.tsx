@@ -104,7 +104,7 @@ export function PaymentChoose({
                 className="flex flex-1 cursor-pointer items-center"
               >
                 {PLATFORM_ASSET.code.toLocaleLowerCase() === "bandcoin" ? (
-                  <Image
+                  <img
                     alt="bandcoin"
                     height={24}
                     width={24}

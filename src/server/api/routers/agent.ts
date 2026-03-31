@@ -256,6 +256,7 @@ function enforceStepTransition(
         pinCollectionLimit: (cfg.pinCollectionLimit as number) ?? 100,
         autoCollect: (cfg.autoCollect as boolean) ?? false,
         radius: (cfg.radius as number) ?? 2,
+        type: "EVENT",
       };
     });
     return { ...parsed, step: "event_final_confirm", uiData: { type: "confirm", data: { pins } } };
@@ -283,6 +284,7 @@ function enforceStepTransition(
         pinNumber: 1, pinCollectionLimit: 999999,
         autoCollect: (cfg.autoCollect as boolean) ?? false,
         radius: (cfg.radius as number) ?? 2,
+        type: "LANDMARK",
       };
     });
     return { ...parsed, step: "landmark_final_confirm", uiData: { type: "confirm", data: { pins } } };
@@ -441,7 +443,13 @@ export const agentRouter = createTRPCRouter({
 
         // ── CHANGED: enqueue QStash job instead of inline DB writes ──────
         if (toolData.pinsGenerated?.pins.length) {
-          const { pins } = toolData.pinsGenerated;
+          // Merge generated pins with state pins to preserve type and other fields
+          const generatedPins = toolData.pinsGenerated.pins;
+          const statePins = (state as AgentState).pins ?? [];
+          const pins = generatedPins.map((p, idx) => ({
+            ...statePins[idx],
+            ...p,
+          }));
           const redeemMode = (state as AgentState).redeemMode ?? "separate";
           const creatorId = ctx.session.user.id;
 

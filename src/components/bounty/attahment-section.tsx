@@ -62,7 +62,7 @@ const AttachmentSection: React.FC<AttachmentSectionProps> = ({ title, attachment
                             <CustomPlayer url={attachment.url} />
                         )}
                         {attachment.type.startsWith("image/") && (
-                            <Image
+                            <img
                                 src={attachment.url}
                                 alt={attachment.name}
                                 width={500}

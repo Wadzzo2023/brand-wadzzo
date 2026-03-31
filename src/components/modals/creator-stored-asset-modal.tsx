@@ -84,7 +84,7 @@ export default function CreatorStoredAssetModal({
                                         {/* Image Container */}
                                         <div className="relative aspect-square bg-[#1e1f22]">
 
-                                            <Image
+                                            <img
                                                 src={data.asset.thumbnail}
                                                 alt={data.asset.name}
                                                 width={1000}
@@ -148,7 +148,7 @@ export default function CreatorStoredAssetModal({
                                 {/* Right Column - Bundle Info */}
                                 <div className=" rounded-sm bg-gray-300 p-1   md:col-span-4">
                                     {data.asset.mediaType === "IMAGE" ? (
-                                        <Image
+                                        <img
                                             src={data.asset.mediaUrl}
                                             alt={data.asset.name}
                                             width={1000}
@@ -159,7 +159,7 @@ export default function CreatorStoredAssetModal({
                                             )}
                                         />
                                     ) : data.asset.mediaType === "VIDEO" ? (
-                                        <Image
+                                        <img
                                             src={data.asset.thumbnail}
                                             alt={data.asset.name}
                                             width={1000}
@@ -171,7 +171,7 @@ export default function CreatorStoredAssetModal({
                                             )}
                                         />
                                     ) : data.asset.mediaType === "MUSIC" ? (
-                                        <Image
+                                        <img
                                             src={data.asset.thumbnail}
                                             alt={data.asset.name}
                                             width={1000}
@@ -285,7 +285,7 @@ export function EditForm({
                                 {PLATFORM_ASSET.code.toLocaleLowerCase() === "wadzzo" ?
 
                                     (<CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />) : PLATFORM_ASSET.code.toLocaleLowerCase() === "bandcoin" ? (
-                                        <Image
+                                        <img
                                             src={"https://bandcoin.io/images/logo.png"}
                                             alt={PLATFORM_ASSET.code}
                                             width={24}

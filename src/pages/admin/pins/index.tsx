@@ -79,7 +79,7 @@ export default function Pins() {
     const [viewMode, setViewMode] = useState<"pending" | "approved">("pending")
 
     // Separate queries for pending and approved pins
-    const pendingLocationGroups = api.maps.pin.getLocationGroups.useQuery(undefined, {
+    const pendingLocationGroups = api.maps.pin.getAdminLocationGroups.useQuery(undefined, {
         enabled: viewMode === "pending",
     })
 
@@ -104,7 +104,7 @@ export default function Pins() {
     }
 
     return (
-        <div className="w-full p-6 space-y-6 overflow-y-auto">
+        <div className="w-full p-6 space-y-6 overflow-y-auto ">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900">Pin Management</h1>
                 <Badge variant="outline" className="text-sm">

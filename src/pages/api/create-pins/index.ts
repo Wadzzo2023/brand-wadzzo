@@ -36,7 +36,7 @@ async function createLocationGroup(
 ): Promise<void> {
     const pinCount = pin.pinNumber ?? 1
     const radius = pin.radius ?? 2
-
+    console.log("pin tyhpe", pin.type, "generating", pinCount, "locations with radius", radius)
     const locations = Array.from({ length: pinCount }).map(() => {
         const loc = getLocationInLatLngRad(pin.latitude, pin.longitude, radius)
         return {
@@ -58,7 +58,7 @@ async function createLocationGroup(
             image: pin.image ?? null,
             link: pin.url ?? null,
             multiPin: false,
-            isLandMark: false,
+            type: pin.type ?? "OTHER",
             locations: { createMany: { data: locations } },
         },
     })
@@ -122,7 +122,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                         image: base.image ?? null,
                         link: base.url ?? null,
                         multiPin: false,
-                        isLandMark: false,
+                        type: base.type ?? "OTHER",
                         locations: { createMany: { data: allLocations } },
                     },
                 })

@@ -329,7 +329,7 @@ const CreatorPins = memo(function CreatorPins({
 
                             {/* Pin icon or creator image */}
                             {pin.locationGroup?.creator.profileUrl ? (
-                                <Image
+                                <img
                                     src={pin.locationGroup.creator.profileUrl ?? "/placeholder.svg"}
                                     width={32}
                                     height={32}

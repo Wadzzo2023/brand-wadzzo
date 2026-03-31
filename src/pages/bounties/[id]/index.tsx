@@ -322,7 +322,7 @@ const AdminBountyPage = () => {
                                 transition={{ duration: 0.7, ease: "easeOut" }}
                                 className="h-80 w-full"
                             >
-                                <Image
+                                <img
                                     src={data?.imageUrls[0] ?? "/images/loading.png"}
                                     alt={data?.title}
                                     width={1200}

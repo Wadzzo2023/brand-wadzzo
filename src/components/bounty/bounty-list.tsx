@@ -65,7 +65,7 @@ export default function BountyList({
 
                 >
                     <CardHeader className="relative p-0">
-                        <Image
+                        <img
                             src={bounty.imageUrls[0] ?? "/images/loading.png"}
                             alt={bounty.title}
                             width={400}

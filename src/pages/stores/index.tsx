@@ -397,7 +397,7 @@ export default function StoredItemsView() {
                                                         <Card className="overflow-hidden cursor-pointer" onClick={() => handleStoredItemClick(item)}>
                                                             <div className="flex">
                                                                 <div className="relative w-24 h-24">
-                                                                    <Image
+                                                                    <img
                                                                         src={item.asset.thumbnail ?? "/placeholder.svg"}
                                                                         alt={item.asset.name}
                                                                         fill
