@@ -1461,7 +1461,14 @@ export const pinRouter = createTRPCRouter({
             include: {
               locationGroup: {
                 select: {
+                  id: true,
                   title: true,
+                  description: true,
+                  image: true,
+                  link: true,
+                  type: true,
+                  startDate: true,
+                  endDate: true,
                   creator: { select: { name: true } },
                 },
               }
@@ -1480,6 +1487,10 @@ export const pinRouter = createTRPCRouter({
           redeemedAt: consumer.redeemedAt?.toISOString() ?? null,
           user: consumer.user,
           location: consumer.location.locationGroup,
+          locationData: {
+            latitude: consumer.location.latitude,
+            longitude: consumer.location.longitude,
+          },
         }
       }
 
@@ -1492,7 +1503,14 @@ export const pinRouter = createTRPCRouter({
             include: {
               locationGroup: {
                 select: {
+                  id: true,
                   title: true,
+                  description: true,
+                  image: true,
+                  link: true,
+                  type: true,
+                  startDate: true,
+                  endDate: true,
                   creator: { select: { name: true } },
                 },
               }
@@ -1506,6 +1524,10 @@ export const pinRouter = createTRPCRouter({
         redeemedAt: updated.redeemedAt?.toISOString() ?? null,
         user: updated.user,
         location: updated.location.locationGroup,
+        locationData: {
+          latitude: updated.location.latitude,
+          longitude: updated.location.longitude,
+        },
       }
     }),
   getRedeemedByCreator: protectedProcedure
@@ -1529,7 +1551,12 @@ export const pinRouter = createTRPCRouter({
                 select: {
                   id: true,
                   title: true,
+                  description: true,
                   image: true,
+                  link: true,
+                  type: true,
+                  startDate: true,
+                  endDate: true,
                   creator: {
                     select: {
                       name: true,
@@ -1552,6 +1579,10 @@ export const pinRouter = createTRPCRouter({
         claimedAt: c.claimedAt?.toISOString() ?? null,
         user: c.user,
         location: c.location.locationGroup,
+        locationData: {
+          latitude: c.location.latitude,
+          longitude: c.location.longitude,
+        },
       }))
     }),
   // ─── Summary counts ─────────────────────────────────────────────────────────
