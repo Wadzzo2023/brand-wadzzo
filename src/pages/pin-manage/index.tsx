@@ -988,7 +988,7 @@ export default function PinManagementPage() {
                             key={key}
                             onClick={() => { setActiveTab(key); setSelectedGroups(new Set()); }}
                             className={`rounded-lg px-3.5 py-1.5 text-[13px] transition ${activeTab === key
-                                ? "border   font-medium text-[var(--color-text-primary)]"
+                                ? "border  bg-primary text-primary-foreground  font-medium"
                                 : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                                 }`}
                         >
