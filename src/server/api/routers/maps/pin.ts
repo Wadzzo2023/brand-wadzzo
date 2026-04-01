@@ -1472,7 +1472,19 @@ export const pinRouter = createTRPCRouter({
       });
 
       if (!consumer) return { status: "not_found" as const };
-      if (consumer.locationId !== input.locationId) return { status: "not_found" as const };
+
+      // Code exists but belongs to a different location
+      if (consumer.locationId !== input.locationId) {
+        return {
+          status: "wrong_location" as const,
+          actualLocation: {
+            id: consumer.location.id,
+            latitude: consumer.location.latitude,
+            longitude: consumer.location.longitude,
+            groupTitle: consumer.location.locationGroup?.title,
+          },
+        };
+      }
 
       if (consumer.isRedeemed) {
         return {

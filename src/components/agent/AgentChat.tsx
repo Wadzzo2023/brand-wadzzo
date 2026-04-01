@@ -71,6 +71,11 @@ const WELCOME: Message = {
     role: "assistant",
     content:
         "Hi! I'm your Wadzzo assistant. I can help you create location pins for real events or landmarks. What would you like to do today?",
+
+    uiData: {
+        type: "task_select",
+        data: {},
+    },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -620,7 +625,7 @@ export default function AgentChat() {
         const sel = agentState.selectedEvents ?? []
         console.log("Selected events:", sel)
         void send(
-            `Confirmed ${sel.length} events: ${sel.map((e) => e.title).join(", ")}. Please proceed to date configuration.`,
+            `Confirmed ${sel.length} events. Please proceed to date configuration.`,
         )
     }
 
@@ -628,15 +633,13 @@ export default function AgentChat() {
         const sel = agentState.selectedLandmarks ?? []
         // Server enforces landmark_confirm_list -> landmark_pin_config (skips date step)
         void send(
-            `Confirmed ${sel.length} landmarks: ${sel.map((l) => l.title).join(", ")}. Please show pin configuration.`,
+            `Confirmed ${sel.length} landmarks. Please show pin configuration.`,
             { selectedLandmarks: sel },
         )
     }
 
     function handleDateConfirm(dates: DateMap) {
-        const summary = Object.entries(dates)
-            .map(([id, d]) => `${id}: ${d.startDate} -> ${d.endDate}`)
-            .join("; ")
+
 
         // Merge dates into pinConfig — server reads this when building PinItem[]
         const pinConfigPatch = Object.fromEntries(
@@ -652,18 +655,13 @@ export default function AgentChat() {
 
         // Server enforces event_pin_dates -> event_pin_config
         void send(
-            `Dates confirmed — ${summary}. Please show pin configuration form.`,
+            `Dates confirmed. Please show pin configuration form.`,
             { pinConfig: { ...agentState.pinConfig, ...pinConfigPatch } },
         )
     }
 
     function handlePinConfigConfirm(cfgs: Record<string, PinCfg>) {
-        const summary = Object.entries(cfgs)
-            .map(
-                ([id, c]) =>
-                    `${id}: pins=${c.pinNumber} limit=${c.pinCollectionLimit} radius=${c.radius}m auto=${c.autoCollect} `,
-            )
-            .join("; ")
+
 
         // Merge new cfg values on top of existing pinConfig entries (preserves dates)
         const merged = Object.fromEntries(
@@ -679,7 +677,7 @@ export default function AgentChat() {
         // Server enforces event_pin_config -> event_final_confirm
         //          or landmark_pin_config -> landmark_final_confirm
         void send(
-            `Pin configuration confirmed — ${summary}. Please show the final review.`,
+            `Pin configuration confirmed. Please show the final review.`,
             { pinConfig: { ...agentState.pinConfig, ...merged } },
         )
     }
@@ -689,7 +687,6 @@ export default function AgentChat() {
         const confirmMsg = [...messages].reverse().find((m) => m.uiData?.type === "confirm")
         const pins = (confirmMsg?.uiData?.data as { pins: PinItem[] } | undefined)?.pins ?? []
 
-        console.log("Final confirmed pins:", pins)
         void send("Everything looks correct. Please generate the pins now.", { pins })
     }
 
@@ -951,7 +948,7 @@ export default function AgentChat() {
                                     /* Assistant bubble */
                                     <div className="flex justify-start">
                                         <div className="max-w-[88%] rounded-3xl rounded-tl-lg bg-muted px-4 py-3 shadow-sm">
-                                            {msg.content && (
+                                            {msg.content && msg.uiData?.type !== "redeem_mode_select" && (
                                                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                                                     {msg.content}
                                                 </p>

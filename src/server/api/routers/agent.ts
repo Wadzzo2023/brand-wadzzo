@@ -1,16 +1,20 @@
 // src/server/api/routers/agent.ts
-// Changes vs original:
-//   • DB writes removed from the mutation handler
-//   • After generate_pins fires, we enqueue a QStash job and create a
-//     LocationGroupJob row, returning jobId to the client
-//   • New `jobStatus` query so the frontend can poll progress
+// Key changes vs previous version:
+//   • DETERMINISTIC_STEPS removed — all steps now route through the LLM
+//     so user messages are always read and responded to naturally
+//   • detectIntentReset() — checks if the user is abandoning the current
+//     flow before any step logic runs; resets state to clarify_task
+//   • Tool prompt now instructs model on mid-flow intent changes
+//   • buildQuickMessagePrompt receives userMessage so it can respond to
+//     the actual message, not just emit a canned confirmation
+//   • enforceStepTransition only fires if detectIntentReset() is false
 
 import { z } from "zod";
 import { createTRPCRouter, creatorProcedure } from "~/server/api/trpc";
 import { generateText, type CoreMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { agentTools } from "~/lib/agent/tools";
-import { qstash } from "~/lib/qstash"; // your existing QStash client
+import { qstash } from "~/lib/qstash";
 import type {
   AgentState,
   AgentStep,
@@ -37,7 +41,11 @@ const GENERATE_STEPS = new Set<AgentStep>([
   "event_final_confirm",
   "landmark_final_confirm",
 ]);
-const DETERMINISTIC_STEPS = new Set<AgentStep>([
+
+// Steps that previously bypassed the LLM entirely. Now they still run through
+// the LLM — but enforceStepTransition still fires AFTER the LLM responds, so
+// the UI progression is preserved while the user's message is actually read.
+const TRANSITION_STEPS = new Set<AgentStep>([
   "landmark_confirm_list",
   "landmark_redeem_mode",
   "landmark_pin_config",
@@ -45,6 +53,32 @@ const DETERMINISTIC_STEPS = new Set<AgentStep>([
   "event_pin_dates",
   "event_pin_config",
 ]);
+
+// ─── Intent reset detection ───────────────────────────────────────────────────
+// Called before any step logic. Returns true if the user clearly wants to
+// abandon the current flow and start fresh.
+
+const RESET_PHRASES = [
+  /\bstart over\b/i,
+  /\bstart again\b/i,
+  /\brestart\b/i,
+  /\bcancel\b/i,
+  /\bdiscard\b/i,
+  /\bnever mind\b/i,
+  /\bforget it\b/i,
+  /\bgo back\b/i,
+  /\bi (want|need|would like|wanna) (to )?(create|make|add|do) (a |an )?(landmark|event)/i,
+  /\bswitch to (landmark|event)/i,
+  /\binstead (of|do|create|make)/i,
+  /\bactually (i want|let's do|do)/i,
+];
+
+function detectIntentReset(message: string, currentStep: AgentStep): boolean {
+  if (currentStep === "idle" || currentStep === "clarify_task" || currentStep === "done") {
+    return false;
+  }
+  return RESET_PHRASES.some((re) => re.test(message));
+}
 
 // ─── Slim state helpers ───────────────────────────────────────────────────────
 
@@ -87,7 +121,7 @@ function slimStateForJsonPrompt(state: AgentState) {
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-function buildToolPrompt(state: AgentState): string {
+function buildToolPrompt(state: AgentState, userMessage: string): string {
   const step = state.step as AgentStep;
   const canSearch = SEARCH_STEPS.has(step);
   const canGenerate = GENERATE_STEPS.has(step);
@@ -102,9 +136,20 @@ You are the Wadzzo Pin Generation Agent.
 TODAY: ${todayISO()}
 CURRENT STEP: ${step}
 CURRENT STATE: ${JSON.stringify(slimStateForToolPrompt(state))}
+USER'S MESSAGE: "${userMessage}"
+
 TOOL RULES FOR THIS STEP:
 ${toolRules}
-Important:
+
+INTENT CHANGE RULES:
+- If the user's message clearly wants to switch task (e.g. "I want to do landmarks instead",
+  "actually let's do events", "cancel and start over"), do NOT call any tools. Just reply
+  warmly acknowledging the change and ask what they'd like to do. The system will reset state.
+- If the user asks a question mid-flow (e.g. "what does auto-collect mean?"), answer it
+  naturally, then gently remind them where they were in the flow.
+- If the user is confused or frustrated, acknowledge it and offer to restart or continue.
+
+IMPORTANT:
 - NEVER call search_events or search_landmarks unless CURRENT STEP is "event_search" or "landmark_search"
 - NEVER call generate_pins unless CURRENT STEP is "event_final_confirm" or "landmark_final_confirm"
 - For all other steps just reply naturally, no tool calls
@@ -112,7 +157,7 @@ Converse naturally. Do NOT output JSON.
 `.trim();
 }
 
-function buildJsonPrompt(state: AgentState, toolData: ToolPassData): string {
+function buildJsonPrompt(state: AgentState, toolData: ToolPassData, userMessage: string): string {
   const t = todayISO();
   const y = in100YearsISO();
   const slimToolData = {
@@ -125,10 +170,21 @@ function buildJsonPrompt(state: AgentState, toolData: ToolPassData): string {
 You are the Wadzzo response formatter. Output ONLY a single JSON object — no prose, no markdown, no code fences.
 TODAY: ${t}
 IN_100_YEARS: ${y}
+USER'S ACTUAL MESSAGE: "${userMessage}"
 CURRENT STATE:
 ${JSON.stringify(slimStateForJsonPrompt(state), null, 2)}
 TOOL RESULTS THIS TURN:
 ${JSON.stringify(slimToolData, null, 2)}
+
+━━━ INTENT CHANGE HANDLING ━━━
+If the user's message signals they want to switch task, cancel, or restart (e.g. "actually I want
+landmarks", "cancel", "start over", "I changed my mind"), output:
+{
+  "message": "<warm acknowledgement + ask what they want to do>",
+  "step": "clarify_task",
+  "stateUpdates": { "task": null },
+  "uiData": { "type": "task_select", "data": {} }
+}
 
 ━━━ FLOW ━━━
 EVENT FLOW
@@ -152,6 +208,8 @@ LANDMARK FLOW
 - If toolData.eventsFound → step="event_confirm_list"
 - If toolData.landmarksFound → step="landmark_confirm_list"
 - If toolData.pinsGenerated → step="done"
+- If the user asks a clarifying question mid-flow, answer it in "message" and keep "step" the same
+- If the user seems confused or asks something off-topic, respond helpfully and keep "step" the same
 
 ━━━ OUTPUT ━━━
 {
@@ -171,17 +229,28 @@ LANDMARK FLOW
 `.trim();
 }
 
-function buildQuickMessagePrompt(step: AgentStep, state: AgentState): string {
-  const stepMessages: Partial<Record<AgentStep, string>> = {
-    landmark_confirm_list: `The user just confirmed their landmark selection. ${(state.selectedLandmarks ?? state.landmarks ?? []).length} landmarks are selected. Write one short friendly sentence telling them you're showing the pin configuration options now.`,
-    landmark_pin_config: `The user just configured their landmark pins. Write one short friendly sentence telling them you're showing the final review.`,
-    event_confirm_list: `The user just confirmed their event selection. ${(state.selectedEvents ?? state.events ?? []).length} events are selected. Write one short friendly sentence telling them you'll now set up the dates.`,
-    event_pin_dates: `The user just set the dates for their event pins. Write one short friendly sentence telling them you're showing the pin configuration options now.`,
-    event_pin_config: `The user just configured their event pins. Write one short friendly sentence telling them you're showing the final review.`,
-    landmark_redeem_mode: `The user just chose their redeem code mode. Write one short friendly sentence telling them you're now showing the final review.`,
+// buildQuickMessagePrompt is now used only for TRANSITION_STEPS — but the
+// model receives the actual user message so it can respond to it properly.
+function buildQuickMessagePrompt(step: AgentStep, state: AgentState, userMessage: string): string {
+  const stepContext: Partial<Record<AgentStep, string>> = {
+    landmark_confirm_list: `The user just confirmed their landmark selection. ${(state.selectedLandmarks ?? state.landmarks ?? []).length} landmarks are selected. You're about to show pin configuration options.`,
+    landmark_pin_config: `The user just configured their landmark pins. You're about to show the final review.`,
+    event_confirm_list: `The user just confirmed their event selection. ${(state.selectedEvents ?? state.events ?? []).length} events are selected. You're about to set up dates.`,
+    event_pin_dates: `The user just set the dates for their event pins. You're about to show pin configuration options.`,
+    event_pin_config: `The user just configured their event pins. You're about to show the final review.`,
+    landmark_redeem_mode: `The user just chose their redeem mode. You're about to show the final review.`,
   };
-  const context = stepMessages[step] ?? `Current step: ${step}. Write one short friendly confirmation sentence.`;
-  return `You are a friendly assistant for a pin generation app called Wadzzo. ${context} Be concise and natural. No JSON, no lists, no markdown.`;
+
+  const ctx = stepContext[step] ?? `Current step: ${step}.`;
+
+  return `You are a friendly assistant for a pin generation app called Wadzzo.
+Context: ${ctx}
+The user just said: "${userMessage}"
+
+First, respond to what the user actually said — if they asked a question, answer it.
+If they said something off-topic or showed hesitation, acknowledge it warmly.
+Then in 1-2 sentences, tell them what's happening next in the flow.
+Be concise and natural. No JSON, no lists, no markdown.`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -222,6 +291,8 @@ function extractToolData(responseMessages: CoreMessage[]): ToolPassData {
 }
 
 // ─── Deterministic step transitions ───────────────────────────────────────────
+// These still run AFTER the LLM has responded and the user's message has been
+// read. They just enforce the UI progression, not block the conversation.
 
 function enforceStepTransition(
   currentStep: AgentStep,
@@ -239,7 +310,9 @@ function enforceStepTransition(
   }
 
   if (currentStep === "event_pin_dates") {
-    const items = (state.selectedEvents ?? state.events ?? []).map((e) => ({ id: e.id, title: e.title, latitude: e.latitude, longitude: e.longitude }));
+    const items = (state.selectedEvents ?? state.events ?? []).map((e) => ({
+      id: e.id, title: e.title, latitude: e.latitude, longitude: e.longitude,
+    }));
     return { ...parsed, step: "event_pin_config", uiData: { type: "pin_config_form", data: { items, isLandmark: false } } };
   }
 
@@ -263,7 +336,9 @@ function enforceStepTransition(
   }
 
   if (currentStep === "landmark_confirm_list") {
-    const items = (state.selectedLandmarks ?? state.landmarks ?? []).map((l) => ({ id: l.id, title: l.title, latitude: l.latitude, longitude: l.longitude }));
+    const items = (state.selectedLandmarks ?? state.landmarks ?? []).map((l) => ({
+      id: l.id, title: l.title, latitude: l.latitude, longitude: l.longitude,
+    }));
     return { ...parsed, step: "landmark_pin_config", uiData: { type: "pin_config_form", data: { items, isLandmark: true } } };
   }
 
@@ -322,19 +397,19 @@ function enforceStepTransition(
 const AgentStateSchema = z.object({
   step: z.string(),
   task: z.enum(["event", "landmark"]).nullable().optional(),
-  searchQuery: z.string().optional(),
-  searchArea: z.string().optional(),
-  events: z.array(z.any()).optional(),
-  selectedEvents: z.array(z.any()).optional(),
-  landmarks: z.array(z.any()).optional(),
-  selectedLandmarks: z.array(z.any()).optional(),
-  pinConfig: z.record(z.string(), z.any()).optional(),
-  pins: z.array(z.any()).optional(),
-  redeemMode: z.enum(["separate", "single"]).optional(),
+  searchQuery: z.string().nullish(),
+  searchArea: z.string().nullish(),
+  events: z.array(z.any()).nullish(),
+  selectedEvents: z.array(z.any()).nullish(),
+  landmarks: z.array(z.any()).nullish(),
+  selectedLandmarks: z.array(z.any()).nullish(),
+  pinConfig: z.record(z.string(), z.any()).nullish(),
+  pins: z.array(z.any()).nullish(),
+  redeemMode: z.enum(["separate", "single"]).nullish(),
   pendingModification: z.object({
     indices: z.array(z.number()).optional(),
     names: z.array(z.string()).optional(),
-  }).optional(),
+  }).nullish(),
 });
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -384,6 +459,40 @@ export const agentRouter = createTRPCRouter({
       const { message, history, state } = input;
       const currentStep = state.step as AgentStep;
 
+      // ── Check for intent reset FIRST ──────────────────────────────────────
+      // If the user wants to abandon the current flow, reset everything and
+      // let a fresh LLM call handle the response naturally.
+      if (detectIntentReset(message, currentStep)) {
+        const resetResponse = await generateText({
+          model: openai("gpt-4o-mini"),
+          messages: [{
+            role: "user" as const,
+            content: `You are a friendly assistant for a pin creation app called Wadzzo.
+The user was in the middle of creating ${state.task ?? "pins"} but they said: "${message}"
+Respond warmly, acknowledge what they said, confirm you're starting fresh, and ask whether
+they'd like to create event pins or landmark pins. Be brief and natural.`,
+          }],
+        });
+        return {
+          message: resetResponse.text.trim(),
+          state: {
+            step: "clarify_task" as AgentStep,
+            task: null,
+            searchQuery: undefined,
+            searchArea: undefined,
+            events: [],
+            selectedEvents: [],
+            landmarks: [],
+            selectedLandmarks: [],
+            pinConfig: {},
+            pins: [],
+            redeemMode: undefined,
+          },
+          uiData: { type: "task_select", data: {} },
+          jobId: undefined,
+        };
+      }
+
       const MAX_HISTORY = 6;
       const trimmedHistory = history.slice(-MAX_HISTORY).map((m) => ({
         role: m.role,
@@ -398,23 +507,31 @@ export const agentRouter = createTRPCRouter({
       ];
 
       const needsToolCall = SEARCH_STEPS.has(currentStep) || GENERATE_STEPS.has(currentStep);
-      const isDeterministic = DETERMINISTIC_STEPS.has(currentStep);
+      const isTransitionStep = TRANSITION_STEPS.has(currentStep);
 
-      // ── Fast path: deterministic steps ──────────────────────────────────
+      // ── Transition steps: LLM reads the message, then we enforce UI ───────
+      // Previously these were "deterministic" and bypassed the LLM entirely.
+      // Now the LLM responds to the actual user message first.
+      if (isTransitionStep) {
+        const quickMsg = await generateText({
+          model: openai("gpt-4o-mini"),
+          messages: [{ role: "user" as const, content: buildQuickMessagePrompt(currentStep, state as AgentState, message) }],
+        });
 
-      if (isDeterministic) {
-        const emptyParsed: ParsedResponse = { message: "", step: currentStep, stateUpdates: {}, uiData: null };
+        const emptyParsed: ParsedResponse = {
+          message: quickMsg.text.trim(),
+          step: currentStep,
+          stateUpdates: {},
+          uiData: null,
+        };
         const enforced = enforceStepTransition(
-          currentStep, state as AgentState,
+          currentStep,
+          state as AgentState,
           { eventsFound: null, landmarksFound: null, pinsGenerated: null },
           emptyParsed,
         );
-        const quickMsg = await generateText({
-          model: openai("gpt-4o-mini"),
-          messages: [{ role: "user" as const, content: buildQuickMessagePrompt(currentStep, state as AgentState) }],
-        });
         return {
-          message: quickMsg.text.trim(),
+          message: enforced.message,
           state: { ...(state as AgentState), ...enforced.stateUpdates, step: enforced.step },
           uiData: enforced.uiData ?? undefined,
           jobId: undefined,
@@ -433,7 +550,7 @@ export const agentRouter = createTRPCRouter({
 
         pass1 = await generateText({
           model: openai("gpt-4o"),
-          system: buildToolPrompt(state as AgentState),
+          system: buildToolPrompt(state as AgentState, message),
           tools: scopedTools,
           maxSteps: 5,
           messages: baseMessages,
@@ -441,9 +558,8 @@ export const agentRouter = createTRPCRouter({
 
         toolData = extractToolData(pass1.response.messages);
 
-        // ── CHANGED: enqueue QStash job instead of inline DB writes ──────
+        // ── Enqueue QStash job instead of inline DB writes ────────────────
         if (toolData.pinsGenerated?.pins.length) {
-          // Merge generated pins with state pins to preserve type and other fields
           const generatedPins = toolData.pinsGenerated.pins;
           const statePins = (state as AgentState).pins ?? [];
           const pins = generatedPins.map((p, idx) => ({
@@ -453,7 +569,6 @@ export const agentRouter = createTRPCRouter({
           const redeemMode = (state as AgentState).redeemMode ?? "separate";
           const creatorId = ctx.session.user.id;
 
-          // 1. Create the job row (pending)
           const job = await ctx.db.locationGroupJob.create({
             data: {
               creatorId,
@@ -464,15 +579,12 @@ export const agentRouter = createTRPCRouter({
             },
           });
 
-          // 2. Enqueue the QStash job pointing at our API route
           await qstash.publishJSON({
             url: `${BASE_URL}/api/create-pins`,
             body: { jobId: job.id, creatorId, pins, redeemMode },
-            // Retry up to 2 times on non-2xx
             retries: 2,
           });
 
-          // 3. Return jobId to client so it can poll progress
           const count = pins.length;
           return {
             message: `✅ Got it! Creating ${count} pin${count !== 1 ? "s" : ""} in the background — you can track progress below.`,
@@ -489,7 +601,7 @@ export const agentRouter = createTRPCRouter({
           };
         }
 
-        // ── Fast-path: search results → skip Pass 2 ───────────────────
+        // ── Fast-path: search results → skip Pass 2 ───────────────────────
         const hasResults = (toolData.landmarksFound?.length ?? 0) + (toolData.eventsFound?.length ?? 0) > 0;
 
         if (hasResults && SEARCH_STEPS.has(currentStep)) {
@@ -499,7 +611,9 @@ export const agentRouter = createTRPCRouter({
               : toolData.eventsFound?.length && currentStep === "event_search"
                 ? `Found ${toolData.eventsFound.length} events. Please select which ones you'd like to use.`
                 : "Search complete.",
-            step: currentStep, stateUpdates: {}, uiData: null,
+            step: currentStep,
+            stateUpdates: {},
+            uiData: null,
           };
           const enforced = enforceStepTransition(currentStep, state as AgentState, toolData, syntheticParsed);
           return {
@@ -515,7 +629,7 @@ export const agentRouter = createTRPCRouter({
 
       const pass2 = await generateText({
         model: openai("gpt-4o-mini"),
-        system: buildJsonPrompt(state as AgentState, toolData),
+        system: buildJsonPrompt(state as AgentState, toolData, message),
         messages: baseMessages,
       });
 
@@ -527,7 +641,12 @@ export const agentRouter = createTRPCRouter({
         parsed = { message: pass2.text || (pass1?.text ?? ""), step: currentStep, stateUpdates: {}, uiData: null };
       }
 
-      const enforced = enforceStepTransition(currentStep, state as AgentState, toolData, parsed);
+      // Only enforce step transition if the formatter didn't already reset
+      // the state (i.e. user changed intent and formatter set step=clarify_task)
+      const enforced = parsed.step === "clarify_task"
+        ? parsed
+        : enforceStepTransition(currentStep, state as AgentState, toolData, parsed);
+
       const updatedState: AgentState = { ...(state as AgentState), ...enforced.stateUpdates, step: enforced.step };
 
       return {
