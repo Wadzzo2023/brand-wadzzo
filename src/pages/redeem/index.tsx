@@ -31,7 +31,7 @@ import { LocationAddressDisplay } from "~/components/map/address-display";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type RedeemStatus = "success" | "already_redeemed" | "not_found";
+type RedeemStatus = "success" | "already_redeemed" | "not_found" | "wrong_location";
 type PinType = "LANDMARK" | "EVENT";
 
 interface LocationGroup {
@@ -311,6 +311,11 @@ const STATUS_UI: Record<RedeemStatus, { icon: React.ReactNode; label: string; cl
         label: "Code not found",
         cls: "[background-color:hsl(var(--destructive)/0.1)] [border-color:hsl(var(--destructive)/0.3)] [color:hsl(var(--destructive))]",
     },
+    wrong_location: {
+        icon: <AlertCircle className="h-4 w-4" strokeWidth={2} />,
+        label: "Code belongs to different location",
+        cls: "[background-color:hsl(var(--warning)/0.1)] [border-color:hsl(var(--warning)/0.3)] [color:hsl(var(--warning))]",
+    },
 };
 
 // ─── Location Row ──────────────────────────────────────────────────────────────
@@ -361,8 +366,19 @@ function LocationRow({ location, locationGroup }: LocationRowProps) {
 
     const lookupMutation = api.maps.pin.lookupRedeemCode.useMutation({
         onSuccess: (data) => {
-            if (data.status === "not_found") { setLookupError("Code not found for this location."); return; }
-            if (data.status === "already_redeemed") { setResultStatus("already_redeemed"); return; }
+            if (data.status === "not_found") {
+                setLookupError("Code not found.");
+                return;
+            }
+            if (data.status === "wrong_location") {
+                const locationName = data.actualLocation?.groupTitle ?? "another location";
+                setLookupError(`This code belongs to ${locationName}, not this location.`);
+                return;
+            }
+            if (data.status === "already_redeemed") {
+                setResultStatus("already_redeemed");
+                return;
+            }
             setPreviewData({
                 user: data.user,
                 location: locationGroup,
@@ -392,11 +408,11 @@ function LocationRow({ location, locationGroup }: LocationRowProps) {
         setCode(""); setResultStatus(null); setLookupError(null);
         lookupMutation.reset(); redeemMutation.reset();
     };
-
+    const limit = locationGroup.limit;
     const totalConsumers = location.consumers.length;
     const redeemedCount = location.consumers.filter((c) => c.isRedeemed).length;
-    const progressPct = totalConsumers > 0 ? Math.round((redeemedCount / totalConsumers) * 100) : 0;
-    const limit = locationGroup.limit;
+    const progressPct = totalConsumers > 0 ? Math.round((redeemedCount / limit) * 100) : 0;
+
     return (
         <>
             {/* Ticket card */}
@@ -566,10 +582,7 @@ interface GroupCardProps {
 function GroupCard({ group }: GroupCardProps) {
     const [expanded, setExpanded] = useState(false);
 
-    const pendingCount = group.locations.reduce(
-        (acc, loc) => acc + loc.consumers.filter((c) => c.claimedAt && !c.isRedeemed).length,
-        0
-    );
+
 
 
     return (
