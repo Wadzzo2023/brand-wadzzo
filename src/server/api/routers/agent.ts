@@ -59,18 +59,28 @@ const TRANSITION_STEPS = new Set<AgentStep>([
 // abandon the current flow and start fresh.
 
 const RESET_PHRASES = [
-  /\bstart over\b/i,
-  /\bstart again\b/i,
+  // Explicit restart commands
+  /\bstart\s+over\b/i,
+  /\bstart\s+again\b/i,
   /\brestart\b/i,
   /\bcancel\b/i,
   /\bdiscard\b/i,
-  /\bnever mind\b/i,
-  /\bforget it\b/i,
-  /\bgo back\b/i,
-  /\bi (want|need|would like|wanna) (to )?(create|make|add|do) (a |an )?(landmark|event)/i,
-  /\bswitch to (landmark|event)/i,
-  /\binstead (of|do|create|make)/i,
-  /\bactually (i want|let's do|do)/i,
+  /\bnever\s+mind\b/i,
+  /\bforget\s+it\b/i,
+  /\bgo\s+back\b/i,
+  // Task switching - any mention of wanting event or landmark when in different mode
+  /\beat (event|landmark)/i,
+  /\bdo (event|landmark)/i,
+  /\bwant\s+(event|landmark)/i,
+  /\bneed\s+(event|landmark)/i,
+  /\blet'?s\s+do\s+(event|landmark)/i,
+  /\blet'?s\s+create\s+(event|landmark)/i,
+  /\bswitch.*?(event|landmark)/i,
+  /\bchange.*?(event|landmark)/i,
+  /\binstead\b/i,
+  /\bactually\b/i,
+  /\bon\s+second\s+thought\b/i,
+  /\b(i|we)\s+(want|need|would\s+like|wanna|can\s+i|should|d\s+like)\s+(to\s+)?(switch|change|do|create|make|search for|look for|find)\s+(a\s+)?(new\s+)?(event|landmark)/i,
 ];
 
 function detectIntentReset(message: string, currentStep: AgentStep): boolean {
@@ -125,11 +135,27 @@ function buildToolPrompt(state: AgentState, userMessage: string): string {
   const step = state.step as AgentStep;
   const canSearch = SEARCH_STEPS.has(step);
   const canGenerate = GENERATE_STEPS.has(step);
-  const toolRules = canSearch
-    ? `- Call search_events or search_landmarks to fetch real data now.`
-    : canGenerate
-      ? `- Call generate_pins with the confirmed pin payloads from state.pins.`
-      : `- Do NOT call any tools. Just converse naturally.`;
+  
+  let toolRules = "";
+  if (canSearch) {
+    const isEventSearch = step === "event_search";
+    toolRules = isEventSearch
+      ? `- MUST call search_events with the event type and area the user mentioned.
+- Extract event type (e.g. "music", "sports", "concerts") and area (e.g. "Dhaka", "New York") from user message.
+- If user only gave type, ask for area. If user only gave area, ask for type.
+- Once you have BOTH, call search_events immediately.`
+      : `- MUST call search_landmarks with query, count, and area.
+- Extract from user message: type/name of place (query), number requested (count), city/area.
+- If count not specified, ask "How many do you want?" 
+- If area not specified, ask "In which city/area?" or suggest using their current location.
+- If you have ALL THREE (query, count, area), call search_landmarks immediately.
+- NEVER ask for more info once you have these three parameters.`;
+  } else if (canGenerate) {
+    toolRules = `- Call generate_pins with the confirmed pin payloads from state.pins.
+- Do NOT ask questions, just pass the pins array directly to the tool.`;
+  } else {
+    toolRules = `- Do NOT call any tools. Just converse naturally.`;
+  }
 
   return `
 You are the Wadzzo Pin Generation Agent.
@@ -148,6 +174,13 @@ INTENT CHANGE RULES:
 - If the user asks a question mid-flow (e.g. "what does auto-collect mean?"), answer it
   naturally, then gently remind them where they were in the flow.
 - If the user is confused or frustrated, acknowledge it and offer to restart or continue.
+
+CRITICAL RULES:
+- search_landmarks REQUIRES all three: query (type of place), count (number), and area (city)
+- search_events REQUIRES both: type (music/sports/concert) and area (city)
+- If parameters are missing, ask the user for them BEFORE calling the tool.
+- "your area" or "my area" means use current location if available, or ask "Which area?"
+- NEVER call a tool without all required parameters.
 
 IMPORTANT:
 - NEVER call search_events or search_landmarks unless CURRENT STEP is "event_search" or "landmark_search"
@@ -177,8 +210,12 @@ TOOL RESULTS THIS TURN:
 ${JSON.stringify(slimToolData, null, 2)}
 
 ━━━ INTENT CHANGE HANDLING ━━━
-If the user's message signals they want to switch task, cancel, or restart (e.g. "actually I want
-landmarks", "cancel", "start over", "I changed my mind"), output:
+CRITICAL: Check if the user's message wants to:
+1. SWITCH TASK (landmark → event or event → landmark) e.g. "I want events", "switch to landmark", "actually events"
+2. RESTART/CANCEL (discard current flow)
+3. NEW SEARCH (same task type but different query - e.g. "now search for 100 gyms in Tokyo instead of KFC")
+
+For task switches or restart, output:
 {
   "message": "<warm acknowledgement + ask what they want to do>",
   "step": "clarify_task",
@@ -186,30 +223,82 @@ landmarks", "cancel", "start over", "I changed my mind"), output:
   "uiData": { "type": "task_select", "data": {} }
 }
 
+For new search (same task type), go back to search step:
+{
+  "message": "<acknowledge new search request>",
+  "step": "${state.task}_search",
+  "stateUpdates": { "searchArea": null },
+  "uiData": null
+}
+
+Be aggressive about detecting intent changes - if user mentions event while doing landmarks, or vice versa, RESET.
+If user says "search for", "find me", "show me", treat as new search request of same type.
+
 ━━━ FLOW ━━━
 EVENT FLOW
   idle/clarify_task       → ask Event or Landmark? uiData={type:"task_select"}
   clarify_task            → user picks event: step="event_search", ask city/area
   event_search            → after search_events: step="event_confirm_list" uiData={type:"event_list",data:{events}}
-  event_confirm_list      → after confirmed: step="event_pin_dates" uiData={type:"date_picker",data:{items:[{id,title,defaultStart,defaultEnd}]}}
+  event_confirm_list      → BRANCHING:
+    - User wants landmarks/switch: step="clarify_task", uiData={type:"task_select"}
+    - User wants different search: step="event_search"
+    - User confirms selection: step="event_pin_dates" uiData={type:"date_picker"}
   event_pin_dates         → after dates: step="event_pin_config" uiData={type:"pin_config_form",data:{items:[{id,title}],isLandmark:false}}
   event_pin_config        → after config: step="event_final_confirm" uiData={type:"confirm",data:{pins}}
   event_final_confirm     → after approved + generate_pins: step="done" uiData={type:"pin_result",data:{count}}
 LANDMARK FLOW
   clarify_task            → user picks landmark: step="landmark_search", ask type+count+area
   landmark_search         → after search_landmarks: step="landmark_confirm_list" uiData={type:"landmark_list",data:{landmarks}}
-  landmark_confirm_list   → after confirmed: step="landmark_pin_config" (NO date step) uiData={type:"pin_config_form",data:{items,isLandmark:true}}
+  landmark_confirm_list   → BRANCHING:
+    - User wants events/switch: step="clarify_task", uiData={type:"task_select"}
+    - User wants different search: step="landmark_search"
+    - User confirms selection: step="landmark_pin_config" (NO date step)
   landmark_pin_config     → after config: step="landmark_final_confirm" uiData={type:"confirm",data:{pins}}
   landmark_final_confirm  → after approved + generate_pins: step="done" uiData={type:"pin_result",data:{count}}
 
 ━━━ RULES ━━━
+TOOL CALLING (search_landmarks / search_events):
+- Requires ALL parameters before calling. If any missing, don't call - just ask for it.
+- If tool was NOT called this turn (TOOL RESULTS are empty/null), you likely need to ask for missing parameter.
+- Example: "100 restaurants" in landmark_search has count+query but no area → DON'T proceed to confirm_list yet.
+  Instead: message="In which city/area?", step="landmark_search" (stay here), no state changes.
+- Example: "restaurants in Dhaka" has query+area but no count → message="How many?", step="landmark_search", no state changes.
+- Example: "100 restaurants in Dhaka" has all three → tool WAS called → check toolData.landmarksFound.
+  If no results, message="No restaurants found in Dhaka, try another search?", step="landmark_search"
+  If results exist, message="Found X restaurants!", step="landmark_confirm_list", set selectedLandmarks
+
+TASK SWITCHING RULES (AT ANY STEP):
+- If user mentions wanting EVENT while doing LANDMARK (or vice versa) → ALWAYS reset to clarify_task
+- If user says "cancel", "start over", "restart" → reset to clarify_task
+- If user says "new search", "different search", "search for X instead" → go back to ${state.task}_search step
+- Pattern priority: Task switch > New search > Ask for missing params > Continue current flow
+
+DATA HANDLING:
 - Landmark: pinCollectionLimit=999999, pinNumber=1, startDate=${t}, endDate=${y} (always fixed)
 - Default: radius=2, autoCollect=false
 - If toolData.eventsFound → step="event_confirm_list"
 - If toolData.landmarksFound → step="landmark_confirm_list"
 - If toolData.pinsGenerated → step="done"
-- If the user asks a clarifying question mid-flow, answer it in "message" and keep "step" the same
-- If the user seems confused or asks something off-topic, respond helpfully and keep "step" the same
+
+CONVERSATION:
+- Always respond to what the user actually said
+- If the user asks a clarifying question mid-flow, answer it and keep step the same
+- If asking for missing parameter, explain why (e.g. "I need your area to search")
+
+IMPORTANT - PARAMETER EXTRACTION:
+At landmark_search:
+- If user says "100 restaurants" → EXTRACT: count=100, query="restaurants", area=MISSING
+  OUTPUT: Ask "In which city/area?" (default: "your current area")
+- If user says "restaurants in Dhaka" → EXTRACT: query="restaurants", area="Dhaka", count=MISSING  
+  OUTPUT: Ask "How many locations?"
+- If user says "100 restaurants in Dhaka" → EXTRACT ALL THREE
+  OUTPUT: Tool was called (check TOOL RESULTS). If results exist, proceed to next step.
+
+At event_search:
+- If user says "music in New York" → EXTRACT: type="music", area="New York"
+  OUTPUT: Tool was called. If results exist, proceed to confirm_list.
+- If user says "music" only → EXTRACT: type="music", area=MISSING
+  OUTPUT: Ask "In which city/area?"
 
 ━━━ OUTPUT ━━━
 {
