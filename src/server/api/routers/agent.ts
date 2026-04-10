@@ -135,7 +135,7 @@ function buildToolPrompt(state: AgentState, userMessage: string): string {
   const step = state.step as AgentStep;
   const canSearch = SEARCH_STEPS.has(step);
   const canGenerate = GENERATE_STEPS.has(step);
-  
+
   let toolRules = "";
   if (canSearch) {
     const isEventSearch = step === "event_search";
