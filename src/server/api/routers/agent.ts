@@ -140,14 +140,19 @@ function buildToolPrompt(state: AgentState, userMessage: string): string {
   if (canSearch) {
     const isEventSearch = step === "event_search";
     toolRules = isEventSearch
-      ? `- MUST call search_events with the event type and area the user mentioned.
-- Extract event type (e.g. "music", "sports", "concerts") and area (e.g. "Dhaka", "New York") from user message.
-- If user only gave type, ask for area. If user only gave area, ask for type.
-- Once you have BOTH, call search_events immediately.`
+      ? `- MUST call search_events with event type, count, and area.
+- Extract from user message: type (e.g. "music", "sports", "concerts"), count/number (e.g. "10 events"), and area (country, city, or region e.g. "Bangladesh", "Dhaka", "USA", "Canada").
+- COUNTRY-LEVEL SEARCHES ARE VALID: "Bangladesh", "USA", "Canada" are completely acceptable areas.
+- If count not specified, ask "How many events do you want?"
+- If type not specified, ask "What type of event? (music, sports, concerts, festivals, etc.)"
+- If area not specified, ask "Which country or region? (e.g. Bangladesh, USA, Canada)"
+- Once you have ALL THREE (type, count, area), call search_events immediately.
+- NEVER ask for a more specific location if you already have a country.
+- NEVER ask for more info once you have these three parameters.`
       : `- MUST call search_landmarks with query, count, and area.
-- Extract from user message: type/name of place (query), number requested (count), city/area.
+- Extract from user message: type/name of place (query), number requested (count), country/city/area.
 - If count not specified, ask "How many do you want?" 
-- If area not specified, ask "In which city/area?" or suggest using their current location.
+- If area not specified, ask "Which country or region? (e.g. Bangladesh, USA, Canada)" or suggest using their current location.
 - If you have ALL THREE (query, count, area), call search_landmarks immediately.
 - NEVER ask for more info once you have these three parameters.`;
   } else if (canGenerate) {
@@ -237,7 +242,7 @@ If user says "search for", "find me", "show me", treat as new search request of 
 ━━━ FLOW ━━━
 EVENT FLOW
   idle/clarify_task       → ask Event or Landmark? uiData={type:"task_select"}
-  clarify_task            → user picks event: step="event_search", ask city/area
+  clarify_task            → user picks event: step="event_search", ask country/city/area
   event_search            → after search_events: step="event_confirm_list" uiData={type:"event_list",data:{events}}
   event_confirm_list      → BRANCHING:
     - User wants landmarks/switch: step="clarify_task", uiData={type:"task_select"}
@@ -261,7 +266,7 @@ TOOL CALLING (search_landmarks / search_events):
 - Requires ALL parameters before calling. If any missing, don't call - just ask for it.
 - If tool was NOT called this turn (TOOL RESULTS are empty/null), you likely need to ask for missing parameter.
 - Example: "100 restaurants" in landmark_search has count+query but no area → DON'T proceed to confirm_list yet.
-  Instead: message="In which city/area?", step="landmark_search" (stay here), no state changes.
+  Instead: message="Which country or region? (e.g. Bangladesh, USA, Canada)", step="landmark_search" (stay here), no state changes.
 - Example: "restaurants in Dhaka" has query+area but no count → message="How many?", step="landmark_search", no state changes.
 - Example: "100 restaurants in Dhaka" has all three → tool WAS called → check toolData.landmarksFound.
   If no results, message="No restaurants found in Dhaka, try another search?", step="landmark_search"
@@ -288,7 +293,7 @@ CONVERSATION:
 IMPORTANT - PARAMETER EXTRACTION:
 At landmark_search:
 - If user says "100 restaurants" → EXTRACT: count=100, query="restaurants", area=MISSING
-  OUTPUT: Ask "In which city/area?" (default: "your current area")
+  OUTPUT: Ask "Which country or region? (e.g. Bangladesh, USA, Canada)"
 - If user says "restaurants in Dhaka" → EXTRACT: query="restaurants", area="Dhaka", count=MISSING  
   OUTPUT: Ask "How many locations?"
 - If user says "100 restaurants in Dhaka" → EXTRACT ALL THREE
@@ -298,7 +303,7 @@ At event_search:
 - If user says "music in New York" → EXTRACT: type="music", area="New York"
   OUTPUT: Tool was called. If results exist, proceed to confirm_list.
 - If user says "music" only → EXTRACT: type="music", area=MISSING
-  OUTPUT: Ask "In which city/area?"
+  OUTPUT: Ask "Which country or region? (e.g. Bangladesh, USA, Canada)"
 
 ━━━ OUTPUT ━━━
 {
@@ -633,7 +638,8 @@ they'd like to create event pins or landmark pins. Be brief and natural.`,
       let toolData: ToolPassData = { eventsFound: null, landmarksFound: null, pinsGenerated: null };
 
       if (needsToolCall) {
-        const scopedTools = GENERATE_STEPS.has(currentStep)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const scopedTools: Record<string, any> = GENERATE_STEPS.has(currentStep)
           ? { generate_pins: agentTools.generate_pins }
           : { search_events: agentTools.search_events, search_landmarks: agentTools.search_landmarks };
 
