@@ -125,8 +125,8 @@ async function webSearch(query: string): Promise<string> {
 
 // ─── Parse events ─────────────────────────────────────────────────────────────
 
-async function parseEvents(rawText: string, area: string, queryType?: string): Promise<EventData[]> {
-  const cacheKey = `events:${area}:${queryType}`;
+async function parseEvents(rawText: string, area: string, count: number, queryType?: string): Promise<EventData[]> {
+  const cacheKey = `events:${area}:${count}:${queryType}`;
   const cached = getCached<EventData[]>(cacheKey);
   if (cached) return cached;
 
@@ -139,7 +139,7 @@ async function parseEvents(rawText: string, area: string, queryType?: string): P
       messages: [
         {
           role: "system",
-          content: `Extract 3–10 upcoming events. Return ONLY JSON:
+          content: `Extract exactly ${count} upcoming events (or as many as found, max ${count}). Return ONLY JSON:
 {
   "events": [
     {
@@ -157,26 +157,27 @@ async function parseEvents(rawText: string, area: string, queryType?: string): P
     }
   ]
 }
-Rules: Today=${today}. Skip events before today. Infer missing coords from "${area}". Default endDate=startDate+3 days.`,
+Rules: Today=${today}. Skip events before today. Infer missing coords from "${area}". Default endDate=startDate+3 days. Return up to ${count} events only.`,
         },
         {
           role: "user",
-          content: `${queryType ? `Type: ${queryType}. ` : ""}Area: ${area}.\n\n${rawText.slice(0, 2000)}`,
+          content: `${queryType ? `Type: ${queryType}. ` : ""}Area: ${area}. Need: ${count} events.\n\n${rawText.slice(0, 2000)}`,
         },
       ],
     });
 
     const json = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as { events?: EventData[] };
-    const events = (json.events ?? []).map((e, i) => ({
+    const events = (json.events ?? []).slice(0, count).map((e, i) => ({
       ...e,
       id: e.id || `evt_${i + 1}`,
       endDate: e.endDate ?? new Date(new Date(e.startDate).getTime() + 3 * 86400000).toISOString(),
     }));
 
+    console.log(`[Agent] Parsed ${events.length} events from "${queryType} in ${area}"`);
     return setCached(cacheKey, events);
   } catch (error) {
     console.error("[Agent] Event parsing failed:", error);
-    return [];
+    throw new Error(`Failed to parse events: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -246,6 +247,16 @@ function mapPlaceToLandmark(place: GooglePlaceResult, index: number, apiKey: str
 
 // ─── Geocode area → bounding box ──────────────────────────────────────────────
 
+// Validate that bounds make sense: lat ∈ [-90, 90], lng ∈ [-180, 180], deltas reasonable
+function isValidBounds(bounds: CityBounds): boolean {
+  return (
+    bounds.lat >= -90 && bounds.lat <= 90 &&
+    bounds.lng >= -180 && bounds.lng <= 180 &&
+    bounds.latDelta > 0 && bounds.lngDelta > 0 &&
+    bounds.latDelta <= 180 && bounds.lngDelta <= 180  // Both deltas max at 180° (hemisphere)
+  );
+}
+
 async function getCityBounds(area: string, apiKey: string): Promise<CityBounds | null> {
   const cacheKey = `bounds:${area}`;
   const cached = getCached<CityBounds>(cacheKey);
@@ -278,6 +289,18 @@ async function getCityBounds(area: string, apiKey: string): Promise<CityBounds |
       };
     } else {
       bounds = { lat: geo.location!.lat, lng: geo.location!.lng, latDelta: 0.18, lngDelta: 0.18 };
+    }
+
+    // Validate bounds — reject invalid coordinates
+    if (!isValidBounds(bounds)) {
+      console.warn(
+        `[Agent] Invalid bounds for "${area}" — raw: ${JSON.stringify(bounds)}, using point fallback`,
+      );
+      if (geo.location) {
+        bounds = { lat: geo.location.lat, lng: geo.location.lng, latDelta: 0.18, lngDelta: 0.18 };
+      } else {
+        return null;
+      }
     }
 
     console.log(`[Agent] Bounds for "${area}":`, bounds);
@@ -526,31 +549,44 @@ export const PinItemSchema = z.object({
 export const agentTools = {
   search_events: tool({
     description:
-      "Search the web for real upcoming events of a specific type in a given area. Returns EventData[].",
+      "Search the web for real upcoming events of a specific type in a given location. Returns EventData[].",
     parameters: z.object({
       query: z.string().describe("Type of event, e.g. 'music', 'sports', 'festival', 'conference'"),
-      area: z.string().describe("City or area to search, e.g. 'Dhaka', 'New York'"),
+      count: z.number().int().min(1).max(100).describe("How many events to return (1-100)"),
+      area: z.string().describe("Country, city, or area to search, e.g. 'Bangladesh', 'Dhaka', 'USA', 'New York'"),
     }),
-    execute: async ({ query, area }) => {
-      const rawText = await webSearch(
-        `upcoming ${query} events in ${area} ${new Date().getFullYear()}`,
-      );
-      const events = await parseEvents(rawText, area, query);
-      return { events };
+    execute: async ({ query, count, area }) => {
+      console.log(`[Agent] search_events: query="${query}", area="${area}", count=${count}`);
+      try {
+        const rawText = await webSearch(
+          `top ${query} events in ${area} ${new Date().getFullYear()}`,
+        );
+        if (!rawText || rawText.length < 50) {
+          console.warn(`[Agent] Web search returned insufficient data for "${query} in ${area}"`);
+          return { events: [] };
+        }
+        const events = await parseEvents(rawText, area, count, query);
+        return { events };
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`[Agent] Event search failed: ${errorMsg}`);
+        throw new Error(`Event search failed: ${errorMsg}`);
+      }
     },
   }),
 
   search_landmarks: tool({
     description:
       "Search for landmark places (restaurants, cafes, hotels, gyms, parks, hospitals, etc.) using Google Places API. " +
-      "Dynamically grids any city bounding box and fetches cells in parallel to reliably hit any count target up to 1000. " +
-      "Works for any city worldwide. Returns LandmarkData[].",
+      "Dynamically grids any location's bounding box and fetches cells in parallel to reliably hit any count target up to 1000. " +
+      "Works for any city, country, or region worldwide. Returns LandmarkData[].",
     parameters: z.object({
       query: z.string().describe("Type or name of place, e.g. 'KFC', 'gym', 'restaurant', 'hospital'"),
       count: z.number().int().min(1).max(1000).describe("How many results to return"),
-      area: z.string().describe("City or area, e.g. 'Dhaka', 'Tokyo', 'New York City'"),
+      area: z.string().describe("Country, city, or area, e.g. 'Bangladesh', 'Dhaka', 'Japan', 'Tokyo'"),
     }),
     execute: async ({ query, count, area }) => {
+      console.log(`[Agent] search_landmarks: query="${query}", area="${area}", count=${count}`);
       const landmarks = await searchLandmarksViaGooglePlaces(query, area, count);
       return { landmarks };
     },
