@@ -150,10 +150,14 @@ function buildToolPrompt(state: AgentState, userMessage: string): string {
 - NEVER ask for a more specific location if you already have a country.
 - NEVER ask for more info once you have these three parameters.`
       : `- MUST call search_landmarks with query, count, and area.
-- Extract from user message: type/name of place (query), number requested (count), country/city/area.
+- Extract from user message: type/name of place (query), number requested (count), and CITY/AREA.
+- CITY/AREA IS REQUIRED - not just a country name. Cities like "Dhaka", "New York", "Tokyo" are valid.
+- If user says a country name (e.g. "USA", "Canada", "France", "Japan"), you MUST extract its capital or main city.
+  Examples: "USA" → "New York", "France" → "Paris", "Japan" → "Tokyo", "Bangladesh" → "Dhaka"
 - If count not specified, ask "How many do you want?" 
-- If area not specified, ask "Which country or region? (e.g. Bangladesh, USA, Canada)" or suggest using their current location.
-- If you have ALL THREE (query, count, area), call search_landmarks immediately.
+- If area not specified, ask "Which city or area? (e.g. Dhaka, New York, Tokyo)" - do NOT accept just country names.
+- If you have ALL THREE (query, count, city/area or capital), call search_landmarks immediately.
+- Special case: If user says "anywhere in US", "anywhere in Canada", etc., use default cities (NYC, Geneseo, etc.) without asking.
 - NEVER ask for more info once you have these three parameters.`;
   } else if (canGenerate) {
     toolRules = `- Call generate_pins with the confirmed pin payloads from state.pins.
@@ -292,12 +296,17 @@ CONVERSATION:
 
 IMPORTANT - PARAMETER EXTRACTION:
 At landmark_search:
+- MUST extract CITY/AREA, not just country. If user says country name, CONVERT it to its capital or main city.
+  Examples: "USA" → "New York", "France" → "Paris", "Japan" → "Tokyo", "Bangladesh" → "Dhaka", "UK" → "London"
 - If user says "100 restaurants" → EXTRACT: count=100, query="restaurants", area=MISSING
-  OUTPUT: Ask "Which country or region? (e.g. Bangladesh, USA, Canada)"
-- If user says "restaurants in Dhaka" → EXTRACT: query="restaurants", area="Dhaka", count=MISSING  
-  OUTPUT: Ask "How many locations?"
+  OUTPUT: "Which city or area? (e.g. Dhaka, New York, London)" - do NOT accept just countries.
+- If user says "restaurants in USA" → EXTRACT: count=MISSING, query="restaurants", area="New York" (extracted capital)
+  OUTPUT: "How many locations?"
+- If user says "100 restaurants in France" → EXTRACT ALL THREE: count=100, query="restaurants", area="Paris"
+  OUTPUT: Tool was called (check TOOL RESULTS). If results exist, proceed to next step.
 - If user says "100 restaurants in Dhaka" → EXTRACT ALL THREE
   OUTPUT: Tool was called (check TOOL RESULTS). If results exist, proceed to next step.
+- Special: "anywhere in US" or "anywhere in Canada" → use default cities (NYC, Geneseo) without asking.
 
 At event_search:
 - If user says "music in New York" → EXTRACT: type="music", area="New York"
