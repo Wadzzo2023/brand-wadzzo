@@ -441,17 +441,50 @@ async function drainCell(
   return collected;
 }
 
+// ─── Location fallback priority ───────────────────────────────────────────────
+// When area is not specified or is vague (e.g., "anywhere", "anywhere in US", etc.),
+// or when user provides only a country name, use that country's capital as primary search location.
+//
+// NOTE: Users MUST provide a city/area for landmark search, not just a country.
+// If they provide only a country or vague location, fall back to these defaults.
+
+const LANDMARK_LOCATION_PRIORITY = {
+  us: ["New York City, USA", "Geneseo, New York, USA"],
+  canada: ["Toronto, Canada", "Vancouver, Canada"],
+  default: ["New York City, USA", "Geneseo, New York, USA"],
+};
+
+function isVagueLandmarkLocation(area: string): boolean {
+  const q = area.toLowerCase().trim();
+  return (
+    !area ||
+    q === "" ||
+    q.includes("anywhere")
+  );
+}
+
+function getLandmarkLocationPriority(area: string): string[] {
+  const q = area.toLowerCase().trim();
+  if (q.includes("canada")) {
+    return LANDMARK_LOCATION_PRIORITY.canada;
+  }
+  return LANDMARK_LOCATION_PRIORITY.default;
+}
+
 // ─── Main landmark search ─────────────────────────────────────────────────────
 //
 // Fetches all grid cells in parallel (up to CELL_CONCURRENCY at once), then
 // merges batches into a global dedup set keyed by place_id.
+//
+// Handles vague locations (country-only, "anywhere", etc.) by falling back to
+// priority cities: NYC → Geneseo → related by distance.
 //
 // CELL_CONCURRENCY = 5 is safe for the Places API free tier (~10 QPS).
 // Raise to 10 on a paid plan with higher quota.
 
 const CELL_CONCURRENCY = 5;
 
-async function searchLandmarksViaGooglePlaces(
+async function searchLandmarksSingleArea(
   query: string,
   area: string,
   count: number,
@@ -524,6 +557,49 @@ async function searchLandmarksViaGooglePlaces(
   return setCached(cacheKey, finalResults);
 }
 
+async function searchLandmarksViaGooglePlaces(
+  query: string,
+  area: string,
+  count: number,
+): Promise<LandmarkData[]> {
+  // Handle vague locations with priority fallback
+  if (isVagueLandmarkLocation(area)) {
+    const priorities = getLandmarkLocationPriority(area);
+    console.log(
+      `[Agent] Vague landmark location detected "${area}". Trying priority order: ${priorities.join(" → ")}`,
+    );
+
+    const allResults: LandmarkData[] = [];
+    const seenIds = new Set<string>();
+
+    for (const priorityArea of priorities) {
+      if (allResults.length >= count) break;
+
+      const results = await searchLandmarksSingleArea(
+        query,
+        priorityArea,
+        count - allResults.length,
+      );
+
+      for (const item of results) {
+        if (allResults.length >= count) break;
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          allResults.push(item);
+        }
+      }
+    }
+
+    console.log(
+      `[Agent] Final merged result for vague location: ${allResults.length} landmarks`,
+    );
+    return allResults.slice(0, count);
+  }
+
+  // For specific city/area searches, search directly
+  return searchLandmarksSingleArea(query, area, count);
+}
+
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
 export const PinItemSchema = z.object({
@@ -578,12 +654,14 @@ export const agentTools = {
   search_landmarks: tool({
     description:
       "Search for landmark places (restaurants, cafes, hotels, gyms, parks, hospitals, etc.) using Google Places API. " +
-      "Dynamically grids any location's bounding box and fetches cells in parallel to reliably hit any count target up to 1000. " +
-      "Works for any city, country, or region worldwide. Returns LandmarkData[].",
+      "REQUIRES a city or area (NOT just a country). " +
+      "Dynamically grids the location's bounding box and fetches cells in parallel to reliably hit any count target up to 1000. " +
+      "If area is not specified or is vague (e.g., 'anywhere', 'anywhere in US'), defaults to priority order: NYC → Geneseo → related cities. " +
+      "Returns LandmarkData[].",
     parameters: z.object({
       query: z.string().describe("Type or name of place, e.g. 'KFC', 'gym', 'restaurant', 'hospital'"),
       count: z.number().int().min(1).max(1000).describe("How many results to return"),
-      area: z.string().describe("Country, city, or area, e.g. 'Bangladesh', 'Dhaka', 'Japan', 'Tokyo'"),
+      area: z.string().describe("CITY or AREA required (e.g. 'Dhaka', 'New York', 'Tokyo'). NOT just country. If vague like 'anywhere', defaults to NYC/Geneseo."),
     }),
     execute: async ({ query, count, area }) => {
       console.log(`[Agent] search_landmarks: query="${query}", area="${area}", count=${count}`);
