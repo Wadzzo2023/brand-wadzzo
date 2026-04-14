@@ -686,7 +686,7 @@ they'd like to create event pins or landmark pins. Be brief and natural.`,
 
           await qstash.publishJSON({
             url: `${BASE_URL}/api/create-pins`,
-            body: { jobId: job.id, creator_Id, pins, redeemMode },
+            body: { jobId: job.id, creatorId: creator_Id, pins, redeemMode },
             retries: 2,
           });
 
