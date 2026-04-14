@@ -557,9 +557,10 @@ export const agentRouter = createTRPCRouter({
         content: z.string(),
       })),
       state: AgentStateSchema,
+      creatorId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { message, history, state } = input;
+      const { message, history, state, creatorId } = input;
       const currentStep = state.step as AgentStep;
 
       // ── Check for intent reset FIRST ──────────────────────────────────────
@@ -671,11 +672,11 @@ they'd like to create event pins or landmark pins. Be brief and natural.`,
             ...p,
           }));
           const redeemMode = (state as AgentState).redeemMode ?? "separate";
-          const creatorId = ctx.session.user.id;
+          const creator_Id = creatorId ? creatorId : ctx.session?.user.id;
 
           const job = await ctx.db.locationGroupJob.create({
             data: {
-              creatorId,
+              creatorId: creator_Id,
               status: "pending",
               total: pins.length,
               payload: pins as object[],
@@ -685,7 +686,7 @@ they'd like to create event pins or landmark pins. Be brief and natural.`,
 
           await qstash.publishJSON({
             url: `${BASE_URL}/api/create-pins`,
-            body: { jobId: job.id, creatorId, pins, redeemMode },
+            body: { jobId: job.id, creator_Id, pins, redeemMode },
             retries: 2,
           });
 

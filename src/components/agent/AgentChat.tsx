@@ -20,6 +20,7 @@ import {
     ChevronUp,
 } from "lucide-react"
 import type { AgentState, AgentTask, EventData, LandmarkData, Message, PinItem } from "~/lib/agent/types"
+import { Input } from "../shadcn/ui/input"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type JobStatus = "pending" | "processing" | "completed" | "failed"
@@ -354,89 +355,208 @@ function PinConfigForm({
             ]),
         ),
     )
+    const [expandedId, setExpandedId] = useState<string | null>(null)
+    const [showBulkActions, setShowBulkActions] = useState(false)
 
-    function toggle(id: string) {
+    function updateCfg(id: string, updates: Partial<PinCfg>) {
         setCfgs((prev) => ({
             ...prev,
-            [id]: { ...prev[id]!, autoCollect: !prev[id]!.autoCollect },
+            [id]: { ...prev[id]!, ...updates },
         }))
+    }
+
+    function toggle(id: string) {
+        updateCfg(id, { autoCollect: !cfgs[id]!.autoCollect })
+    }
+
+    function bulkToggleAutoCollect(enabled: boolean) {
+        setCfgs((prev) =>
+            Object.fromEntries(
+                Object.entries(prev).map(([id, cfg]) => [id, { ...cfg, autoCollect: enabled }])
+            )
+        )
+    }
+
+    function bulkSetRadius(radius: number) {
+        setCfgs((prev) =>
+            Object.fromEntries(
+                Object.entries(prev).map(([id, cfg]) => [id, { ...cfg, radius }])
+            )
+        )
     }
 
     return (
         <div className="mt-3 flex flex-col gap-3">
+
+
             {items.map((it) => {
                 const cfg = cfgs[it.id]!
                 const on = cfg.autoCollect
+                const isExpanded = expandedId === it.id
+
                 return (
-                    <div key={it.id} className="rounded-[20px] bg-muted/50 p-4">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <p className="text-sm font-medium text-foreground">{it.title}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">ID: {it.id}</p>
-                            </div>
-                            <span
-                                className={`text-xs font-medium px-3 py-1 rounded-full ${on
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-background text-muted-foreground border border-border"
-                                    }`}
-                            >
-                                {on ? "Active" : "Inactive"}
-                            </span>
-                        </div>
-
-                        <div className="h-px bg-border mb-3" />
-
-                        {/* Bottom row */}
-                        <div className="flex items-center justify-between">
-                            {/* Lat / Lng */}
-                            <div className="flex gap-5">
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                        Latitude
-                                    </span>
-                                    <span className="text-sm font-mono text-foreground">
-                                        {it.latitude.toFixed(4)}
-                                    </span>
+                    <div
+                        key={it.id}
+                        className="rounded-[20px] bg-muted/50 p-4 transition-all"
+                    >
+                        {/* Header - clickable to expand */}
+                        <button
+                            onClick={() => setExpandedId(isExpanded ? null : it.id)}
+                            className="w-full text-left transition-all hover:opacity-80"
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-foreground">{it.title}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Pins: {cfg.pinNumber} | Limit: {cfg.pinCollectionLimit} | Radius: {cfg.radius}m | Auto: {on ? "Yes" : "No"}
+                                    </p>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                        Longitude
-                                    </span>
-                                    <span className="text-sm font-mono text-foreground">
-                                        {it.longitude.toFixed(4)}
-                                    </span>
-                                </div>
+                                <span className="text-lg">{isExpanded ? "▼" : "▶"}</span>
                             </div>
+                        </button>
 
-                            {/* Auto collect toggle */}
-                            <div className="flex flex-col items-end gap-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                    Auto collect
-                                </span>
-                                <button
-                                    onClick={() => toggle(it.id)}
-                                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium border-none transition-all ${on
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-background text-muted-foreground border border-border"
-                                        }`}
-                                >
-                                    {on ? "On" : "Off"}
-                                    <div
-                                        className={`relative h-4 w-7 rounded-full transition-colors ${on ? "bg-blue-500" : "bg-slate-300"
-                                            }`}
-                                    >
-                                        <div
-                                            className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-3.5" : "translate-x-0.5"
-                                                }`}
+                        {/* Expanded Editor */}
+                        {isExpanded && (
+                            <>
+                                <div className="h-px bg-border mb-3" />
+                                <div className="flex flex-col gap-3">
+                                    {/* Location info */}
+                                    <div className="flex gap-5 text-xs">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+                                                Latitude
+                                            </span>
+                                            <span className="font-mono text-foreground">
+                                                {it.latitude.toFixed(4)}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+                                                Longitude
+                                            </span>
+                                            <span className="font-mono text-foreground">
+                                                {it.longitude.toFixed(4)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Pin Number */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground">Number of Pins</label>
+                                        <Input
+                                            disabled
+                                            type="number"
+                                            min="1"
+                                            value={cfg.pinNumber}
+
                                         />
                                     </div>
-                                </button>
-                            </div>
-                        </div>
+
+                                    {/* Collection Limit */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground">Collection Limit</label>
+                                        <Input
+                                            disabled
+                                            type="number"
+                                            min="1"
+
+                                            value={cfg.pinCollectionLimit}
+
+                                        />
+                                    </div>
+
+                                    {/* Radius */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground">Radius (meters)</label>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            disabled
+                                            value={cfg.radius}
+
+                                        />
+                                    </div>
+
+                                    {/* Auto Collect Toggle */}
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id={`auto-collect-${it.id}`}
+                                            checked={on}
+                                            onChange={() => toggle(it.id)}
+                                            className="h-4 w-4 rounded border-border accent-primary"
+                                        />
+                                        <label htmlFor={`auto-collect-${it.id}`} className="text-xs font-semibold text-muted-foreground cursor-pointer">
+                                            Enable Auto Collect
+                                        </label>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )
             })}
+            {/* Bulk Actions */}
+            {showBulkActions && (
+                <div className="rounded-xl border border-border bg-muted/50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-semibold text-foreground">Bulk Edit All</h4>
+                        <button
+                            onClick={() => setShowBulkActions(false)}
+                            className="text-muted-foreground hover:text-foreground text-lg"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Set Radius (m) for All</label>
+                            <div className="mt-1 flex gap-1">
+                                {[1, 2, 5, 10, 50].map((r) => (
+                                    <button
+                                        key={r}
+                                        onClick={() => {
+                                            bulkSetRadius(r)
+                                            setShowBulkActions(false)
+                                        }}
+                                        className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-primary active:scale-95"
+                                    >
+                                        {r}m
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                bulkToggleAutoCollect(true)
+                                setShowBulkActions(false)
+                            }}
+                            className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-500/30"
+                        >
+                            ✓ Enable Auto Collect All
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                bulkToggleAutoCollect(false)
+                                setShowBulkActions(false)
+                            }}
+                            className="rounded-lg bg-muted/50 border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-primary"
+                        >
+                            ✕ Disable Auto Collect All
+                        </button>
+                    </div>
+                </div>
+            )}
+            {/* Bulk Edit Button */}
+            <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:bg-muted/50 hover:text-primary"
+            >
+                {showBulkActions ? "✕ Close Bulk Edit" : "⚙ Bulk Edit All"}
+            </button>
 
             <button
                 onClick={() => onConfirm(cfgs)}
@@ -447,6 +567,233 @@ function PinConfigForm({
         </div>
     )
 }
+// ─── PinEditor (inline editing) ───────────────────────────────────────────────
+
+function PinEditor({
+    pins: initialPins,
+    onPinsChange,
+    onConfirm,
+    onCancel,
+}: {
+    pins: PinItem[]
+    onPinsChange: (pins: PinItem[]) => void
+    onConfirm: () => void
+    onCancel: () => void
+}) {
+    const [pins, setPins] = useState(initialPins)
+    const [editingIndex, setEditingIndex] = useState<number | null>(null)
+    const [showBulkEdit, setShowBulkEdit] = useState(false)
+
+    function updatePin(index: number, updates: Partial<PinItem>) {
+        const newPins = [...pins]
+        newPins[index] = { ...newPins[index]!, ...updates }
+        setPins(newPins)
+        onPinsChange(newPins)
+    }
+
+    function bulkToggleAutoCollect(enabled: boolean) {
+        const newPins = pins.map((p) => ({ ...p, autoCollect: enabled }))
+        setPins(newPins)
+        onPinsChange(newPins)
+    }
+
+    function bulkSetRadius(radius: number) {
+        const newPins = pins.map((p) => ({ ...p, radius }))
+        setPins(newPins)
+        onPinsChange(newPins)
+    }
+
+    if (editingIndex !== null) {
+        const pin = pins[editingIndex]
+        return (
+            <div className="mt-3 flex flex-col gap-3">
+                <div className="rounded-xl border border-border bg-muted/50 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h3 className="font-semibold text-foreground">Editing: {pin?.title}</h3>
+                        <button
+                            onClick={() => setEditingIndex(null)}
+                            className="text-muted-foreground hover:text-foreground text-lg"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        {/* Pin Number */}
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Number of Pins</label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={pin?.pinNumber ?? 1}
+                                onChange={(e) =>
+                                    updatePin(editingIndex, { pinNumber: Math.max(1, parseInt(e.target.value) || 1) })
+                                }
+                                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                            />
+                        </div>
+
+                        {/* Collection Limit */}
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Collection Limit</label>
+                            <input
+                                type="number"
+                                min="1"
+
+                                value={pin?.pinCollectionLimit ?? 100}
+                                onChange={(e) =>
+                                    updatePin(editingIndex, { pinCollectionLimit: Math.max(1, parseInt(e.target.value) || 100) })
+                                }
+                                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                            />
+                        </div>
+
+                        {/* Radius */}
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Radius (meters)</label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={pin?.radius ?? 2}
+                                onChange={(e) =>
+                                    updatePin(editingIndex, { radius: Math.max(1, parseInt(e.target.value) || 2) })
+                                }
+                                className="w-full mt-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                            />
+                        </div>
+
+                        {/* Auto Collect Toggle */}
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                id={`auto-collect-${editingIndex}`}
+                                checked={pin?.autoCollect ?? false}
+                                onChange={(e) => updatePin(editingIndex, { autoCollect: e.target.checked })}
+                                className="h-4 w-4 rounded border-border accent-primary"
+                            />
+                            <label htmlFor={`auto-collect-${editingIndex}`} className="text-xs font-semibold text-muted-foreground cursor-pointer">
+                                Enable Auto Collect
+                            </label>
+                        </div>
+
+                        <button
+                            onClick={() => setEditingIndex(null)}
+                            className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
+                        >
+                            Done Editing
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="mt-3 flex flex-col gap-3">
+            {/* Bulk Actions */}
+            {showBulkEdit && (
+                <div className="rounded-xl border border-border bg-muted/50 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-semibold text-foreground">Bulk Edit All</h4>
+                        <button
+                            onClick={() => setShowBulkEdit(false)}
+                            className="text-muted-foreground hover:text-foreground text-lg"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Set Radius (m) for All</label>
+                            <div className="mt-1 flex gap-1">
+                                {[2, 5, 10, 50, 100].map((r) => (
+                                    <button
+                                        key={r}
+                                        onClick={() => {
+                                            bulkSetRadius(r)
+                                            setShowBulkEdit(false)
+                                        }}
+                                        className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-primary active:scale-95"
+                                    >
+                                        {r}m
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                bulkToggleAutoCollect(true)
+                                setShowBulkEdit(false)
+                            }}
+                            className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-500/30"
+                        >
+                            ✓ Enable Auto Collect All
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                bulkToggleAutoCollect(false)
+                                setShowBulkEdit(false)
+                            }}
+                            className="rounded-lg bg-muted/50 border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-primary"
+                        >
+                            ✕ Disable Auto Collect All
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Pin List */}
+            <div className="flex max-h-52 flex-col gap-2 overflow-y-auto pr-1">
+                {pins.map((p, i) => (
+                    <button
+                        key={i}
+                        onClick={() => setEditingIndex(i)}
+                        className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3 text-left transition-all hover:border-primary hover:bg-muted/50 active:scale-[0.98]"
+                    >
+                        <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm text-foreground">{p.title}</span>
+                            <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span><span className="text-foreground/60">Pins: </span>{p.pinNumber ?? 1}</span>
+                            <span><span className="text-foreground/60">Limit: </span>{p.pinCollectionLimit ?? "—"}</span>
+                            <span><span className="text-foreground/60">Radius: </span>{p.radius ?? 2}m</span>
+                            <span><span className={`font-semibold ${p.autoCollect ? "text-emerald-600" : "text-muted-foreground"}`}>Auto: {p.autoCollect ? "✓ Yes" : "No"}</span></span>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {/* Bulk Edit Button */}
+            <button
+                onClick={() => setShowBulkEdit(!showBulkEdit)}
+                className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:bg-muted/50 hover:text-primary"
+            >
+                {showBulkEdit ? "✕ Close Bulk Edit" : "⚙ Bulk Edit All"}
+            </button>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+                <button
+                    onClick={onCancel}
+                    className="flex-1 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-all hover:border-primary hover:text-primary"
+                >
+                    ← Back
+                </button>
+                <button
+                    onClick={onConfirm}
+                    className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
+                >
+                    ✓ Generate {pins.length}
+                </button>
+            </div>
+        </div>
+    )
+}
+
 // ─── ConfirmReview ────────────────────────────────────────────────────────────
 
 function ConfirmReview({
@@ -458,12 +805,26 @@ function ConfirmReview({
     onConfirm: () => void
     onEdit: (msg: string) => void
 }) {
-    const [editMsg, setEditMsg] = useState("")
+    const [isEditing, setIsEditing] = useState(false)
+    const [editedPins, setEditedPins] = useState(pins)
 
-    function submitEdit() {
-        if (!editMsg.trim()) return
-        onEdit(editMsg)
-        setEditMsg("")
+    function handleFinishEditing() {
+        // Send the updated pins back to the server
+        onEdit(`I've made the following changes to the pins. Please generate with these updated settings.`)
+    }
+
+    if (isEditing) {
+        return (
+            <PinEditor
+                pins={editedPins}
+                onPinsChange={setEditedPins}
+                onConfirm={() => {
+                    handleFinishEditing()
+                    setIsEditing(false)
+                }}
+                onCancel={() => setIsEditing(false)}
+            />
+        )
     }
 
     return (
@@ -479,7 +840,7 @@ function ConfirmReview({
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <span><span className="text-foreground/60">Pins: </span>{p.pinNumber ?? 1}</span>
                             <span><span className="text-foreground/60">Limit: </span>{p.pinCollectionLimit ?? "—"}</span>
-                            <span><span className="text-foreground/60">Radius: </span>{p.radius ?? 50}m</span>
+                            <span><span className="text-foreground/60">Radius: </span>{p.radius ?? 2}m</span>
                             <span><span className="text-foreground/60">Auto: </span>{p.autoCollect ? "Yes" : "No"}</span>
                             <span className="col-span-2"><span className="text-foreground/60">Start: </span>{fmtDate(p.startDate)}</span>
                             <span className="col-span-2"><span className="text-foreground/60">End: </span>{fmtDate(p.endDate)}</span>
@@ -488,38 +849,30 @@ function ConfirmReview({
                 ))}
             </div>
 
-            {/* Inline edit request 
+            {/* Action Buttons */}
             <div className="flex gap-2">
-                <input
-                    value={editMsg}
-                    onChange={(e) => setEditMsg(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitEdit() }}
-                    placeholder='e.g. "Change #2 radius to 100m"'
-                    className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
-                />
-                <button
-                    onClick={submitEdit}
-                    disabled={!editMsg.trim()}
-                    className="rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-40"
-                >
-                    Edit
-                </button>
-            </div>*/}
 
-            <button
-                onClick={onConfirm}
-                className="w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
-            >
-                ✓ Generate {pins.length} Pin{pins.length !== 1 ? "s" : ""}
-            </button>
-        </div >
+                <button
+                    onClick={onConfirm}
+                    className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
+                >
+                    ✓ Generate {pins.length}
+                </button>
+            </div>
+        </div>
     )
+}
+
+
+// ------ Props ------------
+interface AgentChatProps {
+    creatorId?: string
 }
 
 
 // ─── Main AgentChat ───────────────────────────────────────────────────────────
 
-export default function AgentChat() {
+export default function AgentChat({ creatorId }: AgentChatProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isMinimized, setIsMinimized] = useState(false)
     const [messages, setMessages] = useState<Message[]>([WELCOME])
@@ -536,7 +889,7 @@ export default function AgentChat() {
     // ── Core send ─────────────────────────────────────────────────────────────
 
     const send = useCallback(
-        async (userMsg: string, stateOverride?: Partial<AgentState>) => {
+        async (userMsg: string, stateOverride?: Partial<AgentState> | undefined) => {
             setIsOpen(true)
             if (!userMsg.trim() || chatMutation.isLoading) return
 
@@ -554,28 +907,28 @@ export default function AgentChat() {
                     message: userMsg,
                     history,
                     state: currentState,
+                    creatorId: creatorId
                 })
 
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        role: "assistant",
-                        content: res.message,
-                        uiData: res.uiData ?? undefined,
-                    },
-                ])
+                const newMessage: Message = {
+                    role: "assistant" as const,
+                    content: res.message,
+                    uiData: res.uiData ? {
+                        type: res.uiData.type as Message["uiData"] extends { type: infer T } ? T : never,
+                        data: res.uiData.data,
+                    } : undefined,
+                }
+                setMessages((prev) => [...prev, newMessage])
                 setAgentState(res.state)
             } catch {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        role: "assistant",
-                        content: "Sorry, something went wrong. Please try again.",
-                    },
-                ])
+                const errorMessage: Message = {
+                    role: "assistant" as const,
+                    content: "Sorry, something went wrong. Please try again.",
+                }
+                setMessages((prev) => [...prev, errorMessage])
             }
         },
-        [agentState, chatMutation, messages],
+        [agentState, chatMutation, messages, creatorId],
     )
 
     // ── Handlers ──────────────────────────────────────────────────────────────
@@ -691,7 +1044,8 @@ export default function AgentChat() {
     }
 
     function handleFinalEdit(msg: string) {
-        void send(msg)
+        // When user finishes editing pins through the editor, we pass the updated pins
+        void send(msg, { pins: agentState.pins })
     }
 
     function handleNewTask(t: AgentTask) {
@@ -1113,8 +1467,9 @@ export function PinJobProgress({ count, jobId, onNew }: PinJobProgressProps) {
 
     // Cleanup on unmount
     useEffect(() => {
+        const currentInterval = intervalRef.current
         return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current)
+            if (currentInterval) clearInterval(currentInterval)
         }
     }, [])
 
