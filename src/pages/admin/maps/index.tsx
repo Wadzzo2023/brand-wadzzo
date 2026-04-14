@@ -232,7 +232,9 @@ function AdminMapDashboardContent() {
 
             {selectedCreator && <CreateAdminPinModal />}
             <PinDetailAndActionsModal />
-            {selectedCreator && <AgentChat />}
+            {selectedCreator && <AgentChat
+                creatorId={selectedCreator.id}
+            />}
         </APIProvider>
     )
 }
