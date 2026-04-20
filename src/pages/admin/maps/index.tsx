@@ -62,10 +62,10 @@ function MapDrawingLayer({
 // Define Pin type for clarity and consistency with Prisma schema
 type Pin = Location & {
   locationGroup:
-    | (LocationGroup & {
-        creator: { profileUrl: string | null };
-      })
-    | null;
+  | (LocationGroup & {
+    creator: { profileUrl: string | null };
+  })
+  | null;
   _count: {
     consumers: number;
   };
@@ -293,6 +293,7 @@ function AdminMapDashboardContent() {
 
       {openHostpotModal && (
         <CreateHotspotModal
+          creatorId={selectedCreator?.id}
           isOpen={openHostpotModal}
           setIsOpen={setOpenHotspotModal}
           hotspotData={hotspotData}

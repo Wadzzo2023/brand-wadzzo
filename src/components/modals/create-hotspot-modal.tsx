@@ -79,6 +79,7 @@ type CreateHotspotType = z.infer<typeof createHotspotFormSchema>
 
 interface CreateHotspotModalProps {
     isOpen: boolean
+    creatorId?: string
     setIsOpen: (open: boolean) => void
     /** GeoJSON Feature representing the drawn shape (circle / rect / polygon) */
     hotspotData: GeoJSON.Feature | null
@@ -101,6 +102,7 @@ function formatDateForInput(date: Date) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CreateHotspotModal({
+    creatorId,
     isOpen,
     setIsOpen,
     hotspotData,
@@ -185,6 +187,7 @@ export default function CreateHotspotModal({
 
         addHotspotM.mutate({
             ...data,
+            creatorId,
             autoCollect: collectionMode === "auto",
             description: data.description ?? "",
             url: data.url ?? "",
