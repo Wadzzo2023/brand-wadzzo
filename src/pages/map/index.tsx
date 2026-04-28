@@ -326,9 +326,9 @@ const MyPins = memo(function MyPins({
                                 <div className={`absolute inset-0 bg-blue-400 animate-ping opacity-20 ${shapeClasses}`} />
                             )}
 
-                            {pin.locationGroup?.creator.profileUrl ? (
+                            {(pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl) ? (
                                 <img
-                                    src={pin.locationGroup.creator.profileUrl ?? "/placeholder.svg"}
+                                    src={pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl ?? "/placeholder.svg"}
                                     width={32}
                                     height={32}
                                     alt="Creator"
