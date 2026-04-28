@@ -410,15 +410,13 @@ const CreatorPins = memo(function CreatorPins({
               )}
 
               {/* Pin icon or creator image */}
-              {pin.locationGroup?.creator.profileUrl ? (
+              {(pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl) ? (
                 <img
-                  src={
-                    pin.locationGroup.creator.profileUrl ?? "/placeholder.svg"
-                  }
+                  src={pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl ?? "/placeholder.svg"}
                   width={32}
                   height={32}
                   alt="Creator"
-                  className={`h-12 w-12 ${shapeClasses} object-cover ring-2  transition-all duration-300`}
+                  className={`h-12 w-12 ${shapeClasses} object-cover ring-2 transition-all duration-300`}
                 />
               ) : (
                 <div
