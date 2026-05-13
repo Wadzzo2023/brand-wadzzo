@@ -79,7 +79,7 @@ async function reformatToJson(rawText: string): Promise<AgentResponse> {
 Rules: no pins array, strip all markdown from message fields.`;
 
   try {
-    const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+    const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
     const res = await llm.invoke([
       { role: "system", content: SYSTEM },
       { role: "user", content: `Convert:\n\n${rawText.slice(0, 2000)}` },
@@ -150,7 +150,7 @@ async function extractIntent(
   msgs: { role: string; text: string }[],
   prior: Partial<PinIntent> | undefined
 ): Promise<PinIntent> {
-  const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+  const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
   const convo = msgs.map(m => `${m.role.toUpperCase()}: ${m.text}`).join("\n");
 
   const res = await llm.invoke([
@@ -377,7 +377,7 @@ async function gapFillPins(
   const combined = [...current];
 
   const regionForDiscovery = area ?? "worldwide";
-  const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+  const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
   const cityRes = await llm.invoke([{
     role: "user",
     content:
@@ -462,7 +462,7 @@ export const agentRouter = createTRPCRouter({
 
       // ── 3. Invoke agent ──────────────────────────────────────────────────
       const agent = createAgent({
-        model: new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0.2 }),
+        model: new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0.2 }),
         tools: [...ALL_TOOLS],
         systemPrompt,
         name: "pin_drop_agent",
