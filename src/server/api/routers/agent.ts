@@ -23,6 +23,7 @@ const IntentSchema = z.object({
     .optional(),
   confirmed: z.boolean().optional(),
   isNiche: z.boolean().optional(),
+  pinNumber: z.number().min(1).default(1).optional(),
 });
 
 const PinOptionsSchema = z.object({

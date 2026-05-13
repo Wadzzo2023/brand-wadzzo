@@ -1527,6 +1527,7 @@ STEP 1 → COLLECT PARAMETERS
   Extract WHAT, WHERE, HOW MANY from the user message.
   If WHAT is missing → respond with type "question" asking for it.
   If WHERE is missing or vague → set WHERE = "worldwide" and proceed.
+  If the initial area search returns no results, broaden to a worldwide search over major cities instead of asking the user to clarify again.
   Never ask for WHERE more than once.
   Never proceed to STEP 2 until WHAT is known.
 

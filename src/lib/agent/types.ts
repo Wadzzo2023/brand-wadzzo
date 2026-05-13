@@ -49,6 +49,8 @@ export interface PinOptions {
    * Default: "per-location".
    */
   groupingMode: GroupingMode;
+  pinNumber: number;
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,6 +65,8 @@ export interface PinIntent {
   areaType: AreaType;
   confirmed: boolean;
   isNiche: boolean;          // true = geocode_address path; false = places_search path
+  pinNumber?: number;         // how many pins the user wants to drop (default: 1)
+  ambiguousPinIntent: boolean; // ← new
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

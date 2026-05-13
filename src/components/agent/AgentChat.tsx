@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -445,20 +446,26 @@ function JobProgressBar({
 
 // ─── ResultsConfirmPanel ──────────────────────────────────────────────────────
 
+// ─── ResultsConfirmPanel ──────────────────────────────────────────────────────
+
 function ResultsConfirmPanel({
     message,
     pinCount,
     onConfirm,
     isLoading = false,
+    detectedPinNumber = 1,
 }: {
     message: string;
     pinCount: number;
     onConfirm: (options: PinOptions) => void;
     isLoading?: boolean;
+    detectedPinNumber?: number;
 }) {
     const [autoCollect, setAutoCollect] = useState(false);
     const [groupingMode, setGroupingMode] = useState<GroupingMode>("per-location");
+    const [pinNumber, setPinNumber] = useState(detectedPinNumber ?? 1);
     const [currentStep, setCurrentStep] = useState(0);
+    console.log("detectedPinNumber prop:", detectedPinNumber);
 
     const isFirstStep = currentStep === 0;
     const isLastStep = currentStep === 1;
@@ -467,7 +474,7 @@ function ResultsConfirmPanel({
         if (!isLastStep) {
             setCurrentStep(currentStep + 1);
         } else {
-            onConfirm({ autoCollect, groupingMode });
+            onConfirm({ autoCollect, groupingMode, pinNumber });
         }
     };
 
@@ -485,6 +492,7 @@ function ResultsConfirmPanel({
                 </span>
             </div>
 
+            {/* ── Step 1: QR Code grouping ── */}
             {isFirstStep && (
                 <section className="flex flex-col gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Location QR Code</p>
@@ -559,8 +567,11 @@ function ResultsConfirmPanel({
                 </section>
             )}
 
+            {/* ── Step 2: Auto-collect + Pin Number ── */}
             {!isFirstStep && (
                 <section className="flex flex-col gap-2">
+
+                    {/* Auto-collect toggle */}
                     <p className="text-xs font-medium text-muted-foreground">Auto Mode</p>
                     <div
                         className={cn(
@@ -588,9 +599,117 @@ function ResultsConfirmPanel({
                             aria-label="Toggle auto collect"
                         />
                     </div>
-                </section>
-            )}
 
+                    {/* Pin Number stepper */}
+                    <p className="text-xs font-medium text-muted-foreground mt-1">Pins per Location</p>
+                    <div
+                        className={cn(
+                            "flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                            pinNumber > 1
+                                ? "border-primary/40 bg-primary/5"
+                                : "border-border bg-muted/30"
+                        )}
+                    >
+                        <div className="flex flex-col gap-1 flex-1">
+                            <Label className="text-xs font-medium text-foreground">
+                                Pin Number
+                            </Label>
+                            <p className="text-[11px] text-muted-foreground leading-tight">
+                                {pinNumber === 1
+                                    ? "One pin per location"
+                                    : `${pinNumber} pins at each location`}
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setPinNumber((n) => Math.max(1, n - 1))}
+                                disabled={pinNumber <= 1}
+                                className={cn(
+                                    "w-7 h-7 rounded-lg border flex items-center justify-center",
+                                    "text-sm font-bold transition-all active:scale-95 flex-shrink-0",
+                                    pinNumber <= 1
+                                        ? "border-border bg-muted/30 text-muted-foreground/40 cursor-not-allowed"
+                                        : "border-border bg-muted hover:bg-muted/80 text-foreground"
+                                )}
+                                aria-label="Decrease pin number"
+                            >
+                                −
+                            </button>
+
+                            <input
+                                type="number"
+                                min={1}
+                                max={200}
+                                value={pinNumber}
+                                onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === "") {
+                                        setPinNumber(1); // reset to 1 on clear
+                                        return;
+                                    }
+                                    const parsed = parseInt(raw, 10);
+                                    if (!isNaN(parsed)) {
+                                        setPinNumber(Math.min(200, Math.max(1, parsed)));
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    // Clamp and sanitise on blur in case user typed partial value
+                                    const parsed = parseInt(e.target.value, 10);
+                                    setPinNumber(isNaN(parsed) ? 1 : Math.min(200, Math.max(1, parsed)));
+                                }}
+                                onKeyDown={(e) => {
+                                    // Block decimal point, minus, plus, e (scientific notation)
+                                    if ([".", "-", "+", "e", "E"].includes(e.key)) e.preventDefault();
+                                }}
+                                className={cn(
+                                    "w-12 h-7 rounded-lg border text-center text-sm font-semibold",
+                                    "bg-muted text-foreground tabular-nums",
+                                    "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30",
+                                    "transition-colors [appearance:textfield]",
+                                    // Hide browser native number spinners
+                                    "[&::-webkit-outer-spin-button]:appearance-none",
+                                    "[&::-webkit-inner-spin-button]:appearance-none",
+                                    pinNumber > 1 ? "border-primary/40" : "border-border"
+                                )}
+                                aria-label="Pin number"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => setPinNumber((n) => Math.min(200, n + 1))}
+
+                                className={cn(
+                                    "w-7 h-7 rounded-lg border flex items-center justify-center",
+                                    "text-sm font-bold transition-all active:scale-95 flex-shrink-0",
+
+                                    "border-border bg-muted hover:bg-muted/80 text-foreground"
+                                )}
+                                aria-label="Increase pin number"
+                            >
+                                +
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Summary pill — only show when pinNumber > 1 */}
+                    {pinNumber > 1 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 w-fit">
+                            <MapPin className="w-3 h-3 text-primary flex-shrink-0" />
+                            <span className="text-[11px] font-semibold text-primary">
+                                {pinCount * pinNumber} total pins
+                                <span className="font-normal text-primary/70 ml-1">
+                                    ({pinCount} locations × {pinNumber})
+                                </span>
+                            </span>
+                        </div>
+                    )}
+                </section>
+            )
+            }
+
+            {/* ── Navigation ── */}
             <div className="flex items-center gap-2 mt-2">
                 <button
                     type="button"
@@ -629,10 +748,9 @@ function ResultsConfirmPanel({
                     )}
                 </button>
             </div>
-        </div>
+        </div >
     );
 }
-
 // ─── ResultsBlock ─────────────────────────────────────────────────────────────
 
 function ResultsBlock({
@@ -644,6 +762,7 @@ function ResultsBlock({
     confirmed,
     jobId,
     onJobComplete,
+    detectedPinNumber,
 }: {
     data: ResultsResponse;
     pins: Pin[];
@@ -653,13 +772,19 @@ function ResultsBlock({
     confirmed: boolean;
     jobId?: string;
     onJobComplete: (count: number) => void;
+    detectedPinNumber?: number;
 }) {
     const displayPins = pins.length > 0 ? pins : [];
     const count = displayPins.length || data.pinCount;
 
+
     return (
         <div className="space-y-2">
-
+            <div>
+                <p className="text-[11px] text-muted-foreground">
+                    {data.message}
+                </p>
+            </div>
 
             {displayPins.length > 0 && (
                 <div className="space-y-1.5 overflow-y-auto pr-0.5" style={{ maxHeight: "300px" }}>
@@ -685,6 +810,7 @@ function ResultsBlock({
                         pinCount={count}
                         onConfirm={onConfirm}
                         isLoading={isLoading}
+                        detectedPinNumber={detectedPinNumber} // ← new pro
                     />
                     <button
                         onClick={onDismiss}
@@ -980,6 +1106,8 @@ function AgentResponseBlock({
                         confirmed={resultsConfirmed ?? false}
                         jobId={resultsJobId}
                         onJobComplete={onJobComplete}
+                        detectedPinNumber={intent.pinNumber ?? 1} // ← pass through
+
                     />
                 </div>
             );
@@ -1136,6 +1264,7 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
         confirmed: false,
         countSpecified: false,
         isNiche: false,
+        pinNumber: undefined,
     });
     const [stage, setStage] = useState<AgentStage>("idle");
     const [isLoading, setIsLoading] = useState(false);
@@ -1331,6 +1460,7 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
         async (options: PinOptions) => {
             setIsDropping(true);
             setIsLoading(true);
+            console.log("Confirming with options:", options);
             const pinsToUse = currentPins;
 
             try {
@@ -1519,6 +1649,7 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
             confirmed: false,
             countSpecified: false,
             isNiche: false,
+            pinNumber: undefined,
         });
         setStage("idle");
         setInput("");

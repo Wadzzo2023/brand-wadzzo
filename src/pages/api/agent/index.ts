@@ -122,6 +122,7 @@ function mergeIntent(
         areaType: current?.areaType ?? "unknown",
         confirmed: current?.confirmed ?? false,
         isNiche: current?.isNiche ?? false,
+        pinNumber: current?.pinNumber ?? 1,
     };
     if (response.type === "confirm") {
         base.query = response.summary?.what ?? base.query;
@@ -152,16 +153,166 @@ async function extractIntent(
         {
             role: "system",
             content: `You are an intent extractor for a map pin-drop assistant.
-Return ONLY valid JSON — no markdown:
-{"query":string|null,"area":string|null,"count":number,"countSpecified":boolean,"areaType":"city"|"region"|"country"|"worldwide"|"unknown","confirmed":boolean}
+Return ONLY valid JSON — no markdown, no explanation, no code fences:
+{"query":string|null,"area":string|null,"count":number,"countSpecified":boolean,"areaType":"city"|"region"|"country"|"worldwide"|"unknown","confirmed":boolean,"pinNumber":number,"ambiguousPinIntent":boolean}
 
-RULES:
-- count default 1, countSpecified default false
-- Explicit number → countSpecified=true
-- confirmed=true ONLY if user said "yes"/"drop"/"confirm"
-- PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.count ?? 1}, countSpecified=${prior?.countSpecified ?? false}`,
+════════════════════════════════════════
+FIELD RULES
+════════════════════════════════════════
+
+query:
+  - The thing to search for (e.g. "KFC", "hospitals", "attic recording studio")
+  - For specific named venues keep the full name
+  - null if not mentioned
+  - Preserve prior if not updated: PRIOR="${prior?.query ?? "null"}"
+
+area:
+  - Geographic area (e.g. "Tokyo", "United States", "worldwide")
+  - null if target is a specific named venue (area is implicit in the name)
+  - null if not mentioned
+  - Preserve prior if not updated: PRIOR="${prior?.area ?? "null"}"
+
+count:
+  - Total number of DISTINCT LOCATIONS to find
+  - Default: 1
+  - Preserve prior if not updated: PRIOR=${prior?.count ?? 1}
+
+countSpecified:
+  - true ONLY if the number maps to count (see disambiguation)
+  - Default: false
+  - PRIOR: ${prior?.countSpecified ?? false}
+
+areaType:
+  - "city"      → single city (e.g. "Tokyo", "New York")
+  - "region"    → state/province/area (e.g. "California", "Geneseo Area")
+  - "country"   → full country (e.g. "United States", "Japan")
+  - "worldwide" → global, no specific area
+  - "unknown"   → not specified or specific named venue
+  - Preserve prior if not updated: PRIOR="${prior?.areaType ?? "unknown"}"
+
+confirmed:
+  - true ONLY if user says "yes", "confirm", "drop it", "go ahead", "do it", "ok drop"
+  - false otherwise
+  - PRIOR: ${prior?.confirmed ?? false}
+
+════════════════════════════════════════
+pinNumber RULES
+════════════════════════════════════════
+
+pinNumber = how many pins to place AT EACH individual location (not total locations).
+Default: 1
+PRIOR: ${prior?.pinNumber ?? 1}
+
+━━ STEP 1 — Explicit per-location phrase (HIGHEST PRIORITY, always wins) ━━
+Any of these patterns immediately set pinNumber=N, skip all other steps:
+  "N pins at each [thing]"        → pinNumber=N
+  "N per location"                → pinNumber=N
+  "N at every location"           → pinNumber=N
+  "N at each"                     → pinNumber=N
+  "N pins at/around each [thing]" → pinNumber=N
+  "N pinNumber"                   → pinNumber=N
+Examples:
+  "drop 5 pins at each KFC in London"       → pinNumber=5,  count=auto, countSpecified=false
+  "3 per location at hospitals in Tokyo"    → pinNumber=3,  count=auto, countSpecified=false
+  "drop 10 at every restaurant in Berlin"   → pinNumber=10, count=auto, countSpecified=false
+
+━━ STEP 2 — Specific named venue + number ━━
+A specific named venue = a unique individually-identifiable place (not a category).
+  ✓ Specific: "the attic recording studio", "McDonald's Times Square",
+              "Central Park", "Eiffel Tower", "Chase Bank on 5th Ave",
+              "Statue of Liberty", "Tokyo Tower", "Big Ben"
+  ✗ Generic:  "hospitals", "KFC", "restaurants", "banks", "schools",
+              "cafes", "pharmacies", "parks" — these are categories
+
+If query IS a specific named venue AND a number N is given:
+  → pinNumber=N, count=1, countSpecified=false, ambiguousPinIntent=false
+Examples:
+  "drop 100 pin at the attic recording studio" → pinNumber=100, count=1
+  "drop 50 pins at Central Park"               → pinNumber=50,  count=1
+  "5 pins at the Eiffel Tower"                 → pinNumber=5,   count=1
+  "place 10 pins at Chase Bank Times Square"   → pinNumber=10,  count=1
+
+━━ STEP 3 — Large N (>10) + generic category + area ━━
+If query is a GENERIC CATEGORY and N > 10 and area is city/region/country:
+  → count=N, countSpecified=true, pinNumber=1, ambiguousPinIntent=false
+Examples:
+  "drop 100 pins in Tokyo"            → count=100, pinNumber=1
+  "100 KFC pins in the US"            → count=100, pinNumber=1
+  "drop 50 hospitals in California"   → count=50,  pinNumber=1
+  "200 restaurants worldwide"         → count=200, pinNumber=1
+  "drop 15 cafes in Paris"            → count=15,  pinNumber=1
+
+━━ STEP 4 — Ambiguous: small N (2–10) + generic category + area ━━
+Pattern: "[verb] N pins in/at [area] [category]"
+         where N is between 2 and 10 AND query is a generic category.
+These are AMBIGUOUS — user might mean N total locations OR N pins per location.
+  → ambiguousPinIntent=true, pinNumber=N, count=1, countSpecified=false
+  (Agent will ask for clarification before proceeding)
+Examples:
+  "place 5 pins in USA restaurant"    → ambiguousPinIntent=true, pinNumber=5,  count=1
+  "drop 3 pins in Tokyo hospital"     → ambiguousPinIntent=true, pinNumber=3,  count=1
+  "put 2 pins in London cafe"         → ambiguousPinIntent=true, pinNumber=2,  count=1
+  "drop 7 pins in Paris pharmacy"     → ambiguousPinIntent=true, pinNumber=7,  count=1
+
+━━ STEP 5 — Singular / bare plural (no number given) ━━
+  "drop a pin"     → pinNumber=1, count=1, ambiguousPinIntent=false
+  "drop one pin"   → pinNumber=1, count=1, ambiguousPinIntent=false
+  "pin this"       → pinNumber=1, count=1, ambiguousPinIntent=false
+  "drop pins"      → pinNumber=2, count=1, ambiguousPinIntent=false
+  "drop some pins" → pinNumber=2, count=1, ambiguousPinIntent=false
+
+━━ STEP 6 — Default ━━
+  pinNumber=1, ambiguousPinIntent=false
+
+════════════════════════════════════════
+FULL DISAMBIGUATION TABLE
+════════════════════════════════════════
+
+Message                                               | count | pinNumber | countSpec | ambiguous
+"drop 100 pin at the attic recording studio"          |   1   |    100    |   false   |   false
+"drop 100 pins in Tokyo"                              |  100  |     1     |   true    |   false
+"100 KFC pins in the US"                              |  100  |     1     |   true    |   false
+"drop 5 pins at each KFC in London"                   | auto  |     5     |   false   |   false
+"drop 50 pins at Central Park"                        |   1   |    50     |   false   |   false
+"drop 10 pins at McDonald's Times Square"             |   1   |    10     |   false   |   false
+"drop a pin at Eiffel Tower"                          |   1   |     1     |   false   |   false
+"drop pins at hospitals in Tokyo"                     | auto  |     2     |   false   |   false
+"5 per location at pharmacies in NY"                  | auto  |     5     |   false   |   false
+"drop 3 pins at each of 10 hospitals"                 |  10   |     3     |   true    |   false
+"place 5 pins in USA restaurant"                      |   1   |     5     |   false   |   true
+"drop 3 pins in Tokyo hospital"                       |   1   |     3     |   false   |   true
+"drop 50 pins in Tokyo restaurant"                    |  50   |     1     |   true    |   false
+"drop 15 cafes in Paris"                              |  15   |     1     |   true    |   false
+"put 2 pins in London cafe"                           |   1   |     2     |   false   |   true
+"drop 8 pins in Berlin pharmacy"                      |   1   |     8     |   false   |   true
+"drop 11 pins in Berlin pharmacy"                     |  11   |     1     |   true    |   false
+
+CRITICAL RULES:
+  1. "each/per location/at each" phrase       → ALWAYS pinNumber (Step 1 wins)
+  2. specific named place + number            → ALWAYS pinNumber (Step 2)
+  3. N > 10 + generic + area                  → ALWAYS count (Step 3)
+  4. N 2–10 + generic + area, no "each"       → ambiguous=true (Step 4)
+  5. category BEFORE "pins" in sentence       → count wins
+     "drop 100 restaurant pins in USA"        → count=100, pinNumber=1
+
+════════════════════════════════════════
+PRIOR VALUES (preserve unless message updates them)
+════════════════════════════════════════
+query          = ${prior?.query ?? "null"}
+area           = ${prior?.area ?? "null"}
+count          = ${prior?.count ?? 1}
+countSpecified = ${prior?.countSpecified ?? false}
+areaType       = ${prior?.areaType ?? "unknown"}
+confirmed      = ${prior?.confirmed ?? false}
+pinNumber      = ${prior?.pinNumber ?? 1}
+
+Only update a field if the latest user message changes it.
+Never null out a prior value unless the user explicitly resets.`,
         },
-        { role: "user", content: `Full conversation:\n${convo}` },
+        {
+            role: "user",
+            content: `Full conversation:\n${convo}`,
+        },
     ]);
 
     const raw =
@@ -169,13 +320,19 @@ RULES:
             ? res.content
             : Array.isArray(res.content)
                 ? res.content
-                    .filter((b): b is { type: "text"; text: string } => (b as { type: string }).type === "text")
+                    .filter(
+                        (b): b is { type: "text"; text: string } =>
+                            (b as { type: string }).type === "text"
+                    )
                     .map((b) => b.text)
                     .join("")
                 : "";
 
     try {
-        const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()) as PinIntent;
+        const parsed = JSON.parse(
+            raw.replace(/```json|```/g, "").trim()
+        ) as Partial<PinIntent> & { pinNumber?: number; ambiguousPinIntent?: boolean };
+
         return {
             count: parsed.count ?? prior?.count ?? 1,
             countSpecified: parsed.countSpecified ?? prior?.countSpecified ?? false,
@@ -184,6 +341,8 @@ RULES:
             areaType: parsed.areaType ?? prior?.areaType ?? "unknown",
             confirmed: parsed.confirmed ?? prior?.confirmed ?? false,
             isNiche: prior?.isNiche ?? false,
+            pinNumber: parsed.pinNumber ?? prior?.pinNumber ?? 1,
+            ambiguousPinIntent: parsed.ambiguousPinIntent ?? false,
         };
     } catch {
         return {
@@ -194,59 +353,178 @@ RULES:
             areaType: prior?.areaType ?? "unknown",
             confirmed: prior?.confirmed ?? false,
             isNiche: prior?.isNiche ?? false,
+            pinNumber: prior?.pinNumber ?? 1,
+            ambiguousPinIntent: false,
         };
     }
 }
-
 // ─── Intent context builder ───────────────────────────────────────────────────
 
 function buildIntentContext(intent: PinIntent): string {
     const today = new Date().toISOString().split("T")[0]!;
     const totalCount = intent.count ?? 1;
     const countSpecified = intent.countSpecified ?? false;
+    const pinNumber = intent.pinNumber ?? 1;
+    const ambiguous = intent.ambiguousPinIntent ?? false;
+
+    // ── Known / missing fields ────────────────────────────────────────────────
 
     const known: string[] = [
-        countSpecified ? `count=${totalCount}` : `count=unspecified (return ALL found)`,
+        countSpecified
+            ? `count=${totalCount} (user specified)`
+            : `count=unspecified (return ALL found)`,
     ];
     const missing: string[] = [];
 
     if (intent.query) known.push(`query="${intent.query}"`);
     else missing.push("query (WHAT to search for)");
+
     if (intent.area) known.push(`area="${intent.area}"`);
 
-    const countSection = !countSpecified
-        ? `COUNT IS UNSPECIFIED — return ALL locations found.`
-        : totalCount === 1
-            ? `COUNT IS 1 — SINGLE PIN MODE. One web_search, one places_search or geocode_address. Stop immediately.`
-            : (() => {
-                const numCities = Math.ceil(totalCount / 5);
-                const perCityBuffered = Math.ceil(totalCount / numCities) * 2;
-                return [
-                    `COUNT RULE: User wants exactly ${totalCount} pins TOTAL.`,
-                    `Call web_search("${intent.query ?? ""}") FIRST.`,
-                    `If isNiche=true → geocode_address per namedLocation.`,
-                    `If detectedCountry set → country_city_search(query, country, ${totalCount}).`,
-                    `Else → ${numCities} cities × ${perCityBuffered} each (2x buffer), capped to ${totalCount}.`,
-                ].join("\n");
-            })();
+    // ── Ambiguous pin intent — must clarify before anything ──────────────────
+
+    const ambiguousSection = ambiguous
+        ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  AMBIGUOUS INTENT — CLARIFY FIRST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user gave the number ${pinNumber} with a generic category and area.
+It is unclear whether they meant:
+  (A) Find ${pinNumber} locations total
+  (B) Drop ${pinNumber} pins at each location found
+
+You MUST respond with this clarifying question ONLY.
+Do NOT call any search tools. Do NOT search anything yet.
+Respond with ONLY this exact JSON:
+{
+  "type": "question",
+  "message": "Just to clarify — what did you mean by the number ${pinNumber}?",
+  "fields": [
+    {
+      "id": "pinIntent",
+      "label": "What did you mean by ${pinNumber}?",
+      "inputType": "multiple_choice",
+      "options": [
+        "Find ${pinNumber} locations total (1 pin each)",
+        "Drop ${pinNumber} pins at each location found"
+      ]
+    }
+  ]
+}
+`
+        : "";
+
+    // ── Count / search strategy (ONLY about finding locations) ───────────────
+
+    let countSection: string;
+
+    if (ambiguous) {
+        countSection = `SEARCH STRATEGY: Paused — awaiting clarification above. Do not search.`;
+
+    } else if (!countSpecified || totalCount == null) {
+        countSection = `
+SEARCH STRATEGY — RETURN ALL:
+  - count is unspecified — return every location found, do not cap.
+  - Run web_search + places_search normally.
+  - Do not ask the user how many.`;
+
+    } else if (totalCount === 1) {
+        countSection = `
+SEARCH STRATEGY — SINGLE LOCATION:
+  - Find exactly 1 location.
+  - Run one web_search + one places_search or geocode_address.
+  - Stop after the first valid result. Do not over-fetch.`;
+
+    } else {
+        const numCities = Math.ceil(totalCount / 5);
+        const perCityBuffered = Math.ceil(totalCount / numCities) * 2;
+
+        countSection = `
+SEARCH STRATEGY — MULTI LOCATION:
+  - Find exactly ${totalCount} distinct locations. This is the ONLY goal of the search phase.
+  - Step 1: call web_search("${intent.query ?? ""}") to understand what you are looking for.
+  - Step 2 (choose one):
+      If isNiche=true OR query is a specific named chain/brand:
+        → geocode_address for each named location found.
+      If a specific country is detected in area:
+        → country_city_search(query, country, ${totalCount}).
+      Otherwise (general category across region):
+        → search ${numCities} cities × ${perCityBuffered} results each (2× buffer to cover duplicates).
+  - De-duplicate across all cities.
+  - Cap final list to exactly ${totalCount} locations before responding.
+  - Buffer rule: always fetch 2× needed per city to account for failures/duplicates.`;
+    }
+
+    // ── pinNumber — completely separate from search, just a pin property ─────
+
+    const pinNumberSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PIN NUMBER PROPERTY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+pinNumber = ${pinNumber}
+
+This is a PROPERTY VALUE that gets stamped onto each pin object.
+It has NO effect on how many locations to search for.
+It has NO effect on search strategy or result count.
+It is NOT the number of locations. It is NOT the count.
+
+Rules:
+  - Do NOT use pinNumber to decide how many places to search.
+  - Do NOT multiply it with count for any purpose.
+  - Do NOT mention it in your search logic.
+  - Do NOT ask the user about it again — it is already resolved.
+  - Simply pass pinNumber=${pinNumber} through to the results response
+    so the UI can pre-fill the stepper correctly.`;
+
+    // ── Output format ─────────────────────────────────────────────────────────
+
+    const outputRules = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  * Never include a raw pins array in your JSON response.
+  * Never ask for count or area if they are already known.
+  * Only ask if query is genuinely unknown.
+  * Allowed response shapes:
+
+  Found locations:
+  {
+    "type": "results",
+    "message": "Found <N> <query> in <area>",
+    "searchType": "LANDMARK" | "EVENT",
+    "pinCount": <number of locations found>,
+    "confirmPrompt": "Drop these pins?"
+  }
+
+  Clarifying question:
+  {
+    "type": "question",
+    "message": "...",
+    "fields": [{ "id": "...", "label": "...", "inputType": "multiple_choice" | "text" | "number", "options": ["..."] }]
+  }
+
+  Info / error:
+  { "type": "info", "message": "..." }`;
+
+    // ── Assemble ──────────────────────────────────────────────────────────────
 
     return [
-        `\n\n[SESSION]`,
-        `Today: ${today}`,
-        `KNOWN: ${known.join(", ")}`,
-        missing.length ? `MISSING: ${missing.join(", ")}` : `ALL PARAMS KNOWN — proceed immediately.`,
         ``,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `[SESSION — ${today}]`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `Known : ${known.join(" | ")}`,
+        missing.length
+            ? `Missing : ${missing.join(", ")}`
+            : `Status  : ALL PARAMS KNOWN — proceed immediately`,
+        ambiguousSection,
         countSection,
-        ``,
-        `OUTPUT RULES:`,
-        `  * Never include pins array in your JSON response`,
-        `  * Never ask for count or area`,
-        `  * Only ask if query is genuinely unknown`,
-        ``,
-        `Results shape: {"type":"results","message":"Found N X in Y","searchType":"LANDMARK","pinCount":N,"confirmPrompt":"Drop N pin(s)?"}`,
-    ].join("\n");
+        pinNumberSection,
+        outputRules,
+    ]
+        .filter(Boolean)
+        .join("\n");
 }
-
 // ─── Gap-fill ─────────────────────────────────────────────────────────────────
 
 async function gapFillPins(
@@ -392,19 +670,41 @@ async function runAgent(input: AgentRunInput): Promise<{
     const rawOutput = typeof lastMsg?.content === "string" ? lastMsg.content : JSON.stringify(lastMsg?.content ?? "");
     let agentResponse = parseAgentOutput(rawOutput) ?? (await reformatToJson(rawOutput));
 
-    // 8. Guard: 0 pins → info
-    if (agentResponse.type === "results" && cappedPins.length === 0) {
-        agentResponse = {
-            type: "info",
-            message: `No locations found for "${intent.query}" in "${intent.area ?? "worldwide"}". Try a different search.`,
-        };
+    // 8. Guard: 0 pins → attempt worldwide fallback before giving up
+    const shouldFallbackInfo =
+        agentResponse.type === "info" &&
+        cappedPins.length === 0 &&
+        intent.query &&
+        /no locations found|try a different search/i.test(agentResponse.message);
+
+    if ((agentResponse.type === "results" && cappedPins.length === 0) || shouldFallbackInfo) {
+        const fallbackTarget = intent.countSpecified && intent.count != null ? intent.count : 10;
+        const worldwidePins = intent.query
+            ? await gapFillPins(responsePins, fallbackTarget, intent.query, searchedCities, null, isNiche)
+            : [];
+
+        if (worldwidePins.length > 0) {
+            cappedPins = intent.countSpecified && intent.count != null ? worldwidePins.slice(0, intent.count) : worldwidePins;
+            agentResponse = {
+                type: "results",
+                message: `Found ${cappedPins.length} ${intent.query ?? "locations"} worldwide.`,
+                searchType: (agentResponse.type === "results" ? agentResponse.searchType : "LANDMARK"),
+                pinCount: cappedPins.length,
+                confirmPrompt: `Drop these ${cappedPins.length} pins?`,
+            };
+        } else {
+            agentResponse = {
+                type: "info",
+                message: `No locations found for "${intent.query}" in "${intent.area ?? "worldwide"}". Try a different search.`,
+            };
+        }
     }
 
     if (agentResponse.type === "results" && cappedPins.length > 0) {
-        (agentResponse as Record<string, unknown>).pinCount = cappedPins.length;
+        agentResponse.pinCount = cappedPins.length;
         agentResponse.message = agentResponse.message?.replace(/\d+/, String(cappedPins.length));
-        if ((agentResponse as Record<string, unknown>).confirmPrompt) {
-            (agentResponse as Record<string, unknown>).confirmPrompt = `Drop these ${cappedPins.length} pins?`;
+        if (agentResponse.confirmPrompt) {
+            agentResponse.confirmPrompt = `Drop these ${cappedPins.length} pins?`;
         }
     }
 
@@ -414,12 +714,11 @@ async function runAgent(input: AgentRunInput): Promise<{
     if (pinOptions && cappedPins.length > 0) {
         const { autoCollect, groupingMode } = pinOptions;
 
-        cappedPins = cappedPins.map((pin, idx) => ({
+        cappedPins = cappedPins.map((pin) => ({
             ...pin,
             autoCollect,
-            pinNumber:  1,
+            ...(pinOptions.pinNumber != null && { pinNumber: pinOptions.pinNumber }),
         }));
-
         // Create LocationGroupJob
         const lgJob = await db.locationGroupJob.create({
             data: {
