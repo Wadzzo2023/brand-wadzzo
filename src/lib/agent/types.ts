@@ -9,13 +9,21 @@ export type AreaType = "city" | "region" | "country" | "worldwide" | "unknown";
 // Pin
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface Pin {
+export interface GeneratedPin {
   id: string;
   type: "EVENT" | "LANDMARK";
   title: string;
   description: string;
   latitude: number;
   longitude: number;
+  url?: string;
+  image?: string;
+  address?: string;
+  category?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Pin extends GeneratedPin {
   startDate: string;
   endDate: string;
   url?: string;
@@ -24,9 +32,6 @@ export interface Pin {
   pinNumber: number;
   radius: number;
   autoCollect: boolean;
-  category?: string;
-  address?: string;
-  metadata?: Record<string, unknown>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,24 +42,25 @@ export interface PinIntent {
   query: string | null;
   area: string | null;
   count: number | null;
+  countSpecified: boolean;   // true only when user gave an explicit number
   areaType: AreaType;
   confirmed: boolean;
+  isNiche: boolean;          // true = geocode_address path; false = places_search path
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AgentStage
-// FIX: added "idle" and "error" which were used in the frontend but missing here
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AgentStage =
-  | "idle"               // FIX: was missing — used as initial state in the frontend
+  | "idle"
   | "extracting_intent"
   | "clarifying"
   | "searching"
   | "confirming"
   | "dropping_pins"
   | "done"
-  | "error";             // FIX: was missing — used in error paths in the frontend
+  | "error";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clarify question
@@ -80,24 +86,24 @@ export interface CityDiscoveryResult {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // tRPC output
-// FIX: reply is always a JSON string of AgentResponse — frontend parses it
+// NOTE: pins are returned here directly from the server-side pin store.
+//       They are NOT embedded in the agent's JSON text response (avoids truncation).
+//       The frontend reads pins from this field, not from AgentResponse.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ChatCreateOutput {
-  /**
-   * JSON string of an AgentResponse object.
-   * The frontend calls JSON.parse(reply) to get the typed AgentResponse,
-   * then renders the appropriate block (QuestionBlock, ResultsBlock, etc.).
-   */
-  reply: string;
+  reply: string;              // JSON string of a lightweight AgentResponse (no pins array inside)
   stage: AgentStage;
   intent: PinIntent;
   questions?: ClarifyQuestion[];
-  pins?: Pin[];
+  pins?: Pin[];               // Full pin array injected server-side — not from LLM text
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Structured agent response types (what the agent returns as JSON)
+// Structured agent response types
+//
+// IMPORTANT: ResultsResponse and ConfirmResponse no longer carry a pins array.
+// Pins travel via ChatCreateOutput.pins (server-side store), not through LLM text.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface QuestionResponse {
@@ -109,8 +115,8 @@ export interface QuestionResponse {
 export interface ResultsResponse {
   type: "results";
   message: string;
-  searchType: "EVENT" | "LANDMARK" | "MIXED";
-  pins: Pin[];
+  searchType: "EVENT" | "LANDMARK";
+  pinCount: number;           // count only — full pins come from ChatCreateOutput.pins
   confirmPrompt: string;
 }
 
@@ -121,9 +127,9 @@ export interface ConfirmResponse {
     what: string;
     where: string;
     count: number;
-    type: "EVENT" | "LANDMARK" | "MIXED";
+    type: "EVENT" | "LANDMARK";
   };
-  pins: Pin[];
+  // no pins array — frontend uses locally stored pins from the results step
 }
 
 export interface SuccessResponse {

@@ -48,32 +48,20 @@ function formatDate(dateStr: string) {
     });
 }
 
-/**
- * Robustly parse a raw string into an AgentResponse.
- * Handles: plain JSON, JSON wrapped in markdown fences, partial JSON with leading text.
- * Never throws — always returns a valid AgentResponse.
- */
 function parseReply(raw: string): AgentResponse {
-    // 1. Strip markdown code fences
     const stripped = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-
-    // 2. Find the first { and last } to extract the JSON object
     const start = stripped.indexOf("{");
     const end = stripped.lastIndexOf("}");
 
     if (start !== -1 && end !== -1 && end > start) {
         try {
             const parsed = JSON.parse(stripped.slice(start, end + 1)) as AgentResponse;
-            if (parsed && typeof parsed.type === "string") {
-                return parsed;
-            }
+            if (parsed && typeof parsed.type === "string") return parsed;
         } catch {
             // fall through
         }
     }
 
-    // 3. Last resort: wrap the raw text as an info message
-    // This prevents raw JSON or error text from appearing as unrendered strings
     return {
         type: "info",
         message: raw.trim() || "Something went wrong. Please try again.",
@@ -255,50 +243,56 @@ function QuestionBlock({
 }
 
 // ─── ResultsBlock ─────────────────────────────────────────────────────────────
+// NOTE: pins come from the `pins` prop (server-side store), not from data.pins.
+// data.pinCount is just the count for display. Full pin objects live in `pins`.
 
 function ResultsBlock({
     data,
+    pins,
     onConfirm,
     onDismiss,
 }: {
     data: ResultsResponse;
+    pins: Pin[];           // injected from ChatCreateOutput.pins — never from LLM response
     onConfirm: (pins: Pin[]) => void;
     onDismiss: () => void;
 }) {
-    console.log("Rendering ResultsBlock with data:", data);
+    const displayPins = pins.length > 0 ? pins : [];
+    const count = displayPins.length || data.pinCount;
+    console.log("data, pins in ResultsBlock:", data, pins);
     return (
         <div className="mt-2 space-y-2">
             <div className="flex items-center gap-2">
                 <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${data.searchType === "EVENT"
-                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                        : data.searchType === "MIXED"
-                            ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
-                            : "bg-indigo-500/15 text-indigo-400 border-indigo-500/30"
-                        }`}
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${data.searchType} === "EVENT"
+                        :"bg-amber-500/15 text-amber-400 border-amber-500/30"`}
                 >
                     {data.searchType}
                 </span>
-                <span className="text-[#8e8e93] text-xs">{data.pins.length} results</span>
+                <span className="text-[#8e8e93] text-xs">{count} results</span>
             </div>
 
-            <div
-                className="space-y-1.5 overflow-y-auto pr-0.5"
-                style={{ maxHeight: "220px" }}
-            >
-                {data.pins.map((pin) => (
-                    <PinCard key={pin.id} pin={pin} />
-                ))}
-            </div>
+            {
+                displayPins.length > 0 && (
+                    <div
+                        className="space-y-1.5 overflow-y-auto pr-0.5"
+                        style={{ maxHeight: "400px" }}
+                    >
+                        {displayPins.map((pin) => (
+                            <PinCard key={pin.id} pin={pin} />
+                        ))}
+                    </div>
+                )
+            }
 
             <div className="flex gap-2 pt-1">
                 <button
-                    onClick={() => onConfirm(data.pins)}
+                    onClick={() => onConfirm(displayPins)}
                     className="flex-1 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400
                      text-white text-sm font-semibold transition-colors
                      shadow-lg shadow-indigo-500/20"
                 >
-                    {data.confirmPrompt ?? `Drop ${data.pins.length} pins`}
+                    {data.confirmPrompt ?? `Drop ${count} pins`}
                 </button>
                 <button
                     onClick={onDismiss}
@@ -308,19 +302,22 @@ function ResultsBlock({
                     Cancel
                 </button>
             </div>
-        </div>
+        </div >
     );
 }
 
 // ─── ConfirmBlock ─────────────────────────────────────────────────────────────
+// NOTE: pins come from the `pins` prop — not from data (ConfirmResponse has no pins).
 
 function ConfirmBlock({
     data,
+    pins,
     onConfirm,
     onDismiss,
     isDropping,
 }: {
     data: ConfirmResponse;
+    pins: Pin[];           // carried from results step via component state
     onConfirm: (pins: Pin[]) => void;
     onDismiss: () => void;
     isDropping: boolean;
@@ -338,12 +335,10 @@ function ConfirmBlock({
                         <span className="text-[#8e8e93] text-xs">{label}</span>
                         {badge ? (
                             <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${value === "EVENT"
-                                    ? "bg-amber-500/15 text-amber-400"
-                                    : value === "MIXED"
-                                        ? "bg-purple-500/15 text-purple-400"
-                                        : "bg-indigo-500/15 text-indigo-400"
-                                    }`}
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${value === "EVENT"}
+                                    : "bg-amber-500/15 text-amber-400"
+
+                                `}
                             >
                                 {value}
                             </span>
@@ -354,20 +349,22 @@ function ConfirmBlock({
                 ))}
             </div>
 
-            {data.pins?.length > 0 && (
-                <div
-                    className="space-y-1 overflow-y-auto pr-0.5"
-                    style={{ maxHeight: "220px" }}
-                >
-                    {data.pins.map((pin) => (
-                        <PinCard key={pin.id} pin={pin} compact />
-                    ))}
-                </div>
-            )}
+            {
+                pins.length > 0 && (
+                    <div
+                        className="space-y-1 overflow-y-auto pr-0.5"
+                        style={{ maxHeight: "220px" }}
+                    >
+                        {pins.map((pin) => (
+                            <PinCard key={pin.id} pin={pin} compact />
+                        ))}
+                    </div>
+                )
+            }
 
             <div className="flex gap-2">
                 <button
-                    onClick={() => onConfirm(data.pins)}
+                    onClick={() => onConfirm(pins)}
                     disabled={isDropping}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
                      bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60
@@ -394,7 +391,7 @@ function ConfirmBlock({
                     Cancel
                 </button>
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -428,10 +425,20 @@ function InfoBlock({ data }: { data: InfoResponse }) {
 // ─── PinCard ──────────────────────────────────────────────────────────────────
 
 function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
+    const handleMapRedirect = () => {
+        window.open(
+            `https://www.google.com/maps?q=${pin.latitude},${pin.longitude}`,
+            "_blank",
+            "noreferrer"
+        );
+    };
+
     return (
         <div
+            onClick={handleMapRedirect}
             className={`flex items-start gap-2.5 rounded-xl border border-white/[0.07]
-                  bg-white/[0.04] ${compact ? "px-3 py-2" : "px-3 py-2.5"}`}
+                  bg-white/[0.04] cursor-pointer hover:bg-white/[0.07] hover:border-white/[0.12]
+                  transition-colors ${compact ? "px-3 py-2" : "px-3 py-2.5"}`}
         >
             {pin.image && !compact && (
                 <img
@@ -452,37 +459,64 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                     </span>
                     <p className="text-white text-xs font-medium truncate">{pin.title}</p>
                 </div>
+
                 {pin.address && !compact && (
                     <p className="text-[#636366] text-[11px] truncate">{pin.address}</p>
                 )}
+
+                {pin.description && !compact && (
+                    <p className="text-[#8e8e93] text-[11px] mt-0.5 line-clamp-2 leading-relaxed">
+                        {pin.description}
+                    </p>
+                )}
+
                 {pin.type === "EVENT" && pin.startDate && (
                     <p className="text-amber-500/60 text-[11px] mt-0.5">
                         {formatDate(pin.startDate)}
                         {pin.endDate ? ` → ${formatDate(pin.endDate)}` : ""}
                     </p>
                 )}
+
+                {!compact && (
+                    <div className="flex items-center gap-1 mt-1">
+                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-[#48484a] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 1.5C5.79 1.5 4 3.29 4 5.5c0 3.25 4 9 4 9s4-5.75 4-9c0-2.21-1.79-4-4-4z" />
+                            <circle cx="8" cy="5.5" r="1.25" />
+                        </svg>
+                        <span className="text-[#48484a] text-[10px] font-mono">
+                            {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
+                        </span>
+                    </div>
+                )}
+
+                {pin.url && !compact && (
+                    <a
+                        href={pin.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 mt-1 group w-fit max-w-full"
+                    >
+                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-[#636366] group-hover:text-indigo-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5m0 0v5m0-5L7 10" />
+                        </svg>
+                        <span className="text-[#636366] group-hover:text-indigo-400 text-[10px] truncate transition-colors">
+                            {pin.url.replace(/^https?:\/\//, "")}
+                        </span>
+                    </a>
+                )}
             </div>
-            {pin.url && !compact && (
-                <a
-                    href={pin.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-shrink-0 text-[#636366] hover:text-indigo-400 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5m0 0v5m0-5L7 10" />
-                    </svg>
-                </a>
-            )}
         </div>
     );
 }
 
 // ─── AgentResponseBlock ───────────────────────────────────────────────────────
+// pins prop carries the full pin array from ChatCreateOutput.pins,
+// threaded down so ResultsBlock and ConfirmBlock never need to read from AgentResponse.
 
 function AgentResponseBlock({
     response,
+    pins,
     intent,
     onAnswer,
     onConfirm,
@@ -490,6 +524,7 @@ function AgentResponseBlock({
     isDropping,
 }: {
     response: AgentResponse;
+    pins: Pin[];           // from server-side store — not from LLM response JSON
     intent: PinIntent;
     onAnswer: (answers: Record<string, string>) => void;
     onConfirm: (pins: Pin[]) => void;
@@ -509,7 +544,12 @@ function AgentResponseBlock({
             return (
                 <div>
                     <p className="text-[13px] leading-relaxed text-white mb-1">{response.message}</p>
-                    <ResultsBlock data={response} onConfirm={onConfirm} onDismiss={onDismiss} />
+                    <ResultsBlock
+                        data={response}
+                        pins={pins}
+                        onConfirm={onConfirm}
+                        onDismiss={onDismiss}
+                    />
                 </div>
             );
         case "confirm":
@@ -518,6 +558,7 @@ function AgentResponseBlock({
                     <p className="text-[13px] leading-relaxed text-white mb-1">{response.message}</p>
                     <ConfirmBlock
                         data={response}
+                        pins={pins}
                         onConfirm={onConfirm}
                         onDismiss={onDismiss}
                         isDropping={isDropping}
@@ -545,7 +586,7 @@ interface LocalChatMessage {
     content:
     | { kind: "text"; text: string }
     | { kind: "loading"; label?: string }
-    | { kind: "response"; data: AgentResponse };
+    | { kind: "response"; data: AgentResponse; pins: Pin[] }; // pins stored per-message
     createdAt: Date;
 }
 
@@ -596,6 +637,7 @@ function MessageBubble({
                 {msg.content.kind === "response" && (
                     <AgentResponseBlock
                         response={msg.content.data}
+                        pins={msg.content.pins}
                         intent={intent}
                         onAnswer={onAnswer}
                         onConfirm={onConfirm}
@@ -633,6 +675,15 @@ export default function PinAgentChat() {
     const [isLoading, setIsLoading] = useState(false);
     const [isDropping, setIsDropping] = useState(false);
 
+    // sessionId is generated by the server on first turn and passed back every turn.
+    // It keys the server-side pin store so pins survive across turns without
+    // travelling through LLM text.
+    const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+
+    // currentPins holds the last set of pins returned from the server.
+    // Used when moving from "results" → "confirm" without a new server call.
+    const [currentPins, setCurrentPins] = useState<Pin[]>([]);
+
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const chatCreate = api.agent.create.useMutation();
@@ -651,7 +702,6 @@ export default function PinAgentChat() {
                         return { role: m.role as "user" | "assistant", text: m.content.text };
                     }
                     if (m.content.kind === "response") {
-                        // Serialize response message back as assistant text for LLM history
                         const d = m.content.data;
                         const text =
                             d.type === "info" || d.type === "question" || d.type === "success"
@@ -702,10 +752,16 @@ export default function PinAgentChat() {
                 const result = await chatCreate.mutateAsync({
                     messages: buildHistory(userText),
                     intent: mergedIntent,
+                    sessionId, // ← pass current session ID so server can look up the pin store
                 });
 
-                // FIX: use the robust parseReply helper instead of a raw try/catch JSON.parse
-                // This correctly handles JSON in code fences, leading text, etc.
+                // Store session ID returned by server for all subsequent turns
+                if (result.sessionId) setSessionId(result.sessionId);
+
+                // Store pins returned from server-side pin store
+                const serverPins = result.pins ?? [];
+                if (serverPins.length > 0) setCurrentPins(serverPins);
+
                 const agentResponse = parseReply(result.reply);
 
                 setMessages((prev) => [
@@ -713,7 +769,13 @@ export default function PinAgentChat() {
                     {
                         id: uid(),
                         role: "assistant",
-                        content: { kind: "response", data: agentResponse },
+                        // Attach pins to this specific message so it renders correctly
+                        // even if the user scrolls back up through history
+                        content: {
+                            kind: "response",
+                            data: agentResponse,
+                            pins: serverPins.length > 0 ? serverPins : currentPins,
+                        },
                         createdAt: new Date(),
                     },
                 ]);
@@ -733,6 +795,7 @@ export default function PinAgentChat() {
                                 type: "info",
                                 message: "Sorry, something went wrong. Please try again.",
                             },
+                            pins: [],
                         },
                         createdAt: new Date(),
                     },
@@ -743,7 +806,7 @@ export default function PinAgentChat() {
                 inputRef.current?.focus();
             }
         },
-        [isLoading, intent, buildHistory, chatCreate]
+        [isLoading, intent, sessionId, currentPins, buildHistory, chatCreate]
     );
 
     // ── Handle question answers ───────────────────────────────────────────────
@@ -752,9 +815,14 @@ export default function PinAgentChat() {
         (answers: Record<string, string>) => {
             const intentPatch: Partial<PinIntent> = {};
             for (const [k, v] of Object.entries(answers)) {
-                if (k === "count") intentPatch.count = parseInt(v, 10) || null;
-                else if (k === "query") intentPatch.query = v;
-                else if (k === "area" || k === "where") intentPatch.area = v;
+                const key = k.toLowerCase().trim();
+                if (key === "count" || key === "how_many" || key === "how many") {
+                    intentPatch.count = parseInt(v, 10) || null;
+                } else if (key === "query" || key === "what" || key === "search") {
+                    intentPatch.query = v;
+                } else if (key === "area" || key === "where" || key === "location" || key === "city") {
+                    intentPatch.area = v;
+                }
             }
             const summary = Object.entries(answers)
                 .map(([k, v]) => `${k}: ${v}`)
@@ -765,14 +833,19 @@ export default function PinAgentChat() {
     );
 
     // ── Handle pin drop confirmation ──────────────────────────────────────────
+    // Sends confirmation to the server (which calls drop_pins with the sessionId),
+    // then shows a success message. Pins come from the local currentPins state —
+    // they were already stored server-side; we just need the count for display.
 
     const handleConfirm = useCallback(
         async (pins: Pin[]) => {
             setIsDropping(true);
+            const pinsToUse = pins.length > 0 ? pins : currentPins;
             try {
                 await chatCreate.mutateAsync({
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
+                    sessionId, // ← server uses this to retrieve pins from store and save them
                 });
 
                 setMessages((prev) => [
@@ -784,15 +857,18 @@ export default function PinAgentChat() {
                             kind: "response",
                             data: {
                                 type: "success",
-                                message: `Successfully dropped ${pins.length} pins!`,
-                                count: pins.length,
+                                message: `Successfully dropped ${pinsToUse.length} pins!`,
+                                count: pinsToUse.length,
                             } satisfies SuccessResponse,
+                            pins: [],
                         },
                         createdAt: new Date(),
                     },
                 ]);
                 setStage("done");
                 setIntent((p) => ({ ...p, confirmed: true }));
+                setCurrentPins([]);
+                setSessionId(undefined); // session complete — reset for next conversation
             } catch {
                 setMessages((prev) => [
                     ...prev,
@@ -802,6 +878,7 @@ export default function PinAgentChat() {
                         content: {
                             kind: "response",
                             data: { type: "info", message: "Failed to drop pins. Please try again." },
+                            pins: [],
                         },
                         createdAt: new Date(),
                     },
@@ -810,7 +887,7 @@ export default function PinAgentChat() {
                 setIsDropping(false);
             }
         },
-        [intent, buildHistory, chatCreate]
+        [intent, sessionId, currentPins, buildHistory, chatCreate]
     );
 
     // ── Dismiss ───────────────────────────────────────────────────────────────
@@ -826,6 +903,8 @@ export default function PinAgentChat() {
         setIntent({ count: null, query: null, area: null, areaType: "unknown", confirmed: false });
         setStage("idle");
         setInput("");
+        setCurrentPins([]);
+        setSessionId(undefined);
         inputRef.current?.focus();
     };
 

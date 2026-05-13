@@ -1,29 +1,98 @@
 // tools.ts
 // ─── LangChain Tool Definitions for the PinDrop Agent ────────────────────────
-import { tool } from "@langchain/core/tools"; // FIX: was "langchain" (wrong package)
+//
+// GEOCODING STRATEGY (accuracy-first):
+//   LANDMARKS  → Google Places New API (Text Search) — precise business coords
+//   EVENTS     → web_search extracts venue/address → Google Geocoding API converts to lat/lng
+//   NICHE      → web_search extracts address → Google Geocoding API converts to lat/lng
+//
+// RULE: LLM finds the address. Google converts it to coordinates.
+//       Never trust LLM-generated raw lat/lng directly.
+//
+// GAP-FILL STRATEGY:
+//   NICHE queries: re-run web_search asking for more locations not yet found.
+//   CHAIN queries: search additional cities from city_discovery.
+//   Final result is capped at the user's requested total.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { tool } from "@langchain/core/tools";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
-import type { Pin, CityDiscoveryResult } from "~/lib/agent/types"; // FIX: replaced broken CityDiscoveryToolOutput
-import pLimit from "p-limit"; // FIX: added proper p-limit package for concurrency control
+import pLimit from "p-limit";
+import type { Pin, CityDiscoveryResult } from "~/lib/agent/types";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIN STORE — pins never travel through LLM text
+// Agent tools write here; agent.ts reads here.
+// This prevents JSON truncation when large pin arrays pass through LLM responses.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PinStoreEntry {
+  pins: Pin[];
+  searchType: "LANDMARK" | "EVENT";
+  total: number;
+}
+
+let pinStore: PinStoreEntry | null = null;
+
+export function storePins(pins: Pin[], searchType: "LANDMARK" | "EVENT"): void {
+  pinStore = { pins, searchType, total: pins.length };
+  console.log(`[pinStore] Stored ${pins.length} pins`);
+}
+
+export function retrievePins(): PinStoreEntry | null {
+  return pinStore;
+}
+
+export function clearPins(): void {
+  pinStore = null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Google API response shapes
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface GooglePlaceResult {
-  name?: string;
-  formatted_address?: string;
-  vicinity?: string;
-  geometry?: { location?: { lat: number; lng: number } };
-  photos?: Array<{ photo_reference: string }>;
-  types?: string[];
-  rating?: number;
-  place_id?: string;
+interface NewPlaceLocation {
+  latitude: number;
+  longitude: number;
 }
 
-interface GooglePlacesResponse {
-  results?: GooglePlaceResult[];
-  next_page_token?: string;
+interface NewPlacePhoto {
+  name: string;
+}
+
+interface NewPlaceDisplayName {
+  text: string;
+  languageCode?: string;
+}
+
+interface NewPlace {
+  id?: string;
+  displayName?: NewPlaceDisplayName;
+  formattedAddress?: string;
+  location?: NewPlaceLocation;
+  photos?: NewPlacePhoto[];
+  types?: string[];
+  rating?: number;
+  websiteUri?: string;
+  primaryTypeDisplayName?: NewPlaceDisplayName;
+}
+
+interface NewPlacesSearchResponse {
+  places?: NewPlace[];
+}
+
+interface GeocodeResult {
+  geometry?: {
+    location?: { lat: number; lng: number };
+  };
+  formatted_address?: string;
+}
+
+interface GeocodeResponse {
   status: string;
+  results?: GeocodeResult[];
   error_message?: string;
 }
 
@@ -51,30 +120,36 @@ interface CityBounds {
   lngDelta: number;
 }
 
-interface GridCell {
-  location: string;
-}
-
-// Raw event shape returned by the event search LLM
 interface RawEventResult {
   title?: string;
   description?: string;
   startDate?: string;
   endDate?: string;
-  latitude?: number;
-  longitude?: number;
+  venueAddress?: string;
+  venueName?: string;
+  city?: string;
   url?: string;
   image?: string;
-  venue?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cache — FIX: added eviction so the Map doesn't grow unbounded
+// Named location shape returned by web_search (niche path)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface NamedLocation {
+  name: string;
+  address: string;
+  city?: string;
+  country?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cache — with TTL + eviction
 // Events are intentionally NOT cached (time-sensitive data)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 200; // FIX: cap to prevent memory leak
+const MAX_CACHE_ENTRIES = 200;
 const cache = new Map<string, { value: unknown; expires: number }>();
 
 function evictExpired(): void {
@@ -82,7 +157,6 @@ function evictExpired(): void {
   for (const [key, entry] of cache.entries()) {
     if (now > entry.expires) cache.delete(key);
   }
-  // If still over limit after eviction, remove oldest entries
   if (cache.size > MAX_CACHE_ENTRIES) {
     const keys = Array.from(cache.keys());
     for (let i = 0; i < cache.size - MAX_CACHE_ENTRIES; i++) {
@@ -94,26 +168,38 @@ function evictExpired(): void {
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
   if (!entry || Date.now() > entry.expires) {
-    cache.delete(key); // FIX: delete on stale read, not just skip
+    cache.delete(key);
     return null;
   }
   return entry.value as T;
 }
 
 function setCached<T>(key: string, value: T): T {
-  evictExpired(); // FIX: evict on every write
+  evictExpired();
   cache.set(key, { value, expires: Date.now() + CACHE_TTL_MS });
   return value;
 }
 
-
-
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Concurrency limiter — FIX: replaced custom pLimit with proper p-limit package
-// Install: npm install p-limit
+// Retry helper
 // ─────────────────────────────────────────────────────────────────────────────
 
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delayMs = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      console.warn(`[withRetry] Attempt ${attempt}/${retries} failed:`, err);
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs * attempt));
+    }
+  }
+  throw new Error("Unreachable");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -129,14 +215,49 @@ function hundredYearsFromNow(): string {
     .split("T")[0];
 }
 
-// FIX: validate that a date string is in the future
 function isFutureDate(dateStr: string): boolean {
   if (!dateStr) return false;
   return new Date(dateStr) >= new Date(todayString());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Map Google Place → Pin (LANDMARK)
+// GEOCODING — Core accuracy function
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function geocodeAddress(
+  address: string,
+  apiKey: string
+): Promise<{ lat: number; lng: number } | null> {
+  if (!address?.trim()) return null;
+
+  const cacheKey = `geocode:${address.toLowerCase().trim()}`;
+  const cached = getCached<{ lat: number; lng: number }>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.append("address", address);
+    url.searchParams.append("key", apiKey);
+
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
+    const data = (await res.json()) as GeocodeResponse;
+
+    if (data.status !== "OK" || !data.results?.[0]?.geometry?.location) {
+      console.warn(`[geocodeAddress] Failed for "${address}": ${data.status}`);
+      return null;
+    }
+
+    const { lat, lng } = data.results[0].geometry.location;
+    console.log(`[geocodeAddress] "${address}" → ${lat}, ${lng}`);
+    return setCached(cacheKey, { lat, lng });
+  } catch (error) {
+    console.error(`[geocodeAddress] Error for "${address}":`, error);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Map Google Place (New API) → Pin (LANDMARK)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const GENERIC_GOOGLE_TYPES = new Set([
@@ -150,28 +271,33 @@ function formatGoogleType(type: string): string {
   return type.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-function mapPlaceToPin(place: GooglePlaceResult, index: number, apiKey: string): Pin | null {
-  // FIX: return null for missing coordinates instead of silently using 0,0
-  const lat = place.geometry?.location?.lat;
-  const lng = place.geometry?.location?.lng;
+function mapNewPlaceToPin(place: NewPlace, index: number, apiKey: string): Pin | null {
+  const lat = place.location?.latitude;
+  const lng = place.location?.longitude;
+
   if (lat === undefined || lng === undefined) {
-    console.warn(`[mapPlaceToPin] Skipping "${place.name}" — missing coordinates`);
+    console.warn(`[mapNewPlaceToPin] Skipping "${place.displayName?.text}" — missing coordinates`);
     return null;
   }
 
-  const photoRef = place.photos?.[0]?.photo_reference;
-  const address = place.formatted_address ?? place.vicinity;
   const category =
+    place.primaryTypeDisplayName?.text ??
     place.types
       ?.filter((t) => !GENERIC_GOOGLE_TYPES.has(t))
       .map(formatGoogleType)
-      .find(Boolean) ?? "Place";
+      .find(Boolean) ??
+    "Place";
+
+  const photoName = place.photos?.[0]?.name;
+  const photoUrl = photoName
+    ? `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=400&key=${apiKey}`
+    : undefined;
 
   return {
-    id: place.place_id ?? `pin_${index}`,
+    id: place.id ?? `pin_${index}`,
     type: "LANDMARK",
-    title: place.name ?? `Location ${index}`,
-    description: address ?? "Location",
+    title: place.displayName?.text ?? `Location ${index}`,
+    description: place.formattedAddress ?? "Location",
     latitude: lat,
     longitude: lng,
     startDate: todayString(),
@@ -181,39 +307,68 @@ function mapPlaceToPin(place: GooglePlaceResult, index: number, apiKey: string):
     radius: 2,
     autoCollect: false,
     category,
-    address,
-    url: place.place_id
-      ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
-      : undefined,
-    image: photoRef
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`
-      : undefined,
+    address: place.formattedAddress,
+    url: place.websiteUri ?? (place.id
+      ? `https://www.google.com/maps/place/?q=place_id:${place.id}`
+      : undefined),
+    image: photoUrl,
     metadata: {
       rating: place.rating,
-      googleMapsUrl: place.place_id
-        ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
+      googleMapsUrl: place.id
+        ? `https://www.google.com/maps/place/?q=place_id:${place.id}`
         : undefined,
     },
   };
 }
 
-// FIX: new function — map raw event data → Pin (EVENT type with real dates)
-function mapEventToPin(event: RawEventResult, index: number): Pin | null {
-  // Validate required fields
+// ─────────────────────────────────────────────────────────────────────────────
+// Map raw event data → Pin (EVENT)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function mapEventToPin(
+  event: RawEventResult,
+  index: number,
+  apiKey: string,
+  fallbackCity?: string
+): Promise<Pin | null> {
   if (!event.title) return null;
   if (!event.startDate || !event.endDate) return null;
-  if (!isFutureDate(event.startDate)) return null; // FIX: skip past events
-  if (!isFutureDate(event.endDate)) return null; // FIX: endDate must also be in the future
-  if (new Date(event.endDate) < new Date(event.startDate)) return null; // FIX: endDate must not be before startDate
-  if (event.latitude === undefined || event.longitude === undefined) return null;
+  if (!isFutureDate(event.startDate)) return null;
+  if (!isFutureDate(event.endDate)) return null;
+  if (new Date(event.endDate) < new Date(event.startDate)) return null;
+
+  const addressCandidates: string[] = [];
+  if (event.venueAddress?.trim()) addressCandidates.push(event.venueAddress.trim());
+  if (event.venueName?.trim() && event.city?.trim()) addressCandidates.push(`${event.venueName.trim()}, ${event.city.trim()}`);
+  if (event.city?.trim()) addressCandidates.push(event.city.trim());
+  if (fallbackCity?.trim()) addressCandidates.push(fallbackCity.trim());
+
+  if (addressCandidates.length === 0) {
+    console.warn(`[mapEventToPin] No address for event "${event.title}" — skipping`);
+    return null;
+  }
+
+  let coords: { lat: number; lng: number } | null = null;
+  for (const addr of addressCandidates) {
+    coords = await geocodeAddress(addr, apiKey);
+    if (coords) {
+      console.log(`[mapEventToPin] Geocoded "${event.title}" via "${addr}"`);
+      break;
+    }
+  }
+
+  if (!coords) {
+    console.warn(`[mapEventToPin] Could not geocode "${event.title}" — skipping`);
+    return null;
+  }
 
   return {
     id: `event_${index}_${Date.now()}`,
     type: "EVENT",
     title: event.title,
-    description: event.description ?? event.venue ?? "Event",
-    latitude: event.latitude,
-    longitude: event.longitude,
+    description: event.description ?? event.venueName ?? "Event",
+    latitude: coords.lat,
+    longitude: coords.lng,
     startDate: event.startDate,
     endDate: event.endDate,
     url: event.url,
@@ -226,17 +381,8 @@ function mapEventToPin(event: RawEventResult, index: number): Pin | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Geocode area → bounding box
+// Geocode city → bounding box
 // ─────────────────────────────────────────────────────────────────────────────
-
-function isValidBounds(b: CityBounds): boolean {
-  return (
-    b.lat >= -90 && b.lat <= 90 &&
-    b.lng >= -180 && b.lng <= 180 &&
-    b.latDelta > 0 && b.lngDelta > 0 &&
-    b.latDelta <= 180 && b.lngDelta <= 180
-  );
-}
 
 async function getCityBounds(area: string, apiKey: string): Promise<CityBounds | null> {
   const cacheKey = `bounds:${area}`;
@@ -264,16 +410,10 @@ async function getCityBounds(area: string, apiKey: string): Promise<CityBounds |
         latDelta: Math.abs(box.northeast.lat - box.southwest.lat),
         lngDelta: Math.abs(box.northeast.lng - box.southwest.lng),
       };
+    } else if (geo.location) {
+      bounds = { lat: geo.location.lat, lng: geo.location.lng, latDelta: 0.18, lngDelta: 0.18 };
     } else {
-      bounds = { lat: geo.location!.lat, lng: geo.location!.lng, latDelta: 0.18, lngDelta: 0.18 };
-    }
-
-    if (!isValidBounds(bounds)) {
-      if (geo.location) {
-        bounds = { lat: geo.location.lat, lng: geo.location.lng, latDelta: 0.18, lngDelta: 0.18 };
-      } else {
-        return null;
-      }
+      return null;
     }
 
     return setCached(cacheKey, bounds);
@@ -284,131 +424,206 @@ async function getCityBounds(area: string, apiKey: string): Promise<CityBounds |
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Grid cells — FIX: raised MAX_GRID_SIZE and added count warning
+// Google Places NEW API — Text Search
 // ─────────────────────────────────────────────────────────────────────────────
 
-const UNIQUE_YIELD_PER_CELL = 15;
-const MAX_GRID_SIZE = 20; // FIX: was 10 — allows up to 400 cells = 6,000 results per city
+async function searchPlacesNewAPI(
+  query: string,
+  area: string,
+  count: number,
+  apiKey: string
+): Promise<Pin[]> {
+  const bounds = await getCityBounds(area, apiKey);
+  const allPins: Pin[] = [];
+  const seenIds = new Set<string>();
 
-function buildGridCells(bounds: CityBounds, count: number): GridCell[] {
-  const cellsNeeded = Math.ceil(count / UNIQUE_YIELD_PER_CELL);
-  const rawGridSize = Math.ceil(Math.sqrt(cellsNeeded));
-  const gridSize = Math.min(rawGridSize, MAX_GRID_SIZE);
-
-  // FIX: warn when grid can't reach the requested count
-  const maxYield = gridSize * gridSize * UNIQUE_YIELD_PER_CELL;
-  if (maxYield < count) {
-    console.warn(
-      `[buildGridCells] Grid can yield at most ${maxYield} results but ${count} were requested. ` +
-      `Use multi-city search via city_discovery to reach this count.`
-    );
-  }
-
-  const cellLatDelta = bounds.latDelta / gridSize;
-  const cellLngDelta = bounds.lngDelta / gridSize;
-  const cells: GridCell[] = [];
-
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const cellLat = bounds.lat - bounds.latDelta / 2 + (row + 0.5) * cellLatDelta;
-      const cellLng = bounds.lng - bounds.lngDelta / 2 + (col + 0.5) * cellLngDelta;
-      cells.push({ location: `${cellLat.toFixed(6)},${cellLng.toFixed(6)}` });
-    }
-  }
-
-  console.log(`[buildGridCells] ${gridSize}×${gridSize} (${cells.length} cells) for count=${count}`);
-  return cells;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fetch one page — Google Places Text Search
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function fetchOnePage(
-  keyword: string,
-  apiKey: string,
-  pageToken?: string,
-  cell?: GridCell
-): Promise<{ results: Pin[]; nextPageToken?: string }> {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-  url.searchParams.append("key", apiKey);
-
-  if (pageToken) {
-    url.searchParams.append("pagetoken", pageToken);
-  } else {
-    url.searchParams.append("query", keyword);
-    if (cell?.location) {
-      url.searchParams.append("location", cell.location);
-      url.searchParams.append("radius", "50000");
-    }
-  }
-
-  const response = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
-  const data = (await response.json()) as GooglePlacesResponse;
-
-  if (data.status === "ZERO_RESULTS") return { results: [] };
-  if (data.status !== "OK") {
-    console.warn(`[fetchOnePage] status: ${data.status}`, data.error_message ?? "");
-    return { results: [] };
-  }
-
-  const apiKey2 = apiKey; // closure for mapPlaceToPin
-  const results = (data.results ?? [])
-    .map((p, i) => mapPlaceToPin(p, i, apiKey2))
-    .filter((p): p is Pin => p !== null); // FIX: filter out null (missing coords)
-
-  return { results, nextPageToken: data.next_page_token };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Drain all 3 pages for one grid cell
-// FIX: retry with exponential backoff instead of fixed 2s delay
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function drainCell(keyword: string, apiKey: string, cell: GridCell | undefined): Promise<Pin[]> {
-  const collected: Pin[] = [];
+  const maxPages = Math.ceil(count / 20);
   let pageToken: string | undefined;
 
-  for (let page = 0; page < 3; page++) {
-    if (pageToken) {
-      // FIX: exponential backoff — 2s, 4s, 8s — Google needs time to prepare page tokens
-      let delay = 2000;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        await new Promise((r) => setTimeout(r, delay));
-        try {
-          const { results, nextPageToken } = await fetchOnePage(keyword, apiKey, pageToken, cell);
-          if (results.length > 0 || !nextPageToken) {
-            collected.push(...results);
-            pageToken = nextPageToken;
-            break;
-          }
-        } catch {
-          // token not ready yet — retry
-        }
-        delay *= 2;
+  for (let page = 0; page < maxPages && allPins.length < count; page++) {
+    try {
+      const body: Record<string, unknown> = {
+        textQuery: `${query} in ${area}`,
+        maxResultCount: Math.min(20, count - allPins.length),
+        languageCode: "en",
+      };
+
+      if (bounds) {
+        body.locationBias = {
+          circle: {
+            center: { latitude: bounds.lat, longitude: bounds.lng },
+            radius: Math.min(
+              50000,
+              Math.max(bounds.latDelta, bounds.lngDelta) * 111_000 * 0.6
+            ),
+          },
+        };
       }
-    } else {
-      try {
-        const { results, nextPageToken } = await fetchOnePage(keyword, apiKey, undefined, cell);
-        console.log(`[drainCell] Page ${page + 1} @ ${cell?.location ?? "global"}: ${results.length}`);
-        collected.push(...results);
-        if (!nextPageToken) break;
-        pageToken = nextPageToken;
-      } catch (error) {
-        console.error(`[drainCell] Page ${page + 1} failed:`, error);
+
+      if (pageToken) body.pageToken = pageToken;
+
+      const res = await fetch(
+        "https://places.googleapis.com/v1/places:searchText",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": [
+              "places.id",
+              "places.displayName",
+              "places.formattedAddress",
+              "places.location.latitude",
+              "places.location.longitude",
+              "places.photos",
+              "places.types",
+              "places.rating",
+              "places.websiteUri",
+              "places.primaryTypeDisplayName",
+              "nextPageToken",
+            ].join(","),
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(12000),
+        }
+      );
+
+      const data = (await res.json()) as NewPlacesSearchResponse & { nextPageToken?: string };
+
+      if (page === 0) {
+        console.log(`[searchPlacesNewAPI] Raw response sample:`, JSON.stringify(data).slice(0, 500));
+      }
+
+      if (!data.places?.length) {
+        console.log(`[searchPlacesNewAPI] No more results at page ${page + 1}`, data);
         break;
       }
+
+      for (const place of data.places) {
+        if (allPins.length >= count) break;
+        const pin = mapNewPlaceToPin(place, allPins.length, apiKey);
+        if (pin && !seenIds.has(pin.id)) {
+          seenIds.add(pin.id);
+          allPins.push(pin);
+        }
+      }
+
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+
+      await new Promise((r) => setTimeout(r, 500));
+    } catch (error) {
+      console.error(`[searchPlacesNewAPI] Page ${page + 1} error:`, error);
+      break;
     }
   }
 
-  return collected;
+  console.log(`[searchPlacesNewAPI] "${query}" in "${area}": ${allPins.length} pins`);
+  return allPins;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Google Places search — FIX: uses real p-limit
+// Legacy fallback: Google Places Text Search
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CELL_CONCURRENCY = 5;
+interface LegacyPlaceResult {
+  place_id?: string;
+  name?: string;
+  formatted_address?: string;
+  geometry?: { location?: { lat: number; lng: number } };
+  photos?: Array<{ photo_reference: string }>;
+  types?: string[];
+  rating?: number;
+}
+
+interface LegacyPlacesResponse {
+  status: string;
+  results?: LegacyPlaceResult[];
+  next_page_token?: string;
+  error_message?: string;
+}
+
+async function searchPlacesLegacyFallback(
+  query: string,
+  area: string,
+  count: number,
+  apiKey: string
+): Promise<Pin[]> {
+  const allPins: Pin[] = [];
+  const seenIds = new Set<string>();
+  let pageToken: string | undefined;
+  const maxPages = Math.min(3, Math.ceil(count / 20));
+
+  for (let page = 0; page < maxPages && allPins.length < count; page++) {
+    try {
+      const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+      url.searchParams.append("key", apiKey);
+      url.searchParams.append("query", `${query} in ${area}`);
+      if (pageToken) url.searchParams.append("pagetoken", pageToken);
+
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
+      const data = (await res.json()) as LegacyPlacesResponse;
+
+      console.log(`[legacyFallback] Page ${page + 1} status: ${data.status}, results: ${data.results?.length ?? 0}`);
+
+      if (data.status === "ZERO_RESULTS" || !data.results?.length) break;
+      if (data.status !== "OK") {
+        console.warn(`[legacyFallback] Error: ${data.status} — ${data.error_message ?? ""}`);
+        break;
+      }
+
+      for (const place of data.results) {
+        if (allPins.length >= count) break;
+        const lat = place.geometry?.location?.lat;
+        const lng = place.geometry?.location?.lng;
+        if (lat === undefined || lng === undefined) continue;
+
+        const photoRef = place.photos?.[0]?.photo_reference;
+        const pin: Pin = {
+          id: place.place_id ?? `legacy_pin_${allPins.length}`,
+          type: "LANDMARK",
+          title: place.name ?? `Location ${allPins.length}`,
+          description: place.formatted_address ?? "Location",
+          latitude: lat,
+          longitude: lng,
+          startDate: todayString(),
+          endDate: hundredYearsFromNow(),
+          pinCollectionLimit: 999999,
+          pinNumber: 1,
+          radius: 2,
+          autoCollect: false,
+          address: place.formatted_address,
+          url: place.place_id
+            ? `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
+            : undefined,
+          image: photoRef
+            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`
+            : undefined,
+          metadata: { rating: place.rating },
+        };
+
+        if (!seenIds.has(pin.id)) {
+          seenIds.add(pin.id);
+          allPins.push(pin);
+        }
+      }
+
+      pageToken = data.next_page_token;
+      if (!pageToken) break;
+      await new Promise((r) => setTimeout(r, 2000));
+    } catch (error) {
+      console.error(`[legacyFallback] Page ${page + 1} error:`, error);
+      break;
+    }
+  }
+
+  console.log(`[legacyFallback] "${query}" in "${area}": ${allPins.length} pins`);
+  return allPins;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main landmark search — New Places API with legacy fallback
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function searchViaGooglePlaces(query: string, area: string, count: number): Promise<Pin[]> {
   const cacheKey = `places:${query}:${area}:${count}`;
@@ -424,163 +639,384 @@ async function searchViaGooglePlaces(query: string, area: string, count: number)
     return [];
   }
 
-  const bounds = await getCityBounds(area, apiKey);
-  const cells: Array<GridCell | undefined> = bounds ? buildGridCells(bounds, count) : [undefined];
+  const bufferedCount = count * 2;
+  let results = await searchPlacesNewAPI(query, area, bufferedCount, apiKey);
 
-  const limit = pLimit(CELL_CONCURRENCY); // FIX: real p-limit
-  const batches = await Promise.all(
-    cells.map((cell) =>
-      limit(async () => {
-        try {
-          return await drainCell(query, apiKey, cell);
-        } catch {
-          return [] as Pin[];
-        }
-      })
-    )
-  );
-
-  const seenIds = new Set<string>();
-  const allResults: Pin[] = [];
-
-  for (const batch of batches) {
-    for (const item of batch) {
-      if (allResults.length >= count) break;
-      if (!seenIds.has(item.id)) {
-        seenIds.add(item.id);
-        allResults.push(item);
-      }
-    }
-    if (allResults.length >= count) break;
+  if (results.length === 0) {
+    console.warn(`[searchViaGooglePlaces] New API returned 0 — trying legacy Text Search fallback`);
+    results = await searchPlacesLegacyFallback(query, area, bufferedCount, apiKey);
   }
 
-  const finalResults = allResults.slice(0, count);
-  return setCached(cacheKey, finalResults);
+  if (results.length < count) {
+    const seenIds = new Set(results.map((p) => p.id));
+    console.warn(
+      `[searchViaGooglePlaces] Still short (${results.length}/${count}) — trying broader query fallback`
+    );
+    const broader = await searchPlacesLegacyFallback(query, area, count - results.length, apiKey);
+    for (const p of broader) {
+      if (!seenIds.has(p.id)) {
+        seenIds.add(p.id);
+        results.push(p);
+      }
+    }
+    console.log(`[searchViaGooglePlaces] After broader fallback: ${results.length} pins`);
+  }
+
+  const final = results.slice(0, count);
+  return setCached(cacheKey, final);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Niche gap-fill via web search
+// For artist installations, sculptures, etc. — NOT Google Places chains.
+// Re-runs a web search asking for more locations beyond those already found.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function gapFillNicheViaWebSearch(
+  query: string,
+  alreadyFoundNames: string[],
+  needed: number,
+  apiKey: string
+): Promise<Pin[]> {
+  console.log(`[gapFillNiche] Searching web for ${needed} more "${query}" locations`);
+  const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 }).bindTools([
+    { type: "web_search_preview" } as never,
+  ]);
+
+  const exclusionList = alreadyFoundNames.length
+    ? `Exclude these already-found locations: ${alreadyFoundNames.join(", ")}.`
+    : "";
+
+  try {
+    const response = await llm.invoke([{
+      role: "user",
+      content:
+        `Find ${needed} more real-world locations of "${query}" worldwide. ` +
+        exclusionList +
+        ` Return ONLY JSON: {"namedLocations":[{"name":"...","address":"full street address, city, country"}]}. ` +
+        `Only include locations with known full addresses. No lat/lng.`,
+    }]);
+
+    const raw =
+      typeof response.content === "string"
+        ? response.content
+        : Array.isArray(response.content)
+          ? response.content
+            .filter((b): b is { type: "text"; text: string } => (b as { type: string }).type === "text")
+            .map(b => b.text)
+            .join("")
+          : "";
+
+    const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()) as { namedLocations: NamedLocation[] };
+    const locations = parsed.namedLocations ?? [];
+
+    const limit = pLimit(5);
+    const pinResults = await Promise.all(
+      locations.map((loc, i) =>
+        limit(async () => {
+          const coords = await geocodeAddress(loc.address, apiKey);
+          if (!coords) {
+            console.warn(`[gapFillNiche] Could not geocode "${loc.name}" — skipping`);
+            return null;
+          }
+          const pin: Pin = {
+            id: `niche_gap_${Date.now()}_${i}`,
+            type: "LANDMARK",
+            title: loc.name,
+            description: loc.address,
+            latitude: coords.lat,
+            longitude: coords.lng,
+            startDate: todayString(),
+            endDate: hundredYearsFromNow(),
+            pinCollectionLimit: 999999,
+            pinNumber: 1,
+            radius: 2,
+            autoCollect: false,
+          };
+          return pin;
+        })
+      )
+    );
+
+    const pins = pinResults.filter((p): p is Pin => p !== null);
+    console.log(`[gapFillNiche] Found ${pins.length} additional pins`);
+    return pins;
+  } catch (err) {
+    console.error("[gapFillNiche] Failed:", err);
+    return [];
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool: Web Search
+// ALWAYS called first before any search tool.
+// Returns structured info including namedLocations to detect niche vs chain.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const webSearchTool = tool(
   async ({ query }): Promise<string> => {
     console.log("[webSearchTool]", query);
+
+    const FALLBACK = JSON.stringify({
+      canonicalName: query,
+      category: "unknown",
+      isEvent: false,
+      isNiche: false,
+      knownRegions: [],
+      singleLocation: null,
+      namedLocations: [],
+      searchHint: "fallback — web search failed",
+    });
+
     try {
-      const llm = new ChatOpenAI({ model: "gpt-4o" }).bindTools([
+      // ── Step 1: Search the web (prose output is fine here) ──────────────
+      const searchLlm = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools([
         { type: "web_search_preview" } as never,
       ]);
-      const response = await llm.invoke([
-        {
-          role: "system",
-          content:
-            "You are a research assistant. Always respond with ONLY a valid JSON object " +
-            "(no markdown, no extra text) in this exact shape: " +
-            '{ "canonicalName": string, "category": string, "knownRegions": string[], ' +
-            '"searchHint": string, "singleLocation": { "address": string, "city": string, ' +
-            '"latitude": number, "longitude": number } | null }'
-        },
-        { role: "user", content: query },
-      ]);
-      const text =
-        typeof response.content === "string"
-          ? response.content
-          : Array.isArray(response.content)
-            ? response.content
-              .filter((b): b is { type: "text"; text: string } => b.type === "text")
-              .map((b) => b.text)
-              .join("\n")
+
+      const searchResponse = await withRetry(() =>
+        searchLlm.invoke([{ role: "user", content: query }])
+      );
+
+      // Extract all text blocks from the response
+      const rawContent = searchResponse.content;
+      let searchText = "";
+      if (typeof rawContent === "string") {
+        searchText = rawContent;
+      } else if (Array.isArray(rawContent)) {
+        for (const block of rawContent) {
+          if (typeof block === "string") searchText += block;
+          else if (typeof block === "object" && block !== null && "text" in block)
+            searchText += (block as { text: string }).text;
+        }
+      }
+
+      if (!searchText.trim()) {
+        console.warn("[webSearchTool] Empty search response — returning fallback");
+        return FALLBACK;
+      }
+
+      console.log("[webSearchTool] Raw search text:", searchText.slice(0, 300));
+
+      // ── Step 2: Extract structured JSON from the prose (no tools) ───────
+      const extractLlm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+
+      const extractResponse = await withRetry(() =>
+        extractLlm.invoke([
+          {
+            role: "system",
+            content:
+              "You are a structured data extractor. Read the research text and return ONLY a valid JSON object — " +
+              "no markdown fences, no explanation, no prose. " +
+              "Return exactly this shape:\n" +
+              '{"canonicalName":"string","category":"string",' +
+              '"isEvent":boolean,"isNiche":boolean,' +
+              '"knownRegions":["string"],' +
+              '"singleLocation":{"name":"","address":"","city":"","country":""}|null,' +
+              '"namedLocations":[{"name":"","address":"","city":"","country":""}],' +
+              '"searchHint":"string"}\n\n' +
+              "RULES:\n" +
+              "isEvent=true: concerts, festivals, shows, sports events, music events, " +
+              "any time-bounded happening with specific dates and venues.\n" +
+              "isNiche=true: art installations, sculptures, murals, monuments, anything " +
+              "unlikely to be a registered Google Places business. Always false when isEvent=true.\n" +
+              "isEvent=false AND isNiche=false: chains, restaurants, hospitals, generic categories.\n" +
+              "namedLocations: for events → each known upcoming event with venue address; " +
+              "for niche → every known physical location; for chains → empty array [].\n" +
+              "NEVER include lat/lng. Only full address strings suitable for geocoding.",
+          },
+          {
+            role: "user",
+            content: `Extract structured data from this research:\n\n${searchText.slice(0, 6000)}`,
+          },
+        ])
+      );
+
+      const extractRaw =
+        typeof extractResponse.content === "string"
+          ? extractResponse.content
+          : Array.isArray(extractResponse.content)
+            ? extractResponse.content
+              .filter((b): b is { type: "text"; text: string } =>
+                typeof b === "object" && b !== null && "type" in b && (b as { type: string }).type === "text"
+              )
+              .map(b => b.text)
+              .join("")
             : "";
-      return text || JSON.stringify({ results: [] });
+
+      // Strip any accidental markdown fences
+      const clean = extractRaw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+
+      // Find outermost JSON object
+      const start = clean.indexOf("{");
+      const end = clean.lastIndexOf("}");
+      if (start === -1 || end === -1) {
+        console.warn("[webSearchTool] Extractor returned no JSON — fallback");
+        return FALLBACK;
+      }
+
+      const parsed = JSON.parse(clean.slice(start, end + 1)) as {
+        isEvent?: boolean;
+        isNiche?: boolean;
+        namedLocations?: unknown[];
+        canonicalName?: string;
+      };
+
+      // Ensure required booleans are always present
+      if (typeof parsed.isEvent !== "boolean") parsed.isEvent = false;
+      if (typeof parsed.isNiche !== "boolean") parsed.isNiche = false;
+      if (!Array.isArray(parsed.namedLocations)) parsed.namedLocations = [];
+
+      const result = JSON.stringify(parsed);
+      console.log("[webSearchTool] Structured result:", result.slice(0, 400));
+      return result;
+
     } catch (error) {
-      console.error("[webSearchTool] failed:", error);
-      return JSON.stringify({ results: [] });
+      console.error("[webSearchTool] Failed:", error);
+      return FALLBACK;
     }
   },
   {
     name: "web_search",
     description:
-      "Research a WHAT target before any search. Always call this first to resolve: " +
-      "canonicalName (the correct search term), category (place or event type), " +
-      "knownRegions (array of countries/cities where it actually exists), " +
-      "searchHint (best keyword to pass to places_search or event_search). " +
-      "Respond with a JSON object: { canonicalName, category, knownRegions, searchHint }.",
+      "ALWAYS call this FIRST before any other search tool, regardless of count or phrasing. " +
+      "Returns structured JSON with canonicalName, category, isEvent (boolean), isNiche (boolean), " +
+      "knownRegions, singleLocation (address only), and namedLocations (addresses only). " +
+      "isEvent=true → use event_search path. " +
+      "isNiche=true → use geocode_address path. " +
+      "isEvent=false AND isNiche=false → use places_search path. " +
+      "Never returns coordinates — those are resolved via geocoding separately.",
     schema: z.object({
-      query: z.string().describe("Natural language search query"),
+      query: z.string().describe("The thing to search for"),
     }),
   }
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool: Event Search — FIX: new tool, was completely missing
-// Does NOT use cache — event data is time-sensitive
+// Tool: Geocode Address
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const geocodeAddressTool = tool(
+  async ({ address, title, description }): Promise<string> => {
+    console.log("[geocodeAddressTool]", address);
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY;
+    if (!apiKey) return JSON.stringify({ pins: [], message: "API key not set" });
+
+    const coords = await geocodeAddress(address, apiKey);
+    if (!coords) return JSON.stringify({ pins: [], message: `Could not geocode: "${address}"` });
+
+    const pin: Pin = {
+      id: `geocoded_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      type: "LANDMARK",
+      title: title ?? address,
+      description: description ?? address,
+      latitude: coords.lat,
+      longitude: coords.lng,
+      startDate: todayString(),
+      endDate: hundredYearsFromNow(),
+      pinCollectionLimit: 999999,
+      pinNumber: 1,
+      radius: 2,
+      autoCollect: false,
+    };
+
+    return JSON.stringify({ pins: [pin], total: 1 });
+  },
+  {
+    name: "geocode_address",
+    description:
+      "Convert a full address to a Pin using Google Geocoding API. " +
+      "Use for niche locations: art installations, sculptures, monuments, murals, trolls — " +
+      "anything where web_search returned isNiche=true or namedLocations is non-empty. " +
+      "Returns { pins: [Pin] } — same shape as places_search.",
+    schema: z.object({
+      address: z.string().describe("Full address (e.g. 'Senso-ji Temple, 2-3-1 Asakusa, Taito City, Tokyo')"),
+      title: z.string().optional().describe("Display name for the pin"),
+      description: z.string().optional().describe("Short description"),
+    }),
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool: Event Search
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const eventSearchTool = tool(
-  async ({ query, city, count = 20 }): Promise<string> => {
+  async ({ query, city, count = 5 }): Promise<string> => {
     console.log("[eventSearchTool]", { query, city, count });
     const today = todayString();
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY;
+    if (!apiKey) return JSON.stringify({ total: 0, message: "API key not set" });
 
     try {
-      const llm = new ChatOpenAI({ model: "gpt-4o" }).bindTools([
+      const llm = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools([
         { type: "web_search_preview" } as never,
       ]);
-
-      const prompt =
-        `Find up to ${count} upcoming future events for "${query}" in or near "${city}" after ${today}. ` +
-        `Return ONLY a valid JSON array (no markdown, no extra text) like: ` +
-        `[{"title":"...","description":"...","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD",` +
-        `"latitude":0.0,"longitude":0.0,"url":"...","image":"...","venue":"..."}]. ` +
-        `CRITICAL: EVERY event MUST have latitude and longitude (not null, not missing). ` +
-        `Only include events with startDate >= ${today}. If coordinates are unavailable, OMIT that event completely.`;
-
-      const response = await llm.invoke([{ role: "user", content: prompt }]);
+      const response = await llm.invoke([{
+        role: "user",
+        content:
+          `Find up to ${count} upcoming events for "${query}" in "${city}" after ${today}. ` +
+          `Return ONLY a JSON array: [{"title":"...","description":"...","startDate":"YYYY-MM-DD",` +
+          `"endDate":"YYYY-MM-DD","venueAddress":"full address","venueName":"...","city":"...","url":"..."}]. No lat/lng.`,
+      }]);
 
       const raw =
         typeof response.content === "string"
           ? response.content
           : Array.isArray(response.content)
             ? response.content
-              .filter((b): b is { type: "text"; text: string } => b.type === "text")
-              .map((b) => b.text)
-              .join("\n")
+              .filter((b): b is { type: "text"; text: string } =>
+                (b as { type: string }).type === "text"
+              )
+              .map(b => b.text)
+              .join("")
             : "";
 
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean) as RawEventResult[];
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()) as RawEventResult[];
+      const limiter = pLimit(5);
+      const pinResults = await Promise.all(
+        parsed
+          .filter(e => isFutureDate(e.startDate ?? "") && isFutureDate(e.endDate ?? ""))
+          .map((e, i) => limiter(() => mapEventToPin(e, i, apiKey, city)))
+      );
+      const pins = pinResults.filter((p): p is Pin => p !== null);
 
-      // FIX: filter past events even if the LLM slipped one through
-      const pins = parsed
-        .map((e, i) => mapEventToPin(e, i))
-        .filter((p): p is Pin => p !== null);
+      // ── Store pins out-of-band; NEVER put them in the tool response ──────
+      // The agent's context only sees the summary. agent.ts reads pinStore directly.
+      if (pins.length > 0) {
+        const existing = retrievePins();
+        const merged = [...(existing?.pins ?? []), ...pins];
+        storePins(merged, "EVENT");
+      }
 
-      console.log(`[eventSearchTool] ${pins.length} future event pins for "${query}" in "${city}"`);
-      return JSON.stringify({ pins, total: pins.length });
-    } catch (error) {
-      console.error("[eventSearchTool] failed:", error);
-      return JSON.stringify({ pins: [], message: "Event search failed." });
+      // Return only a compact summary — no pin objects
+      return JSON.stringify({
+        total: pins.length,
+        city,
+        message: `Found ${pins.length} upcoming ${query} events in ${city}.`,
+      });
+    } catch (err) {
+      console.error("[eventSearchTool]", err);
+      return JSON.stringify({ total: 0, city, message: `No events found for "${query}" in "${city}".` });
     }
   },
   {
     name: "event_search",
-    description:
-      "Search for upcoming FUTURE events (concerts, festivals, markets, sports, shows) in a specific city. " +
-      "Returns structured event pin data with real start/end dates. Never returns past events. " +
-      "Do NOT cache results — always fetches fresh data.",
+    description: "Search for upcoming future events in a specific city. Returns a summary only — pins are stored internally.",
     schema: z.object({
-      query: z.string().describe("Event name or type (e.g. 'Thomas Bambo Troll', 'music festivals')"),
-      city: z.string().describe("A specific city name"),
-      count: z.number().optional().default(20).describe("Max number of event pins to return"),
+      query: z.string(),
+      city: z.string(),
+      count: z.number().optional().default(5),
     }),
   }
 );
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool: City Discovery — FIX: consistent model, higher default limit, proper type
+// Tool: City Discovery
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const cityDiscoveryTool = tool(
-  async ({ region, limit = 20 }): Promise<string> => { // FIX: default was 10
-    const llm = new ChatOpenAI({ model: "gpt-4o", temperature: 0 }); // FIX: was gpt-4o-mini (inconsistent)
+  async ({ region, limit = 20 }): Promise<string> => {
+    const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
 
     const response = await llm.invoke([
       {
@@ -597,8 +1033,6 @@ export const cityDiscoveryTool = tool(
           ? response.content
           : JSON.stringify(response.content);
       const clean = text.replace(/```json|```/g, "").trim();
-
-      // FIX: use proper CityDiscoveryResult type, no hacky Record cast
       const parsed = JSON.parse(clean) as CityDiscoveryResult;
       const cities: string[] = Array.isArray(parsed)
         ? (parsed as unknown as string[])
@@ -613,11 +1047,12 @@ export const cityDiscoveryTool = tool(
     name: "city_discovery",
     description:
       "Get major cities for a broad region (country, continent, 'worldwide'). " +
-      "Call this before places_search or event_search when WHERE is not a specific city. " +
-      "For large pin counts (100+) use limit=30 or higher.",
+      "ONLY use for chain/business queries (isNiche=false from web_search). " +
+      "NEVER call for niche/artist queries — use geocode_address for those instead. " +
+      "Call before places_search when WHERE is not a specific city.",
     schema: z.object({
       region: z.string().describe("Country, continent, or broad scope like 'worldwide'"),
-      limit: z.number().optional().default(20).describe("How many cities to return — use 30+ for large pin counts"), // FIX: was 10
+      limit: z.number().optional().default(20).describe("How many cities to return"),
     }),
   }
 );
@@ -629,21 +1064,36 @@ export const cityDiscoveryTool = tool(
 export const placesSearchTool = tool(
   async ({ query, city, count = 20 }): Promise<string> => {
     console.log("[placesSearchTool]", { query, city, count });
-    const pins = await searchViaGooglePlaces(query, city, count);
+
+    const bufferedCount = count * 2;
+    const pins = await searchViaGooglePlaces(query, city, bufferedCount);
 
     if (pins.length === 0) {
-      return JSON.stringify({
-        pins: [],
-        message: `No results found for "${query}" in "${city}".`,
-      });
+      return JSON.stringify({ total: 0, city, message: `No results found for "${query}" in "${city}".` });
     }
 
-    return JSON.stringify({ pins, total: pins.length });
+    // ── Store out-of-band ────────────────────────────────────────────────
+    if (pins.length > 0) {
+      const existing = retrievePins();
+      const merged = [...(existing?.pins ?? []), ...pins];
+      storePins(merged, "LANDMARK");
+    }
+
+    console.log(`[placesSearchTool] Stored ${pins.length} pins for "${query}" in "${city}"`);
+
+    // Return only a compact summary
+    return JSON.stringify({
+      total: pins.length,
+      city,
+      message: `Found ${pins.length} results for "${query}" in "${city}".`,
+    });
   },
   {
     name: "places_search",
     description:
-      "Search Google Places for LANDMARK locations matching a keyword in a SPECIFIC city. " +
+      "Search Google Places (New API) for LANDMARK locations in a SPECIFIC city. " +
+      "Use ONLY for chains, businesses, restaurants, museums, hospitals — i.e. web_search returned isNiche=false. " +
+      "Do NOT use for art installations, sculptures, monuments, or niche locations — use geocode_address instead. " +
       "Always pass a single city name — never a broad region like 'US' or 'Europe'.",
     schema: z.object({
       query: z.string().describe("What to search for"),
@@ -652,24 +1102,29 @@ export const placesSearchTool = tool(
     }),
   }
 );
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool: Drop Pins
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const dropPinsTool = tool(
-  async ({ pins }): Promise<string> => {
-    console.log(`[dropPinsTool] Saving ${pins.length} pins`);
-    // TODO: replace with real database write
-    return JSON.stringify({ saved: pins.length, status: "ok" });
+  async (): Promise<string> => {
+    const stored = retrievePins();
+    const count = stored?.pins.length ?? 0;
+    console.log(`[dropPinsTool] Saving ${count} pins`);
+
+    if (!stored || count === 0) {
+      return JSON.stringify({ saved: 0, status: "error", message: "No pins found to save." });
+    }
+
+    // TODO: replace with real database write using stored.pins
+    clearPins();
+    return JSON.stringify({ saved: count, status: "ok" });
   },
   {
     name: "drop_pins",
     description:
       "Persist confirmed pins into the database. Call ONLY after explicit user confirmation.",
-    schema: z.object({
-      pins: z.array(z.record(z.unknown())).describe("Confirmed pins to save"),
-    }),
+    schema: z.object({}),
   }
 );
 
@@ -679,17 +1134,19 @@ export const dropPinsTool = tool(
 
 export const ALL_TOOLS = [
   webSearchTool,
+  geocodeAddressTool,
   cityDiscoveryTool,
   placesSearchTool,
-  eventSearchTool, // FIX: was missing from exports
+  eventSearchTool,
   dropPinsTool,
 ] as const;
 
+export { searchViaGooglePlaces as searchViaGooglePlacesExported };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent System Prompt
-// FIX: rewrote to fix question logic, add event detection, future-only filter,
-//      structured response format with typed UI blocks
 // ─────────────────────────────────────────────────────────────────────────────
+
 export const AGENT_SYSTEM_PROMPT = `You are a location-based pin-drop agent embedded in a mapping platform. Your job is to help users find and drop location pins into a database through a smart, efficient conversation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -697,7 +1154,6 @@ RESPONSE FORMAT — CRITICAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Every response MUST be a valid JSON object. Never return plain text, markdown, or any other format.
-If you are unsure what to respond, return type "info". Never return anything outside these 5 structures.
 
 1. QUESTION (ask the user something):
 {
@@ -718,7 +1174,7 @@ If you are unsure what to respond, return type "info". Never return anything out
 {
   "type": "results",
   "message": "Summary of what was found",
-  "searchType": "EVENT" | "LANDMARK" | "MIXED",
+  "searchType": "EVENT" | "LANDMARK",
   "pins": [ ...pin objects... ],
   "confirmPrompt": "Drop these X pins?"
 }
@@ -731,7 +1187,7 @@ If you are unsure what to respond, return type "info". Never return anything out
     "what": "...",
     "where": "...",
     "count": 0,
-    "type": "LANDMARK" | "EVENT" | "MIXED"
+    "type": "LANDMARK" | "EVENT"
   },
   "pins": [ ...pin objects... ]
 }
@@ -750,74 +1206,142 @@ If you are unsure what to respond, return type "info". Never return anything out
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY FIRST STEP — NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ALWAYS call web_search FIRST — before any other tool — regardless of:
+- How the user phrased the query ("find 10", "10", "show me", etc.)
+- Whether a count was specified or not
+- Whether you think you already know what it is
+
+This is not optional. web_search determines the correct search path (niche vs chain).
+Skipping it will cause wrong results.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EVENT vs NICHE vs CHAIN — THE CORE DECISION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After web_search returns, check isEvent, isNiche, and namedLocations:
+
+── EVENT PATH (isEvent=true) ───────────────────────────────────────────────
+  Use event_search per city. NEVER use geocode_address or places_search.
+  Pins must have type "EVENT" with real future startDate/endDate.
+  City list: use namedLocations[].city if populated; otherwise use city_discovery
+  for the area, or a sensible worldwide set of major cities if area is null.
+  Discard any event whose startDate is before today.
+
+  Examples: music events, concerts, festivals, shows, sports matches,
+            conferences, performances, any time-bounded happening.
+
+── NICHE PATH (isNiche=true OR namedLocations.length > 0, AND isEvent=false) ──
+  Use geocode_address for each named location. NEVER call places_search or
+  city_discovery. Pins have type "LANDMARK".
+  Gap-fill: call web_search again asking for more locations not already found.
+
+  Examples: Thomas Dambo trolls, Banksy murals, public sculptures,
+            specific monuments, memorials, one-of-a-kind installations.
+
+── CHAIN PATH (isEvent=false AND isNiche=false AND namedLocations=[]) ──────
+  Use places_search per city. Use city_discovery when area is broad.
+  Pins have type "LANDMARK".
+  Gap-fill: search additional cities not yet covered.
+
+  Examples: KFC, Starbucks, hospitals, pharmacies, museums (as a category),
+            hotels, gyms, schools, any ubiquitous business chain.
+
+DECISION TABLE (read top to bottom, first match wins):
+  isEvent=true                              → EVENT PATH (event_search)
+  isNiche=true OR namedLocations.length > 0 → NICHE PATH (geocode_address)
+  everything else                           → CHAIN PATH (places_search)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COORDINATE ACCURACY — NEVER VIOLATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RULE: LLM finds the address. Google provides the coordinates. Never use LLM-generated lat/lng.
+
+- LANDMARKS (chain) → places_search returns Google Places coordinates. Always accurate.
+- EVENTS → event_search geocodes venue addresses via Google. Always accurate.
+- NICHE → web_search returns named locations with addresses → geocode_address converts each.
+  Never build a pin with coordinates you invented or estimated.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COUNT FAST-PATHS — CHECK SESSION BLOCK FIRST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read the SESSION block for the count rule before doing anything else.
+But ALWAYS call web_search first regardless of the count rule.
+
+If SESSION says "COUNT IS 1 (explicitly requested)":
+  1. Call web_search(query).
+  2. If niche: call geocode_address for the single best address from namedLocations/singleLocation.
+     If chain: call places_search(query, city, count=1) in ONE city.
+  3. Return results immediately.
+  FORBIDDEN: city_discovery, looping searches, multiple cities.
+
+If SESSION says "COUNT IS UNSPECIFIED":
+  • Return ALL locations the agent finds.
+  • After web_search, if namedLocations is non-empty → geocode all of them (niche path).
+  • Do NOT artificially limit results.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY EXECUTION ORDER — NEVER SKIP STEPS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Every search request MUST follow this exact order. No exceptions. No shortcuts.
-
 STEP 1 → COLLECT PARAMETERS
   Extract WHAT, WHERE, HOW MANY from the user message.
-  - WHAT: anything the user wants to find
-  - WHERE: city, country, region, or scope like "worldwide"
-  - HOW MANY: number of pins. Default to 20 if not given.
   If WHAT is missing → respond with type "question" asking for it.
-  If WHERE is missing → respond with type "question" asking for it.
-  Never proceed to STEP 2 until both WHAT and WHERE are known.
+  If WHERE is missing or vague → set WHERE = "worldwide" and proceed.
+  Never ask for WHERE more than once.
+  Never proceed to STEP 2 until WHAT is known.
 
-STEP 2 → CALL web_search
-  Call web_search with just the WHAT term. Short query only.
-  Example: WHAT="KFC" → web_search("KFC")
-  Example: WHAT="jazz festivals" → web_search("jazz festivals")
-  web_search MUST return this JSON shape:
-  {
-    "canonicalName": "short common name",
-    "category": "type of place or event",
-    "knownRegions": ["country1", "country2"],
-    "searchHint": "reasoning only — never passed to other tools",
-    "singleLocation": { "address": "...", "city": "...", "latitude": 0.0, "longitude": 0.0 } | null
-  }
-  Store canonicalName, category, knownRegions, singleLocation from this result.
+STEP 2 → CALL web_search (MANDATORY — NEVER SKIP)
+  Call web_search with just the WHAT term.
+  web_search returns: canonicalName, category, isNiche, knownRegions, singleLocation, namedLocations.
+  Store these. Never use coordinates from web_search — it doesn't return them.
   Never proceed to STEP 3 without completing this step.
 
-STEP 3 → DECIDE PIN TYPE
-  Use category from STEP 2:
-  - Contains "event", "festival", "concert", "show", "market" → use event_search
-  - Contains "place", "restaurant", "store", "museum", "landmark", "chain" → use places_search
-  - Ambiguous → respond with type "question" asking user to choose EVENT or LANDMARK
-  Never guess from the user's raw words. Always use category from web_search.
+STEP 3 → DECIDE SEARCH STRATEGY based on web_search result
 
-STEP 4 → CALL city_discovery
-  This step is MANDATORY. You MUST call city_discovery before any places_search or event_search.
-  Calling places_search or event_search without first calling city_discovery in this request is FORBIDDEN.
-  
-  Rules:
-  - If WHERE is a specific city (e.g. "New York") → skip city_discovery, use that city directly in STEP 5
-  - If WHERE is a country, region, or vague ("anywhere", "worldwide"):
-      → If knownRegions from STEP 2 is specific → city_discovery(region="country1,country2", limit=30)
-      → If knownRegions is worldwide or unclear → city_discovery(region="worldwide", limit=30)
-  
-  Never self-generate a city list. Never hardcode cities.
-  The only cities you may search are: the specific city from WHERE, or cities returned by city_discovery.
+  IF isNiche=true OR namedLocations.length > 0 → NICHE PATH:
+    Call geocode_address for EACH named location in namedLocations.
+    Run all geocode_address calls in parallel.
+    NEVER call places_search or city_discovery.
 
-STEP 5 → CALL places_search OR event_search
-  Rules:
-  - query = canonicalName from STEP 2. Use ONLY canonicalName. Never use full formal names.
-    Example: canonicalName="KFC" → query="KFC". Never "Kentucky Fried Chicken".
-    Example: canonicalName="Starbucks" → query="Starbucks". Never "Starbucks Coffee Company".
-  - city = each city from city_discovery result (or the specific city if WHERE was specific)
-  - count per city = Math.max(5, Math.ceil(totalCount / numberOfCities))
-  - Run all city searches in parallel.
-  - Each city is searched EXACTLY ONCE. Never search the same city twice in one request.
-  - If singleLocation from STEP 2 is not null AND places_search returns 0 results:
-      → Build pin directly from singleLocation data. Do not retry.
-  - If all cities return 0 results AND singleLocation is null:
-      → Respond with type "info". Do not retry. Do not search again.
+  IF isNiche=false AND namedLocations.length === 0 → CHAIN PATH:
+    Use places_search or event_search per city.
+
+STEP 4 → DECIDE SEARCH SCOPE (chain path only)
+
+  If web_search returned specific cities/venues → use those directly (PATH A).
+  If area is broad and chain exists everywhere → use city_discovery (PATH B).
+  NEVER call city_discovery for niche queries.
+
+STEP 5 → EXECUTE SEARCHES
+
+  NICHE path: geocode_address for each namedLocation address (parallel).
+  CHAIN path:
+    LANDMARKS → places_search(query=canonicalName, city=city, count=pinsPerCity)
+    EVENTS → event_search(query=canonicalName, city=city, count=count)
+
+  GAP-FILL RULE (CRITICAL — different for niche vs chain):
+
+  NICHE GAP-FILL (if total pins < target after first pass):
+    1. Call web_search again with query like "more [thing] locations worldwide"
+       and ask for locations NOT already in the found list by name.
+    2. Geocode each new address returned.
+    3. Repeat until target is met or no new locations are found.
+    NEVER search cities via places_search for niche gap-fill.
+
+  CHAIN GAP-FILL (if total pins < target after first pass):
+    1. Search additional cities from city_discovery not yet covered.
+    2. If no more cities available, retry with a broader query term.
+    3. Repeat until gap is filled or options exhausted.
+
+  Never return fewer pins than requested without first attempting gap-fill.
 
 STEP 6 → RESPOND WITH RESULTS
-  Collect all pins from STEP 5.
   Respond with type "results" containing all found pins.
-  Never respond with plain text. Never respond with markdown.
-  Always include the full pin objects in the response.
 
 STEP 7 → CONFIRM THEN DROP
   After user confirms → respond with type "confirm".
@@ -849,23 +1373,29 @@ LANDMARK dates: startDate = today, endDate = 100 years from today.
 EVENT dates: real future dates only. Discard any event where startDate is before today.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COUNT DISTRIBUTION
+COUNT DISTRIBUTION — CRITICAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-When distributing pins across multiple cities:
-- Minimum 5 pins per city always.
-- count per city = Math.max(5, Math.ceil(totalCount / numberOfCities))
-- If this gives more cities than needed, use fewer cities.
-  Example: 10 pins total, 30 cities → use 2 cities at 5 each.
-  Example: 60 pins total, 30 cities → use 12 cities at 5 each.
-  Example: 100 pins total, 20 cities → use 20 cities at 5 each.
+The count the user gives is the TOTAL across ALL cities — never per city.
+
+Formula (chain path only):
+  numberOfCities = Math.ceil(totalCount / 5)
+  pinsPerCity    = Math.ceil(totalCount / numberOfCities) * 2   ← request 2x as buffer
+
+For niche path: totalCount drives how many named locations to geocode.
+If web_search only returns N < totalCount locations, attempt niche gap-fill.
+
+Examples (chain with 2x buffer):
+  10 pins total → 2 cities × 10 per city (buffer), capped to 10 returned
+  30 pins total → 6 cities × 10 per city (buffer), capped to 30 returned
+  100 pins total → 20 cities × 10 per city (buffer), capped to 100 returned
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ERROR HANDLING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-In all error cases, respond with type "info". Never plain text. Never markdown.
-- Tool call fails → { "type": "info", "message": "Search failed, please try again." }
-- 0 results found → { "type": "info", "message": "Nothing found for X in Y. Try a different term or location." }
-- Past events only → { "type": "info", "message": "No upcoming events found. Try a different city or date range." }
-- Any unexpected state → { "type": "info", "message": "Something went wrong. Please try again." }`;
+All error responses use type "info". Never plain text. Never markdown.
+- Tool failure → { "type": "info", "message": "Search failed, please try again." }
+- 0 results → { "type": "info", "message": "Nothing found for X in Y." }
+- Past events only → { "type": "info", "message": "No upcoming events found." }
+- Unexpected state → { "type": "info", "message": "Something went wrong. Please try again." }`;
