@@ -35,6 +35,23 @@ export interface Pin extends GeneratedPin {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Pin options — chosen by the user on the results screen before confirming
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GroupingMode = "per-location" | "single-group";
+
+export interface PinOptions {
+  /** Whether pins are auto-collected on proximity. Default: false. */
+  autoCollect: boolean;
+  /**
+   * "per-location" → N pins into N location groups (one group per pin).
+   * "single-group"  → N pins all share 1 location group.
+   * Default: "per-location".
+   */
+  groupingMode: GroupingMode;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Intent
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -97,6 +114,11 @@ export interface ChatCreateOutput {
   intent: PinIntent;
   questions?: ClarifyQuestion[];
   pins?: Pin[];               // Full pin array injected server-side — not from LLM text
+  /**
+   * Present only when stage === "confirming" and agentResponse.type === "results".
+   * Contains the default PinOptions the UI should pre-select.
+   */
+  pinOptions?: PinOptions;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
