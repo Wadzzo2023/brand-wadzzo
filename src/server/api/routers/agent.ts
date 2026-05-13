@@ -6,6 +6,7 @@ import { db } from "~/server/db";
 import { qstash } from "~/lib/qstash";
 import { BASE_URL } from "~/lib/common";
 
+
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const MessageSchema = z.object({
@@ -29,6 +30,7 @@ const IntentSchema = z.object({
 const PinOptionsSchema = z.object({
   autoCollect: z.boolean().default(false),
   groupingMode: z.enum(["per-location", "single-group"]).default("per-location"),
+  pinNumber: z.number().min(1).max(200).default(1), // ← add this
 });
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -41,6 +43,8 @@ export const agentRouter = createTRPCRouter({
         intent: IntentSchema.optional(),
         pinOptions: PinOptionsSchema.optional(),
         creatorId: z.string().optional(),
+        pins: z.array(z.any()).optional(),
+
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -53,6 +57,7 @@ export const agentRouter = createTRPCRouter({
           message: "Must be signed in to drop pins.",
         });
       }
+      console.log("[runAgent] pinOptions received:", input.pinOptions);
 
       // 1. Persist a pending job row so the frontend can start polling right away
       const job = await db.agentJob.create({
@@ -64,6 +69,7 @@ export const agentRouter = createTRPCRouter({
             intent: input.intent ?? null,
             pinOptions: input.pinOptions ?? null,
             creatorId,
+            pins: input.pins ?? null,
           }),
         },
       });

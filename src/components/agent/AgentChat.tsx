@@ -1489,6 +1489,7 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
                     pinOptions: options,
+                    pins: currentPins,  // ← add this line
                 });
 
                 // Step 2: poll until the agent finishes (it will enqueue the QStash pin-drop job)

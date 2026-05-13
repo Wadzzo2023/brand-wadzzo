@@ -44,6 +44,7 @@ interface AgentRunInput {
     intent: Partial<PinIntent> | null;
     pinOptions: PinOptions | null;
     creatorId: string;
+    pins?: Pin[];  // ← add this line
 }
 
 // ─── LangChain helpers ────────────────────────────────────────────────────────
@@ -498,7 +499,9 @@ Respond with ONLY this exact JSON:
         countSection = `
 SEARCH STRATEGY — RETURN ALL:
   - count is unspecified — return every location found, do not cap.
-  - Run web_search + places_search normally.
+  - Run places_search with area="${intent.area ?? ""}" as the location constraint.
+  - ONLY return results physically located in "${intent.area ?? "the specified area"}". 
+  - Discard any result whose address does not match the area. Do not return worldwide results.
   - Do not ask the user how many.`;
 
     } else if (totalCount === 1) {
@@ -676,10 +679,59 @@ async function runAgent(input: AgentRunInput): Promise<{
     intent: PinIntent;
     pins?: Pin[];
     pinOptions?: { autoCollect: boolean; groupingMode: "per-location" | "single-group" };
-    locationGroupJobId?: string; // set when pins are enqueued for creation
+    jobId?: string; // set when pins are enqueued for creation
 }> {
-    const { messages, intent: currentIntent, pinOptions, creatorId } = input;
+    const { messages, intent: currentIntent, pinOptions, creatorId, pins: incomingPins } = input;
+    // ── Short-circuit: pins already collected, just create the job ────────
+    if (pinOptions && incomingPins && incomingPins.length > 0) {
+        const { autoCollect, groupingMode, pinNumber } = pinOptions;
 
+        const mappedPins = incomingPins.map((pin) => ({
+            ...pin,
+            autoCollect,
+            pinNumber,
+        }));
+
+        const lgJob = await db.locationGroupJob.create({
+            data: {
+                creatorId,
+                status: "pending",
+                total: mappedPins.length,
+                completed: 0,
+                payload: JSON.stringify({ pins: mappedPins, redeemMode: groupingMode }),
+                log: [],
+            },
+        });
+
+        await qstash.publishJSON({
+            url: `${BASE_URL}/api/create-pins`,
+            body: { jobId: lgJob.id, creatorId, pins: mappedPins, redeemMode: groupingMode },
+            retries: 3,
+        });
+
+        const currentIntent2 = currentIntent ?? {};
+        return {
+            reply: JSON.stringify({
+                type: "success",
+                message: `Queued ${mappedPins.length} pins for creation…`,
+                count: mappedPins.length,
+            }),
+            stage: "done" as AgentStage,
+            intent: {
+                count: currentIntent2.count ?? mappedPins.length,
+                countSpecified: currentIntent2.countSpecified ?? true,
+                query: currentIntent2.query ?? null,
+                area: currentIntent2.area ?? null,
+                areaType: currentIntent2.areaType ?? "unknown",
+                confirmed: true,
+                isNiche: currentIntent2.isNiche ?? false,
+                pinNumber,
+                ambiguousPinIntent: false,
+            },
+            jobId: lgJob.id,
+        };
+    }
+    // ── End short-circuit ─────────────────────────────────────────────────
     // 1. Extract intent
     const intent = await extractIntent(messages, currentIntent);
 
@@ -790,7 +842,7 @@ async function runAgent(input: AgentRunInput): Promise<{
         cappedPins = cappedPins.map((pin) => ({
             ...pin,
             autoCollect,
-            ...(pinOptions.pinNumber != null && { pinNumber: pinOptions.pinNumber }),
+            pinNumber: pinOptions.pinNumber,
         }));
         // Create LocationGroupJob
         const lgJob = await db.locationGroupJob.create({
@@ -828,7 +880,7 @@ async function runAgent(input: AgentRunInput): Promise<{
         pinOptions: agentResponse.type === "results"
             ? { autoCollect: false, groupingMode: "per-location" }
             : undefined,
-        locationGroupJobId,
+        jobId: locationGroupJobId,
     };
 }
 

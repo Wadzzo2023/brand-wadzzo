@@ -93,7 +93,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     })
 
     const log: LogEntry[] = []
-
+    console.log(`[create-pins] Starting job ${jobId} for creator ${creatorId} with ${pins.length} pins, redeemMode: ${redeemMode}`)
     try {
         if (redeemMode === "single-group") {
             // ── Single mode: one locationGroup, all pins as locations ─────────────
