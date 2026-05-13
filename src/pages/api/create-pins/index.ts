@@ -1,6 +1,3 @@
-// src/app/api/agent/create-pins/route.ts
-// QStash calls this endpoint after the agent router enqueues a pin-creation job.
-// It processes each Pin sequentially, updating progress in DB after every pin.
 
 import type { NextApiRequest, NextApiResponse } from "next"
 import { verifySignature, verifySignatureAppRouter } from "@upstash/qstash/nextjs"

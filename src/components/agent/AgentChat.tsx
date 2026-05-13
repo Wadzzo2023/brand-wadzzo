@@ -319,7 +319,7 @@ function QuestionBlock({
                 </div>
             )}
 
-            {(isShowingCustom || !isMultipleChoice) && (
+            {(isShowingCustom ?? !isMultipleChoice) && (
                 <div className="flex items-center gap-2">
                     <input
                         autoFocus

@@ -26,9 +26,9 @@ import {
 } from "@langchain/core/messages";
 import { createAgent } from "langchain";
 import { Client } from "@upstash/qstash";
+import { BASE_URL } from "~/lib/common";
+import { qstash } from "~/lib/qstash";
 
-const qstash = new Client({ token: process.env.QSTASH_TOKEN });
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 interface JobPayload {
     jobId: string;
