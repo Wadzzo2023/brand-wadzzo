@@ -469,6 +469,10 @@ function ResultsConfirmPanel({
 
     const isFirstStep = currentStep === 0;
     const isLastStep = currentStep === 1;
+    // Sync when parent intent updates after mount
+    useEffect(() => {
+        setPinNumber(detectedPinNumber ?? 1);
+    }, [detectedPinNumber]);
 
     const handleNext = () => {
         if (!isLastStep) {
@@ -1430,11 +1434,20 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
                 })
             );
 
-            const intentPatch: Partial<PinIntent> = {};
+            const intentPatch: Partial<PinIntent> = {
+                // ── Preserve ALL existing intent values explicitly ──
+                count: intent.count,
+                countSpecified: intent.countSpecified,
+                area: intent.area,
+                pinNumber: intent.pinNumber,
+                areaType: intent.areaType,
+            };
+
             for (const [k, v] of Object.entries(answers)) {
                 const key = k.toLowerCase().trim();
                 if (key === "count" || key === "how_many" || key === "how many") {
                     intentPatch.count = parseInt(v, 10) || null;
+                    intentPatch.countSpecified = true;
                 } else if (key === "query" || key === "what" || key === "search") {
                     intentPatch.query = v;
                 } else if (
@@ -1446,14 +1459,22 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
                     intentPatch.area = v;
                 }
             }
-            const summary = Object.entries(answers)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(", ");
-            void sendMessage(`I answered: ${summary}`, intentPatch);
-        },
-        [sendMessage]
-    );
 
+            // Send a natural message that includes ALL known context
+            // so extractIntent can see the full picture
+            const parts: string[] = [];
+            if (intentPatch.query) parts.push(`find ${intentPatch.query}`);
+            if (intentPatch.area) parts.push(`in ${intentPatch.area}`);
+            if (intentPatch.count && intentPatch.countSpecified) parts.push(`(${intentPatch.count} locations)`);
+
+            const naturalMessage = parts.length > 0
+                ? parts.join(" ")
+                : Object.entries(answers).map(([k, v]) => `${v}`).join(", ");
+
+            void sendMessage(naturalMessage, intentPatch);
+        },
+        [sendMessage, intent], // ← add intent to deps
+    );
     // ── Handle results confirmation ───────────────────────────────────────────
 
     const handleConfirmWithOptions = useCallback(

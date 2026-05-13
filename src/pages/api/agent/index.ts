@@ -79,7 +79,7 @@ async function reformatToJson(rawText: string): Promise<AgentResponse> {
 5. {"type":"info","message":"..."}
 Rules: no pins array, strip all markdown from message fields.`;
     try {
-        const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+        const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
         const res = await llm.invoke([
             { role: "system", content: SYSTEM },
             { role: "user", content: `Convert:\n\n${rawText.slice(0, 2000)}` },
@@ -123,6 +123,7 @@ function mergeIntent(
         confirmed: current?.confirmed ?? false,
         isNiche: current?.isNiche ?? false,
         pinNumber: current?.pinNumber ?? 1,
+        ambiguousPinIntent: current?.ambiguousPinIntent ?? false,
     };
     if (response.type === "confirm") {
         base.query = response.summary?.what ?? base.query;
@@ -157,37 +158,70 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"query":string|null,"area":string|null,"count":number,"countSpecified":boolean,"areaType":"city"|"region"|"country"|"worldwide"|"unknown","confirmed":boolean,"pinNumber":number,"ambiguousPinIntent":boolean}
 
 ════════════════════════════════════════
+CRITICAL — "pin/pins" AS ACTION WORD
+════════════════════════════════════════
+
+The words "pin" and "pins" are the ACTION VERB meaning "drop a map marker".
+They are NEVER the subject/category to search for.
+
+NEVER set query="pin" or query="pins" under any circumstances.
+
+════════════════════════════════════════
+CORE RULE — "drop/place/put N pins"
+════════════════════════════════════════
+
+"drop N pins", "place N pins", "put N pins" WITH NO CATEGORY always means:
+  → pinNumber=N   (N pins at each location found)
+  → count=1       (find 1 location unless area implies more)
+  → countSpecified=false
+  → query=null    (ask the user what to search for)
+  → ambiguousPinIntent=false
+
+This is NEVER ambiguous when query is null.
+
+Examples:
+  "drop 5 pins in dhaka"          → pinNumber=5,  count=1, query=null, countSpecified=false
+  "drop 10 pins in tokyo"         → pinNumber=10, count=1, query=null, countSpecified=false
+  "place 3 pins in london"        → pinNumber=3,  count=1, query=null, countSpecified=false
+  "put 2 pins in paris"           → pinNumber=2,  count=1, query=null, countSpecified=false
+  "drop a pin in berlin"          → pinNumber=1,  count=1, query=null, countSpecified=false
+  "drop 100 pins in new york"     → pinNumber=100, count=1, query=null, countSpecified=false
+
+════════════════════════════════════════
 FIELD RULES
 ════════════════════════════════════════
 
 query:
   - The thing to search for (e.g. "KFC", "hospitals", "attic recording studio")
-  - For specific named venues keep the full name
-  - null if not mentioned
+  - ALWAYS correct obvious typos: "hostipals"→"hospitals", "resturant"→"restaurant"
+  - null if no category/subject is mentioned
+  - NEVER "pin" or "pins"
   - Preserve prior if not updated: PRIOR="${prior?.query ?? "null"}"
 
 area:
   - Geographic area (e.g. "Tokyo", "United States", "worldwide")
-  - null if target is a specific named venue (area is implicit in the name)
+  - null if target is a specific named venue
   - null if not mentioned
   - Preserve prior if not updated: PRIOR="${prior?.area ?? "null"}"
 
 count:
   - Total number of DISTINCT LOCATIONS to find
   - Default: 1
+  - Only set >1 when a category is present AND a large number is given
   - Preserve prior if not updated: PRIOR=${prior?.count ?? 1}
 
 countSpecified:
-  - true ONLY if the number maps to count (see disambiguation)
+  - true ONLY if user explicitly gave a number that maps to count (category present + N>10)
+  - false when query=null (N maps to pinNumber instead)
   - Default: false
   - PRIOR: ${prior?.countSpecified ?? false}
 
 areaType:
-  - "city"      → single city (e.g. "Tokyo", "New York")
-  - "region"    → state/province/area (e.g. "California", "Geneseo Area")
-  - "country"   → full country (e.g. "United States", "Japan")
-  - "worldwide" → global, no specific area
-  - "unknown"   → not specified or specific named venue
+  - "city"      → single city
+  - "region"    → state/province/area
+  - "country"   → full country
+  - "worldwide" → global
+  - "unknown"   → not specified
   - Preserve prior if not updated: PRIOR="${prior?.areaType ?? "unknown"}"
 
 confirmed:
@@ -199,67 +233,67 @@ confirmed:
 pinNumber RULES
 ════════════════════════════════════════
 
-pinNumber = how many pins to place AT EACH individual location (not total locations).
+pinNumber = how many pins to place AT EACH individual location.
 Default: 1
 PRIOR: ${prior?.pinNumber ?? 1}
 
-━━ STEP 1 — Explicit per-location phrase (HIGHEST PRIORITY, always wins) ━━
-Any of these patterns immediately set pinNumber=N, skip all other steps:
+━━ STEP 1 — "drop/place/put N pins" with NO category (HIGHEST PRIORITY) ━━
+If the user says "drop/place/put N pins" and there is NO category/subject:
+  → pinNumber=N, count=1, countSpecified=false, query=null
+  → This wins over ALL other steps
+
+Examples:
+  "drop 5 pins in dhaka"          → pinNumber=5,  count=1,    query=null
+  "drop 100 pins in new york"     → pinNumber=100, count=1,   query=null
+  "place 3 pins in london"        → pinNumber=3,  count=1,    query=null
+
+━━ STEP 2 — Explicit per-location phrase ━━
+Any of these patterns set pinNumber=N:
   "N pins at each [thing]"        → pinNumber=N
   "N per location"                → pinNumber=N
   "N at every location"           → pinNumber=N
   "N at each"                     → pinNumber=N
   "N pins at/around each [thing]" → pinNumber=N
-  "N pinNumber"                   → pinNumber=N
-Examples:
-  "drop 5 pins at each KFC in London"       → pinNumber=5,  count=auto, countSpecified=false
-  "3 per location at hospitals in Tokyo"    → pinNumber=3,  count=auto, countSpecified=false
-  "drop 10 at every restaurant in Berlin"   → pinNumber=10, count=auto, countSpecified=false
 
-━━ STEP 2 — Specific named venue + number ━━
+Examples:
+  "drop 5 pins at each KFC in London"       → pinNumber=5,  count=auto, query="KFC"
+  "3 per location at hospitals in Tokyo"    → pinNumber=3,  count=auto, query="hospitals"
+  "drop 10 at every restaurant in Berlin"   → pinNumber=10, count=auto, query="restaurants"
+
+━━ STEP 3 — Specific named venue + number ━━
 A specific named venue = a unique individually-identifiable place (not a category).
-  ✓ Specific: "the attic recording studio", "McDonald's Times Square",
-              "Central Park", "Eiffel Tower", "Chase Bank on 5th Ave",
-              "Statue of Liberty", "Tokyo Tower", "Big Ben"
-  ✗ Generic:  "hospitals", "KFC", "restaurants", "banks", "schools",
-              "cafes", "pharmacies", "parks" — these are categories
+  ✓ Specific: "the attic recording studio", "McDonald's Times Square", "Central Park"
+  ✗ Generic:  "hospitals", "KFC", "restaurants", "banks", "schools"
 
 If query IS a specific named venue AND a number N is given:
-  → pinNumber=N, count=1, countSpecified=false, ambiguousPinIntent=false
+  → pinNumber=N, count=1, countSpecified=false
+
 Examples:
   "drop 100 pin at the attic recording studio" → pinNumber=100, count=1
   "drop 50 pins at Central Park"               → pinNumber=50,  count=1
   "5 pins at the Eiffel Tower"                 → pinNumber=5,   count=1
-  "place 10 pins at Chase Bank Times Square"   → pinNumber=10,  count=1
 
-━━ STEP 3 — Large N (>10) + generic category + area ━━
-If query is a GENERIC CATEGORY and N > 10 and area is city/region/country:
-  → count=N, countSpecified=true, pinNumber=1, ambiguousPinIntent=false
+━━ STEP 4 — Large N (>10) + generic category + area ━━
+If query IS a generic category AND N > 10 AND area is specified:
+  → count=N, countSpecified=true, pinNumber=1
+
 Examples:
-  "drop 100 pins in Tokyo"            → count=100, pinNumber=1
-  "100 KFC pins in the US"            → count=100, pinNumber=1
-  "drop 50 hospitals in California"   → count=50,  pinNumber=1
-  "200 restaurants worldwide"         → count=200, pinNumber=1
-  "drop 15 cafes in Paris"            → count=15,  pinNumber=1
+  "100 KFC pins in the US"            → count=100, pinNumber=1, query="KFC"
+  "drop 50 hospitals in California"   → count=50,  pinNumber=1, query="hospitals"
+  "200 restaurants worldwide"         → count=200, pinNumber=1, query="restaurants"
+  "drop 15 cafes in Paris"            → count=15,  pinNumber=1, query="cafes"
 
-━━ STEP 4 — Ambiguous: small N (2–10) + generic category + area ━━
-Pattern: "[verb] N pins in/at [area] [category]"
-         where N is between 2 and 10 AND query is a generic category.
-These are AMBIGUOUS — user might mean N total locations OR N pins per location.
+━━ STEP 5 — Ambiguous: small N (2–10) + generic category + area ━━
+ONLY applies when ALL of these are true:
+  1. A category/subject IS present
+  2. N is between 2 and 10
+  3. No "each/per location" phrase
   → ambiguousPinIntent=true, pinNumber=N, count=1, countSpecified=false
-  (Agent will ask for clarification before proceeding)
-Examples:
-  "place 5 pins in USA restaurant"    → ambiguousPinIntent=true, pinNumber=5,  count=1
-  "drop 3 pins in Tokyo hospital"     → ambiguousPinIntent=true, pinNumber=3,  count=1
-  "put 2 pins in London cafe"         → ambiguousPinIntent=true, pinNumber=2,  count=1
-  "drop 7 pins in Paris pharmacy"     → ambiguousPinIntent=true, pinNumber=7,  count=1
 
-━━ STEP 5 — Singular / bare plural (no number given) ━━
-  "drop a pin"     → pinNumber=1, count=1, ambiguousPinIntent=false
-  "drop one pin"   → pinNumber=1, count=1, ambiguousPinIntent=false
-  "pin this"       → pinNumber=1, count=1, ambiguousPinIntent=false
-  "drop pins"      → pinNumber=2, count=1, ambiguousPinIntent=false
-  "drop some pins" → pinNumber=2, count=1, ambiguousPinIntent=false
+Examples:
+  "place 5 pins in USA restaurant"    → ambiguousPinIntent=true, pinNumber=5,  query="restaurant"
+  "drop 3 pins in Tokyo hospital"     → ambiguousPinIntent=true, pinNumber=3,  query="hospital"
+  "put 2 pins in London cafe"         → ambiguousPinIntent=true, pinNumber=2,  query="cafe"
 
 ━━ STEP 6 — Default ━━
   pinNumber=1, ambiguousPinIntent=false
@@ -268,32 +302,39 @@ Examples:
 FULL DISAMBIGUATION TABLE
 ════════════════════════════════════════
 
-Message                                               | count | pinNumber | countSpec | ambiguous
-"drop 100 pin at the attic recording studio"          |   1   |    100    |   false   |   false
-"drop 100 pins in Tokyo"                              |  100  |     1     |   true    |   false
-"100 KFC pins in the US"                              |  100  |     1     |   true    |   false
-"drop 5 pins at each KFC in London"                   | auto  |     5     |   false   |   false
-"drop 50 pins at Central Park"                        |   1   |    50     |   false   |   false
-"drop 10 pins at McDonald's Times Square"             |   1   |    10     |   false   |   false
-"drop a pin at Eiffel Tower"                          |   1   |     1     |   false   |   false
-"drop pins at hospitals in Tokyo"                     | auto  |     2     |   false   |   false
-"5 per location at pharmacies in NY"                  | auto  |     5     |   false   |   false
-"drop 3 pins at each of 10 hospitals"                 |  10   |     3     |   true    |   false
-"place 5 pins in USA restaurant"                      |   1   |     5     |   false   |   true
-"drop 3 pins in Tokyo hospital"                       |   1   |     3     |   false   |   true
-"drop 50 pins in Tokyo restaurant"                    |  50   |     1     |   true    |   false
-"drop 15 cafes in Paris"                              |  15   |     1     |   true    |   false
-"put 2 pins in London cafe"                           |   1   |     2     |   false   |   true
-"drop 8 pins in Berlin pharmacy"                      |   1   |     8     |   false   |   true
-"drop 11 pins in Berlin pharmacy"                     |  11   |     1     |   true    |   false
+Message                                               | count | pinNumber | countSpec | ambiguous | query
+"drop 5 pins in dhaka"                                |   1   |     5     |   false   |   false   | null  ← ask what
+"drop 10 pins in tokyo"                               |   1   |    10     |   false   |   false   | null  ← ask what
+"drop 100 pins in new york"                           |   1   |   100     |   false   |   false   | null  ← ask what
+"place 3 pins in london"                              |   1   |     3     |   false   |   false   | null  ← ask what
+"drop a pin in berlin"                                |   1   |     1     |   false   |   false   | null  ← ask what
+"drop 100 KFC pins in the US"                         |  100  |     1     |   true    |   false   | "KFC"
+"drop 5 pins at each KFC in London"                   | auto  |     5     |   false   |   false   | "KFC"
+"drop 50 pins at Central Park"                        |   1   |    50     |   false   |   false   | "Central Park"
+"drop 10 pins at McDonald's Times Square"             |   1   |    10     |   false   |   false   | "McDonald's Times Square"
+"drop a pin at Eiffel Tower"                          |   1   |     1     |   false   |   false   | "Eiffel Tower"
+"drop pins at hospitals in Tokyo"                     | auto  |     2     |   false   |   false   | "hospitals"
+"5 per location at pharmacies in NY"                  | auto  |     5     |   false   |   false   | "pharmacies"
+"drop 3 pins at each of 10 hospitals"                 |  10   |     3     |   true    |   false   | "hospitals"
+"place 5 pins in USA restaurant"                      |   1   |     5     |   false   |   true    | "restaurant"
+"drop 3 pins in Tokyo hospital"                       |   1   |     3     |   false   |   true    | "hospital"
+"drop 50 pins in Tokyo restaurant"                    |  50   |     1     |   true    |   false   | "restaurant"
+"drop 15 cafes in Paris"                              |  15   |     1     |   true    |   false   | "cafes"
+"put 2 pins in London cafe"                           |   1   |     2     |   false   |   true    | "cafe"
+"drop 8 pins in Berlin pharmacy"                      |   1   |     8     |   false   |   true    | "pharmacy"
+"drop 11 pins in Berlin pharmacy"                     |  11   |     1     |   true    |   false   | "pharmacy"
+"drop 100 pin at the attic recording studio"          |   1   |   100     |   false   |   false   | "The Attic Recording Studio"
 
-CRITICAL RULES:
-  1. "each/per location/at each" phrase       → ALWAYS pinNumber (Step 1 wins)
-  2. specific named place + number            → ALWAYS pinNumber (Step 2)
-  3. N > 10 + generic + area                  → ALWAYS count (Step 3)
-  4. N 2–10 + generic + area, no "each"       → ambiguous=true (Step 4)
-  5. category BEFORE "pins" in sentence       → count wins
-     "drop 100 restaurant pins in USA"        → count=100, pinNumber=1
+CRITICAL RULES (in priority order):
+  1. "drop/place/put N pins" with NO category       → pinNumber=N, count=1, query=null (STEP 1 wins)
+  2. "each/per location/at each" phrase present     → ALWAYS pinNumber (STEP 2)
+  3. specific named place + number                  → ALWAYS pinNumber (STEP 3)
+  4. N > 10 + generic category + area               → ALWAYS count (STEP 4)
+  5. N 2–10 + generic category, no "each"           → ambiguous=true (STEP 5)
+  6. category BEFORE "pins" in sentence             → count wins
+     "drop 100 restaurant pins in USA"              → count=100, pinNumber=1, query="restaurants"
+  7. NEVER set query="pin" or query="pins"
+  8. NEVER set ambiguousPinIntent=true when query=null
 
 ════════════════════════════════════════
 PRIOR VALUES (preserve unless message updates them)
@@ -366,6 +407,38 @@ function buildIntentContext(intent: PinIntent): string {
     const countSpecified = intent.countSpecified ?? false;
     const pinNumber = intent.pinNumber ?? 1;
     const ambiguous = intent.ambiguousPinIntent ?? false;
+
+    // ── EARLY EXIT: query is missing — force agent to ask immediately ─────
+    if (!intent.query) {
+        const areaText = intent.area ? ` in ${intent.area}` : "";
+        return `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[SESSION — ${today}]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MISSING: query (WHAT to search for)
+
+MANDATORY INSTRUCTION:
+The user has not specified what to search for.
+You MUST NOT call any tools (no web_search, no places_search, nothing).
+You MUST respond IMMEDIATELY with this exact JSON and nothing else:
+
+{
+  "type": "question",
+  "message": "What would you like to find${areaText}?",
+  "fields": [
+    {
+      "id": "query",
+      "label": "What are you looking for?",
+      "inputType": "text",
+      "placeholder": "e.g. hospitals, restaurants, KFC, hotels..."
+    }
+  ]
+}
+
+DO NOT call web_search. DO NOT search for "pin" or "pins".
+DO NOT proceed until the user answers this question.
+`;
+    }
 
     // ── Known / missing fields ────────────────────────────────────────────────
 
@@ -555,7 +628,7 @@ async function gapFillPins(
 
     const seenIds = new Set(current.map((p) => p.id));
     const combined = [...current];
-    const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
+    const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
     const cityRes = await llm.invoke([{
         role: "user",
         content: `List ${Math.ceil((target - current.length) / 5) + alreadySearchedCities.length} major cities in "${area ?? "worldwide"}". Return ONLY: {"cities":["City1","City2"]}`,
@@ -615,7 +688,7 @@ async function runAgent(input: AgentRunInput): Promise<{
 
     // 3. Run LLM agent
     const agent = createAgent({
-        model: new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0.2 }),
+        model: new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0.2 }),
         tools: [...ALL_TOOLS],
         systemPrompt,
         name: "pin_drop_agent",
