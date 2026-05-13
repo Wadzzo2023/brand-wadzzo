@@ -1433,6 +1433,7 @@ export const placesSearchTool = tool(
       total: pins.length,
       city,
       message: `Found ${pins.length} results for "${query}" in "${city}".`,
+      pins: pins,
     });
   },
   {
