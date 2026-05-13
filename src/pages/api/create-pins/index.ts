@@ -1,12 +1,12 @@
 // src/app/api/agent/create-pins/route.ts
 // QStash calls this endpoint after the agent router enqueues a pin-creation job.
-// It processes each PinItem sequentially, updating progress in DB after every pin.
+// It processes each Pin sequentially, updating progress in DB after every pin.
 
 import type { NextApiRequest, NextApiResponse } from "next"
-import { verifySignature, verifySignatureAppRouter } from "@upstash/qstash/nextjs"
+import { verifySignature } from "@upstash/qstash/nextjs"
 import { db } from "~/server/db"
 import { randomLocation as getLocationInLatLngRad } from "~/utils/map"
-import type { PinItem } from "~/lib/agent/types"
+import type { GroupingMode, Pin } from "~/lib/agent/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export const config = {
@@ -18,8 +18,8 @@ export const config = {
 interface JobPayload {
     jobId: string
     creatorId: string
-    pins: PinItem[]
-    redeemMode: "separate" | "single"
+    pins: Pin[]
+    redeemMode: GroupingMode
 }
 
 interface LogEntry {
@@ -32,7 +32,7 @@ interface LogEntry {
 
 async function createLocationGroup(
     creatorId: string,
-    pin: PinItem,
+    pin: Pin,
 ): Promise<void> {
     const pinCount = pin.pinNumber ?? 1
     const radius = pin.radius ?? 2
@@ -95,7 +95,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const log: LogEntry[] = []
 
     try {
-        if (redeemMode === "single") {
+        if (redeemMode === "single-group") {
             // ── Single mode: one locationGroup, all pins as locations ─────────────
             const base = pins[0]
             if (!base) throw new Error("No pins provided")
