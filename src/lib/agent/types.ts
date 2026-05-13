@@ -1,124 +1,178 @@
-// ============================================================
-// AGENT TYPES
-// ============================================================
+// types.ts
+// ─── Shared types for the PinDrop Agent ──────────────────────────────────────
 
-export type AgentTask = "event" | "landmark" | null;
-export type AgentStep =
-  | "idle"
-  | "clarify_task"
-  | "event_search"
-  | "event_confirm_list"
-  | "event_pin_dates"
-  | "event_pin_config"
-  | "event_final_confirm"
-  | "landmark_search"
-  | "landmark_confirm_list"
-  | "landmark_redeem_mode"
-  | "landmark_pin_dates"
-  | "landmark_pin_config"
-  | "landmark_final_confirm"
-  | "pin_generation"
-  | "done";
+export type MessageRole = "user" | "assistant" | "system";
 
-export interface EventData {
+export type AreaType = "city" | "region" | "country" | "worldwide" | "unknown";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pin
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Pin {
   id: string;
-  title: string;
-  description: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
-  latitude: number;
-  longitude: number;
-  venue?: string;
-  address?: string;
-  url?: string;
-  image?: string;
-}
-
-export interface LandmarkData {
-  id: string;
+  type: "EVENT" | "LANDMARK";
   title: string;
   description: string;
   latitude: number;
   longitude: number;
-  venue?: string;
-  address?: string;
+  startDate: string;
+  endDate: string;
   url?: string;
   image?: string;
+  pinCollectionLimit: number;
+  pinNumber: number;
+  radius: number;
+  autoCollect: boolean;
   category?: string;
-}
-
-export interface PinConfig {
-  startDate: string;
-  endDate: string;
-  pinCollectionLimit?: number;
-  pinNumber?: number;
-  autoCollect?: boolean;
-  radius?: number;
-}
-
-export interface PinItem {
-  title: string;
-  description: string;
-  latitude: number;
-  longitude: number;
-  url?: string;
-  image?: string;
-  venue?: string;
   address?: string;
-  startDate: string;
-  endDate: string;
-  pinCollectionLimit?: number;
-  pinNumber?: number;
-  autoCollect?: boolean;
-  multiPin?: boolean;
-  radius?: number;
-  type?: "EVENT" | "LANDMARK";
+  metadata?: Record<string, unknown>;
 }
 
-export interface AgentState {
-  step: AgentStep;
-  task: AgentTask;
-  searchQuery?: string;
-  searchArea?: string;
-  events?: EventData[];
-  selectedEvents?: EventData[];
-  landmarks?: LandmarkData[];
-  selectedLandmarks?: LandmarkData[];
-  pinConfig?: Partial<PinConfig>;
-  pins?: PinItem[];
-  redeemMode?: "separate" | "single";
-  pendingModification?: {
-    indices?: number[];
-    names?: string[];
-  };
+// ─────────────────────────────────────────────────────────────────────────────
+// Intent
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PinIntent {
+  query: string | null;
+  area: string | null;
+  count: number | null;
+  areaType: AreaType;
+  confirmed: boolean;
 }
 
-export interface Message {
-  role: "user" | "assistant";
-  content: string;
-  // Optional structured data for rich UI rendering
-  uiData?: {
-    type:
-    | "event_list"
-    | "landmark_list"
-    | "pin_config_form"
-    | "date_picker"
-    | "confirm"
-    | "task_select"
-    | "pin_result"
-    | "next_action"
-    | "redeem_mode_select";
-    data: unknown;
-  };
+// ─────────────────────────────────────────────────────────────────────────────
+// AgentStage
+// FIX: added "idle" and "error" which were used in the frontend but missing here
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AgentStage =
+  | "idle"               // FIX: was missing — used as initial state in the frontend
+  | "extracting_intent"
+  | "clarifying"
+  | "searching"
+  | "confirming"
+  | "dropping_pins"
+  | "done"
+  | "error";             // FIX: was missing — used in error paths in the frontend
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Clarify question
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type InputType = "multiple_choice" | "text" | "number";
+
+export interface ClarifyQuestion {
+  id: string;
+  label: string;
+  inputType: InputType;
+  options?: string[];
+  placeholder?: string;
 }
 
-export interface ChatRequest {
-  messages: { role: "user" | "assistant"; content: string }[];
-  state: AgentState;
+// ─────────────────────────────────────────────────────────────────────────────
+// City discovery
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CityDiscoveryResult {
+  cities: string[];
 }
 
-export interface ChatResponse {
+// ─────────────────────────────────────────────────────────────────────────────
+// tRPC output
+// FIX: reply is always a JSON string of AgentResponse — frontend parses it
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChatCreateOutput {
+  /**
+   * JSON string of an AgentResponse object.
+   * The frontend calls JSON.parse(reply) to get the typed AgentResponse,
+   * then renders the appropriate block (QuestionBlock, ResultsBlock, etc.).
+   */
+  reply: string;
+  stage: AgentStage;
+  intent: PinIntent;
+  questions?: ClarifyQuestion[];
+  pins?: Pin[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Structured agent response types (what the agent returns as JSON)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface QuestionResponse {
+  type: "question";
   message: string;
-  state: AgentState;
-  uiData?: Message["uiData"];
+  fields: ClarifyQuestion[];
+}
+
+export interface ResultsResponse {
+  type: "results";
+  message: string;
+  searchType: "EVENT" | "LANDMARK" | "MIXED";
+  pins: Pin[];
+  confirmPrompt: string;
+}
+
+export interface ConfirmResponse {
+  type: "confirm";
+  message: string;
+  summary: {
+    what: string;
+    where: string;
+    count: number;
+    type: "EVENT" | "LANDMARK" | "MIXED";
+  };
+  pins: Pin[];
+}
+
+export interface SuccessResponse {
+  type: "success";
+  message: string;
+  count: number;
+}
+
+export interface InfoResponse {
+  type: "info";
+  message: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  content: AgentResponse[];
+  createdAt: Date;
+}
+
+export type AgentResponse =
+  | QuestionResponse
+  | ResultsResponse
+  | ConfirmResponse
+  | SuccessResponse
+  | InfoResponse;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Type guards
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const isQuestionResponse = (r: AgentResponse): r is QuestionResponse => r.type === "question";
+export const isResultsResponse = (r: AgentResponse): r is ResultsResponse => r.type === "results";
+export const isConfirmResponse = (r: AgentResponse): r is ConfirmResponse => r.type === "confirm";
+export const isSuccessResponse = (r: AgentResponse): r is SuccessResponse => r.type === "success";
+export const isInfoResponse = (r: AgentResponse): r is InfoResponse => r.type === "info";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parser
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function parseAgentResponse(raw: string): AgentResponse {
+  try {
+    const clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const parsed = JSON.parse(clean) as AgentResponse;
+    if (!parsed.type) throw new Error("Missing type field");
+    return parsed;
+  } catch (err) {
+    console.error("[parseAgentResponse] Failed to parse:", err);
+    return { type: "info", message: raw };
+  }
 }
