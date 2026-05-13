@@ -35,12 +35,22 @@ const IntentSchema = z.object({
   area: z.string().nullable().optional(),
   areaType: z.enum(["city", "region", "country", "worldwide", "unknown"] as const).optional(),
   confirmed: z.boolean().optional(),
-  isNiche: z.boolean().optional(), // true = use geocode_address path, false = use places_search path
+  isNiche: z.boolean().optional(),
+});
+
+// ─── New: pin options schema sent with confirm ────────────────────────────────
+const PinOptionsSchema = z.object({
+  autoCollect: z.boolean().default(false),
+  // "per-location" = N pins into N groups (one pin per location)
+  // "single-group" = N pins into 1 group
+  groupingMode: z.enum(["per-location", "single-group"]).default("per-location"),
 });
 
 const ChatCreateInputSchema = z.object({
   messages: z.array(MessageSchema).min(1),
   intent: IntentSchema.optional(),
+  // Passed only when the user has confirmed (stage === "confirming" → "done")
+  pinOptions: PinOptionsSchema.optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -214,7 +224,7 @@ query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.c
       area: parsed.area ?? prior?.area ?? null,
       areaType: parsed.areaType ?? prior?.areaType ?? "unknown",
       confirmed: parsed.confirmed ?? prior?.confirmed ?? false,
-      isNiche: prior?.isNiche ?? false, // preserved from prior; updated after agent runs
+      isNiche: prior?.isNiche ?? false,
     };
   } catch {
     return {
@@ -322,10 +332,6 @@ function buildIntentContext(intent: PinIntent): string {
 }
 
 // ─── Gap-fill helper ──────────────────────────────────────────────────────────
-// Dispatches to the correct gap-fill strategy based on isNiche:
-//   NICHE  → gapFillNicheViaWebSearch (re-queries web for more named locations)
-//   CHAIN  → gapFillChainViaCities (searches additional cities via Google Places)
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function gapFillPins(
   current: Pin[],
@@ -341,13 +347,11 @@ async function gapFillPins(
   console.log(`[gapFill] Need ${gap} more pins. isNiche=${isNiche}. Already searched: ${alreadySearchedCities.join(", ")}`);
 
   if (isNiche) {
-    // ── Niche gap-fill: web search for more named locations ────────────────
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY ?? "";
     const alreadyFoundNames = current.map(p => p.title);
     const seenIds = new Set(current.map(p => p.id));
     const combined = [...current];
 
-    // Attempt up to 3 rounds of niche gap-fill web searches
     for (let round = 0; round < 3 && combined.length < target; round++) {
       const stillNeeded = target - combined.length;
       const newPins = await gapFillNicheViaWebSearch(query, alreadyFoundNames, stillNeeded, apiKey);
@@ -372,7 +376,6 @@ async function gapFillPins(
     return combined;
   }
 
-  // ── Chain gap-fill: discover new cities and search via Google Places ─────
   const seenIds = new Set(current.map((p) => p.id));
   const combined = [...current];
 
@@ -422,10 +425,6 @@ async function gapFillPins(
 }
 
 // ─── Detect isNiche from agent tool calls ────────────────────────────────────
-// Reads the web_search tool response in the agent message history to check
-// if the result had isNiche=true or non-empty namedLocations.
-// This lets the router use the right gap-fill strategy.
-// ─────────────────────────────────────────────────────────────────────────────
 
 function detectIsNicheFromMessages(messages: BaseMessage[]): boolean {
   for (const msg of messages) {
@@ -451,7 +450,7 @@ export const agentRouter = createTRPCRouter({
   create: publicProcedure
     .input(ChatCreateInputSchema)
     .mutation(async ({ input }): Promise<ChatCreateOutput> => {
-      const { messages, intent: currentIntent } = input;
+      const { messages, intent: currentIntent, pinOptions } = input;
 
       // ── 1. Extract intent from full conversation ─────────────────────────
       const intent = await extractIntent(messages, currentIntent);
@@ -511,7 +510,6 @@ export const agentRouter = createTRPCRouter({
       }
 
       // ── 5. Detect isNiche from agent's web_search response ───────────────
-      // Use what the agent actually discovered, overriding the prior intent value.
       const isNiche = detectIsNicheFromMessages(result.messages) || (intent.isNiche ?? false);
       console.log(`[agentRouter] isNiche=${isNiche}`);
 
@@ -581,7 +579,6 @@ export const agentRouter = createTRPCRouter({
 
       if (agentResponse.type === "results" && cappedPins.length > 0) {
         (agentResponse as Record<string, unknown>).pinCount = cappedPins.length;
-        // Overwrite stale count in human-readable strings too
         agentResponse.message = agentResponse.message?.replace(/\d+/, String(cappedPins.length));
         if ((agentResponse as Record<string, unknown>).confirmPrompt) {
           (agentResponse as Record<string, unknown>).confirmPrompt =
@@ -589,7 +586,25 @@ export const agentRouter = createTRPCRouter({
         }
       }
 
-      // ── 9. Build output intent and return ────────────────────────────────
+      // ── 9. Apply pinOptions when the user confirms ────────────────────────
+      // pinOptions is sent by the frontend when the user clicks "Confirm" after
+      // choosing autoCollect and groupingMode on the results screen.
+      // We apply those settings to each pin before persisting.
+      if (pinOptions && cappedPins.length > 0) {
+        const { autoCollect, groupingMode } = pinOptions;
+        console.log(`[agentRouter] Applying pinOptions: autoCollect=${autoCollect}, groupingMode=${groupingMode}`);
+
+        cappedPins = cappedPins.map((pin, idx) => ({
+          ...pin,
+          autoCollect,
+          // "per-location": each pin is its own collection group (pinNumber = index)
+          // "single-group": all pins share the same group (pinNumber = 1)
+          pinNumber: groupingMode === "single-group" ? 1 : idx + 1,
+          // Keep pinCollectionLimit as-is; callers may override per use-case
+        }));
+      }
+
+      // ── 10. Build output intent and return ───────────────────────────────
       const outputIntent = mergeIntent(
         agentResponse,
         { ...intent, isNiche },
@@ -604,6 +619,11 @@ export const agentRouter = createTRPCRouter({
         questions:
           agentResponse.type === "question" ? agentResponse.fields : undefined,
         pins: cappedPins.length > 0 ? cappedPins : undefined,
+        // ── NEW: surface default pin options on the results stage ──────────
+        // The frontend uses these as initial values for the two UI questions.
+        pinOptions: agentResponse.type === "results"
+          ? { autoCollect: false, groupingMode: "per-location" }
+          : undefined,
       };
     }),
 });
