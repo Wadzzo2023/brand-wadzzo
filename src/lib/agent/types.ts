@@ -63,6 +63,8 @@ export interface PinIntent {
   areaType: AreaType;
   confirmed: boolean;
   isNiche: boolean;          // true = geocode_address path; false = places_search path
+  pinNumber: number;
+  pinNumberSpecified: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

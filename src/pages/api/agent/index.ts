@@ -1,23 +1,12 @@
-// src/app/api/agent/run/route.ts  (or pages/api/agent/run.ts — see config below)
-//
-// QStash calls this endpoint after agent.create enqueues a job.
-// It runs the full LLM agent pipeline and writes the result back to AgentJob.
-// The frontend polls agentJobResult until status === "completed" | "failed".
-
-import type { NextApiRequest, NextApiResponse } from "next";
-import { verifySignature } from "@upstash/qstash/nextjs";
-import { db } from "~/server/db";
-import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
-import type { BaseMessage } from "@langchain/core/messages";
-
 import {
     ALL_TOOLS,
     AGENT_SYSTEM_PROMPT,
     searchViaGooglePlacesExported,
     gapFillNicheViaWebSearch,
+    applyPinNumber,
+    retrievePins,
 } from "~/lib/agent/tools";
-import { createAgent } from "langchain";
+
 import type {
     PinIntent,
     AgentStage,
@@ -26,14 +15,20 @@ import type {
     MessageRole,
     PinOptions,
 } from "~/lib/agent/types";
-import { qstash } from "~/lib/qstash";
-import { BASE_URL } from "~/lib/common";
 
-// ─── Required for raw body (QStash signature verification) ───────────────────
+import { db } from "~/server/db";
+import { ChatOpenAI } from "@langchain/openai";
+import {
+    BaseMessage,
+    HumanMessage,
+    AIMessage,
+    SystemMessage,
+} from "@langchain/core/messages";
+import { createAgent } from "langchain";
+import { Client } from "@upstash/qstash";
 
-export const config = { api: { bodyParser: false } };
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+const qstash = new Client({ token: process.env.QSTASH_TOKEN });
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 interface JobPayload {
     jobId: string;
@@ -46,9 +41,9 @@ interface AgentRunInput {
     creatorId: string;
 }
 
-// ─── LangChain helpers ────────────────────────────────────────────────────────
-
-function toLangChainMessages(msgs: { role: MessageRole; text: string }[]): BaseMessage[] {
+function toLangChainMessages(
+    msgs: { role: MessageRole; text: string }[]
+): BaseMessage[] {
     return msgs.map((m) => {
         if (m.role === "user") return new HumanMessage(m.text);
         if (m.role === "assistant") return new AIMessage(m.text);
@@ -57,7 +52,7 @@ function toLangChainMessages(msgs: { role: MessageRole; text: string }[]): BaseM
 }
 
 function parseAgentOutput(raw: string): AgentResponse | null {
-    const clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const clean = raw.replace(/`json\s*/gi, "").replace(/`\s*/g, "").trim();
     const start = clean.indexOf("{");
     const end = clean.lastIndexOf("}");
     if (start === -1 || end === -1) return null;
@@ -72,40 +67,61 @@ function parseAgentOutput(raw: string): AgentResponse | null {
 
 async function reformatToJson(rawText: string): Promise<AgentResponse> {
     const SYSTEM = `Convert the message below into one of these JSON shapes. Return ONLY valid JSON, no markdown.
+
 1. {"type":"results","message":"...","searchType":"LANDMARK"|"EVENT","pinCount":N,"confirmPrompt":"Drop N pins?"}
 2. {"type":"confirm","message":"...","summary":{"what":"...","where":"...","count":N,"type":"LANDMARK"|"EVENT"}}
 3. {"type":"question","message":"...","fields":[{"id":"...","label":"...","inputType":"multiple_choice"|"text"|"number","options":["..."]}]}
 4. {"type":"success","message":"...","count":N}
 5. {"type":"info","message":"..."}
 Rules: no pins array, strip all markdown from message fields.`;
+
     try {
         const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
         const res = await llm.invoke([
             { role: "system", content: SYSTEM },
-            { role: "user", content: `Convert:\n\n${rawText.slice(0, 2000)}` },
+            {
+                role: "user",
+                content: `Convert:\n\n${rawText.slice(0, 2000)}`,
+            },
         ]);
         const text =
             typeof res.content === "string"
                 ? res.content
                 : Array.isArray(res.content)
                     ? res.content
-                        .filter((b): b is { type: "text"; text: string } => (b as { type: string }).type === "text")
+                        .filter(
+                            (b): b is { type: "text"; text: string } =>
+                                (b as { type: string }).type === "text"
+                        )
                         .map((b) => b.text)
                         .join("")
                     : "";
-        return parseAgentOutput(text) ?? { type: "info", message: rawText.replace(/[*#`[\]!]/g, "").trim().slice(0, 500) };
+        return (
+            parseAgentOutput(text) ?? {
+                type: "info",
+                message: rawText.replace(/[*#`\[\]!]/g, "").trim().slice(0, 500),
+            }
+        );
     } catch {
-        return { type: "info", message: "Something went wrong. Please try again." };
+        return {
+            type: "info",
+            message: "Something went wrong. Please try again.",
+        };
     }
 }
 
 function stageFromResponse(r: AgentResponse): AgentStage {
     switch (r.type) {
-        case "question": return "clarifying";
-        case "results": return "confirming";
-        case "confirm": return "confirming";
-        case "success": return "done";
-        default: return "extracting_intent";
+        case "question":
+            return "clarifying";
+        case "results":
+            return "confirming";
+        case "confirm":
+            return "confirming";
+        case "success":
+            return "done";
+        default:
+            return "extracting_intent";
     }
 }
 
@@ -122,11 +138,13 @@ function mergeIntent(
         areaType: current?.areaType ?? "unknown",
         confirmed: current?.confirmed ?? false,
         isNiche: current?.isNiche ?? false,
+        pinNumber: current?.pinNumber ?? 1,
+        pinNumberSpecified: current?.pinNumberSpecified ?? false,
     };
     if (response.type === "confirm") {
-        base.query = response.summary?.what ?? base.query;
-        base.area = response.summary?.where ?? base.area;
-        base.count = response.summary?.count ?? base.count;
+        base.query = (response as { summary?: { what: string } }).summary?.what ?? base.query;
+        base.area = (response as { summary?: { where: string } }).summary?.where ?? base.area;
+        base.count = (response as { summary?: { count: number } }).summary?.count ?? base.count;
     }
     if (response.type === "results") {
         const pinCount = actualPinCount ?? (response as { pinCount?: number }).pinCount;
@@ -134,12 +152,10 @@ function mergeIntent(
     }
     if (response.type === "success") {
         base.confirmed = true;
-        base.count = response.count ?? base.count;
+        base.count = (response as { count?: number }).count ?? base.count;
     }
     return base;
 }
-
-// ─── Intent extractor ─────────────────────────────────────────────────────────
 
 async function extractIntent(
     msgs: { role: string; text: string }[],
@@ -153,13 +169,15 @@ async function extractIntent(
             role: "system",
             content: `You are an intent extractor for a map pin-drop assistant.
 Return ONLY valid JSON — no markdown:
-{"query":string|null,"area":string|null,"count":number,"countSpecified":boolean,"areaType":"city"|"region"|"country"|"worldwide"|"unknown","confirmed":boolean}
+{"query":string|null,"area":string|null,"count":number,"countSpecified":boolean,"areaType":"city"|"region"|"country"|"worldwide"|"unknown","confirmed":boolean,"pinNumber":number,"pinNumberSpecified":boolean}
 
 RULES:
 - count default 1, countSpecified default false
-- Explicit number → countSpecified=true
+- pinNumber default 1, pinNumberSpecified default false
+- Explicit pin count (pins per location) → pinNumberSpecified=true
+- Explicit location count (total locations) → countSpecified=true
 - confirmed=true ONLY if user said "yes"/"drop"/"confirm"
-- PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.count ?? 1}, countSpecified=${prior?.countSpecified ?? false}`,
+- PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.count ?? 1}, countSpecified=${prior?.countSpecified ?? false}, pinNumber=${prior?.pinNumber ?? 1}, pinNumberSpecified=${prior?.pinNumberSpecified ?? false}`,
         },
         { role: "user", content: `Full conversation:\n${convo}` },
     ]);
@@ -169,13 +187,16 @@ RULES:
             ? res.content
             : Array.isArray(res.content)
                 ? res.content
-                    .filter((b): b is { type: "text"; text: string } => (b as { type: string }).type === "text")
+                    .filter(
+                        (b): b is { type: "text"; text: string } =>
+                            (b as { type: string }).type === "text"
+                    )
                     .map((b) => b.text)
                     .join("")
                 : "";
 
     try {
-        const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()) as PinIntent;
+        const parsed = JSON.parse(raw.replace(/`json|`/g, "").trim()) as PinIntent;
         return {
             count: parsed.count ?? prior?.count ?? 1,
             countSpecified: parsed.countSpecified ?? prior?.countSpecified ?? false,
@@ -184,6 +205,9 @@ RULES:
             areaType: parsed.areaType ?? prior?.areaType ?? "unknown",
             confirmed: parsed.confirmed ?? prior?.confirmed ?? false,
             isNiche: prior?.isNiche ?? false,
+            pinNumber: parsed.pinNumber ?? prior?.pinNumber ?? 1,
+            pinNumberSpecified:
+                parsed.pinNumberSpecified ?? prior?.pinNumberSpecified ?? false,
         };
     } catch {
         return {
@@ -194,19 +218,21 @@ RULES:
             areaType: prior?.areaType ?? "unknown",
             confirmed: prior?.confirmed ?? false,
             isNiche: prior?.isNiche ?? false,
+            pinNumber: prior?.pinNumber ?? 1,
+            pinNumberSpecified: prior?.pinNumberSpecified ?? false,
         };
     }
 }
-
-// ─── Intent context builder ───────────────────────────────────────────────────
 
 function buildIntentContext(intent: PinIntent): string {
     const today = new Date().toISOString().split("T")[0]!;
     const totalCount = intent.count ?? 1;
     const countSpecified = intent.countSpecified ?? false;
+    const pinNumber = intent.pinNumber ?? 1;
 
     const known: string[] = [
         countSpecified ? `count=${totalCount}` : `count=unspecified (return ALL found)`,
+        `pinNumber=${pinNumber}`,
     ];
     const missing: string[] = [];
 
@@ -235,19 +261,16 @@ function buildIntentContext(intent: PinIntent): string {
         `Today: ${today}`,
         `KNOWN: ${known.join(", ")}`,
         missing.length ? `MISSING: ${missing.join(", ")}` : `ALL PARAMS KNOWN — proceed immediately.`,
-        ``,
         countSection,
-        ``,
+        `PIN NUMBER: Each pin will have pinNumber=${pinNumber}`,
         `OUTPUT RULES:`,
-        `  * Never include pins array in your JSON response`,
-        `  * Never ask for count or area`,
-        `  * Only ask if query is genuinely unknown`,
+        ` * Never include pins array in your JSON response`,
+        ` * Never ask for count or area`,
+        ` * Only ask if query is genuinely unknown`,
         ``,
         `Results shape: {"type":"results","message":"Found N X in Y","searchType":"LANDMARK","pinCount":N,"confirmPrompt":"Drop N pin(s)?"}`,
     ].join("\n");
 }
-
-// ─── Gap-fill ─────────────────────────────────────────────────────────────────
 
 async function gapFillPins(
     current: Pin[],
@@ -265,11 +288,20 @@ async function gapFillPins(
         const seenIds = new Set(current.map((p) => p.id));
         const combined = [...current];
         for (let round = 0; round < 3 && combined.length < target; round++) {
-            const newPins = await gapFillNicheViaWebSearch(query, foundNames, target - combined.length, apiKey);
+            const newPins = await gapFillNicheViaWebSearch(
+                query,
+                foundNames,
+                target - combined.length,
+                apiKey
+            );
             if (!newPins.length) break;
             for (const p of newPins) {
                 if (combined.length >= target) break;
-                if (!seenIds.has(p.id)) { seenIds.add(p.id); foundNames.push(p.title); combined.push(p); }
+                if (!seenIds.has(p.id)) {
+                    seenIds.add(p.id);
+                    foundNames.push(p.title);
+                    combined.push(p);
+                }
             }
         }
         return combined;
@@ -278,27 +310,46 @@ async function gapFillPins(
     const seenIds = new Set(current.map((p) => p.id));
     const combined = [...current];
     const llm = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
-    const cityRes = await llm.invoke([{
-        role: "user",
-        content: `List ${Math.ceil((target - current.length) / 5) + alreadySearchedCities.length} major cities in "${area ?? "worldwide"}". Return ONLY: {"cities":["City1","City2"]}`,
-    }]);
-    const cityText = typeof cityRes.content === "string" ? cityRes.content : "";
+    const cityRes = await llm.invoke([
+        {
+            role: "user",
+            content: `List ${Math.ceil((target - current.length) / 5) + alreadySearchedCities.length} major cities in "${area ?? "worldwide"}". Return ONLY: {"cities":["City1","City2"]}`,
+        },
+    ]);
+    const cityText =
+        typeof cityRes.content === "string" ? cityRes.content : "";
     let allCities: string[] = [];
     try {
-        allCities = (JSON.parse(cityText.replace(/```json|```/g, "").trim()) as { cities: string[] }).cities ?? [];
-    } catch { return combined; }
+        allCities = (
+            JSON.parse(cityText.replace(/`json|`/g, "").trim()) as {
+                cities: string[];
+            }
+        ).cities ?? [];
+    } catch {
+        return combined;
+    }
 
     const searched = new Set(alreadySearchedCities.map((c) => c.toLowerCase()));
-    const newCities = allCities.filter((c) => !searched.has(c.toLowerCase()));
-    const perCity = Math.ceil((target - combined.length) / Math.max(newCities.length, 1)) * 2;
+    const newCities = allCities.filter(
+        (c) => !searched.has(c.toLowerCase())
+    );
+    const perCity =
+        Math.ceil((target - combined.length) / Math.max(newCities.length, 1)) * 2;
 
     const results = await Promise.all(
-        newCities.map((city) => searchViaGooglePlacesExported(query, city, perCity).catch(() => [] as Pin[]))
+        newCities.map((city) =>
+            searchViaGooglePlacesExported(query, city, perCity).catch(
+                () => [] as Pin[]
+            )
+        )
     );
     for (const cityPins of results) {
         for (const p of cityPins) {
             if (combined.length >= target) break;
-            if (!seenIds.has(p.id)) { seenIds.add(p.id); combined.push(p); }
+            if (!seenIds.has(p.id)) {
+                seenIds.add(p.id);
+                combined.push(p);
+            }
         }
         if (combined.length >= target) break;
     }
@@ -309,23 +360,33 @@ function detectIsNiche(messages: BaseMessage[]): boolean {
     for (const msg of messages) {
         if (msg._getType() !== "tool") continue;
         try {
-            const parsed = JSON.parse(msg.content as string) as { isNiche?: boolean; namedLocations?: unknown[] };
+            const parsed = JSON.parse(msg.content as string) as {
+                isNiche?: boolean;
+                namedLocations?: unknown[];
+            };
             if (parsed.isNiche === true) return true;
-            if (Array.isArray(parsed.namedLocations) && parsed.namedLocations.length > 0) return true;
-        } catch { /* skip */ }
+            if (
+                Array.isArray(parsed.namedLocations) &&
+                parsed.namedLocations.length > 0
+            )
+                return true;
+        } catch {
+            /* skip */
+        }
     }
     return false;
 }
-
-// ─── Core agent runner ────────────────────────────────────────────────────────
 
 async function runAgent(input: AgentRunInput): Promise<{
     reply: string;
     stage: AgentStage;
     intent: PinIntent;
     pins?: Pin[];
-    pinOptions?: { autoCollect: boolean; groupingMode: "per-location" | "single-group" };
-    locationGroupJobId?: string; // set when pins are enqueued for creation
+    pinOptions?: {
+        autoCollect: boolean;
+        groupingMode: "per-location" | "single-group";
+    };
+    locationGroupJobId?: string;
 }> {
     const { messages, intent: currentIntent, pinOptions, creatorId } = input;
 
@@ -343,7 +404,9 @@ async function runAgent(input: AgentRunInput): Promise<{
         name: "pin_drop_agent",
     });
 
-    const result = await agent.invoke({ messages: toLangChainMessages(messages) });
+    const result = await agent.invoke({
+        messages: toLangChainMessages(messages),
+    });
 
     // 4. Harvest pins from tool call results
     const responsePins: Pin[] = [];
@@ -352,13 +415,18 @@ async function runAgent(input: AgentRunInput): Promise<{
     for (const msg of result.messages) {
         if (msg._getType() !== "tool") continue;
         try {
-            const toolInput = (msg as unknown as { additional_kwargs?: { tool_input?: string } })
-                .additional_kwargs?.tool_input;
+            const toolInput = (
+                msg as unknown as {
+                    additional_kwargs?: { tool_input?: string };
+                }
+            ).additional_kwargs?.tool_input;
             if (toolInput) {
                 const parsed = JSON.parse(toolInput) as { city?: string };
                 if (parsed.city) searchedCities.push(parsed.city);
             }
-        } catch { /* ignore */ }
+        } catch {
+            /* ignore */
+        }
 
         try {
             const parsed = JSON.parse(msg.content as string) as { pins?: Pin[] };
@@ -369,7 +437,9 @@ async function runAgent(input: AgentRunInput): Promise<{
                     message: `Found ${parsed.pins.length} pins.`,
                 });
             }
-        } catch { /* not a pin result */ }
+        } catch {
+            /* not a pin result */
+        }
     }
 
     // 5. Detect niche flag
@@ -384,40 +454,57 @@ async function runAgent(input: AgentRunInput): Promise<{
         cappedPins =
             responsePins.length >= target
                 ? responsePins.slice(0, target)
-                : (await gapFillPins(responsePins, target, intent.query ?? "", searchedCities, intent.area ?? null, isNiche)).slice(0, target);
+                : (
+                    await gapFillPins(
+                        responsePins,
+                        target,
+                        intent.query ?? "",
+                        searchedCities,
+                        intent.area ?? null,
+                        isNiche
+                    )
+                ).slice(0, target);
     }
 
-    // 7. Parse response JSON
+    // 7. Apply pinNumber to all pins
+    const pinsWithPinNumber = applyPinNumber(cappedPins, intent.pinNumber ?? 1);
+
+    // 8. Parse response JSON
     const lastMsg = result.messages.at(-1);
-    const rawOutput = typeof lastMsg?.content === "string" ? lastMsg.content : JSON.stringify(lastMsg?.content ?? "");
+    const rawOutput =
+        typeof lastMsg?.content === "string"
+            ? lastMsg.content
+            : JSON.stringify(lastMsg?.content ?? "");
     let agentResponse = parseAgentOutput(rawOutput) ?? (await reformatToJson(rawOutput));
 
-    // 8. Guard: 0 pins → info
-    if (agentResponse.type === "results" && cappedPins.length === 0) {
+    // 9. Guard: 0 pins → info
+    if (agentResponse.type === "results" && pinsWithPinNumber.length === 0) {
         agentResponse = {
             type: "info",
             message: `No locations found for "${intent.query}" in "${intent.area ?? "worldwide"}". Try a different search.`,
         };
     }
 
-    if (agentResponse.type === "results" && cappedPins.length > 0) {
-        (agentResponse as Record<string, unknown>).pinCount = cappedPins.length;
-        agentResponse.message = agentResponse.message?.replace(/\d+/, String(cappedPins.length));
+    if (agentResponse.type === "results" && pinsWithPinNumber.length > 0) {
+        (agentResponse as Record<string, unknown>).pinCount = pinsWithPinNumber.length;
+        agentResponse.message = agentResponse.message?.replace(
+            /\d+/,
+            String(pinsWithPinNumber.length)
+        );
         if ((agentResponse as Record<string, unknown>).confirmPrompt) {
-            (agentResponse as Record<string, unknown>).confirmPrompt = `Drop these ${cappedPins.length} pins?`;
+            (agentResponse as Record<string, unknown>).confirmPrompt = `Drop these ${pinsWithPinNumber.length} pins?`;
         }
     }
 
-    // 9. If confirmed → apply options + enqueue pin-creation job
+    // 10. If confirmed → enqueue pin-creation job
     let locationGroupJobId: string | undefined;
 
-    if (pinOptions && cappedPins.length > 0) {
+    if (pinOptions && pinsWithPinNumber.length > 0) {
         const { autoCollect, groupingMode } = pinOptions;
 
-        cappedPins = cappedPins.map((pin, idx) => ({
+        const pinsForCreation = pinsWithPinNumber.map((pin) => ({
             ...pin,
             autoCollect,
-            pinNumber:  1,
         }));
 
         // Create LocationGroupJob
@@ -425,9 +512,12 @@ async function runAgent(input: AgentRunInput): Promise<{
             data: {
                 creatorId,
                 status: "pending",
-                total: cappedPins.length,
+                total: pinsForCreation.length,
                 completed: 0,
-                payload: JSON.stringify({ pins: cappedPins, redeemMode: groupingMode }),
+                payload: JSON.stringify({
+                    pins: pinsForCreation,
+                    redeemMode: groupingMode,
+                }),
                 log: [],
             },
         });
@@ -435,92 +525,106 @@ async function runAgent(input: AgentRunInput): Promise<{
 
         await qstash.publishJSON({
             url: `${BASE_URL}/api/create-pins`,
-            body: { jobId: lgJob.id, creatorId, pins: cappedPins, redeemMode: groupingMode },
+            body: {
+                jobId: lgJob.id,
+                creatorId,
+                pins: pinsForCreation,
+                redeemMode: groupingMode,
+            },
             retries: 3,
         });
 
         agentResponse = {
             type: "success",
-            message: `Queued ${cappedPins.length} pin${cappedPins.length !== 1 ? "s" : ""} for creation…`,
-            count: cappedPins.length,
+            message: `Queued ${pinsForCreation.length} pin${pinsForCreation.length !== 1 ? "s" : ""} for creation…`,
+            count: pinsForCreation.length,
         };
     }
 
-    const outputIntent = mergeIntent(agentResponse, { ...intent, isNiche }, cappedPins.length || undefined);
+    const outputIntent = mergeIntent(
+        agentResponse,
+        { ...intent, isNiche },
+        pinsWithPinNumber.length || undefined
+    );
 
     return {
         reply: JSON.stringify(agentResponse),
         stage: stageFromResponse(agentResponse),
         intent: outputIntent,
-        pins: !pinOptions && cappedPins.length > 0 ? cappedPins : undefined,
-        pinOptions: agentResponse.type === "results"
-            ? { autoCollect: false, groupingMode: "per-location" }
-            : undefined,
+        pins:
+            !pinOptions && pinsWithPinNumber.length > 0
+                ? pinsWithPinNumber
+                : undefined,
+        pinOptions:
+            agentResponse.type === "results"
+                ? { autoCollect: false, groupingMode: "per-location" }
+                : undefined,
         locationGroupJobId,
     };
 }
 
-// ─── Handler ──────────────────────────────────────────────────────────────────
-
-async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method not allowed" });
-    }
-
-    let body: JobPayload;
+export async function POST(req: Request) {
     try {
-        body = req.body as JobPayload;
-    } catch {
-        return res.status(400).json({ error: "Invalid JSON body" });
-    }
+        const body = (await req.json()) as JobPayload;
+        const { jobId } = body;
 
-    const { jobId } = body;
-    if (!jobId) return res.status(400).json({ error: "Missing jobId" });
+        if (!jobId) {
+            return Response.json({ error: "Missing jobId" }, { status: 400 });
+        }
 
-    // Load the AgentJob row
-    const job = await db.agentJob.findUnique({ where: { id: jobId } });
-    if (!job) return res.status(404).json({ error: "Job not found" });
+        // Load the AgentJob row
+        const job = await db.agentJob.findUnique({ where: { id: jobId } });
+        if (!job) {
+            return Response.json({ error: "Job not found" }, { status: 404 });
+        }
 
-    // Mark as processing
-    await db.agentJob.update({
-        where: { id: jobId },
-        data: { status: "processing" },
-    });
-
-    let agentInput: AgentRunInput;
-    try {
-        agentInput = JSON.parse(job.payload as string) as AgentRunInput;
-    } catch {
+        // Mark as processing
         await db.agentJob.update({
             where: { id: jobId },
-            data: { status: "failed", error: "Invalid job payload" },
-        });
-        return res.status(200).json({ ok: false, error: "Invalid payload" });
-    }
-
-    try {
-        const result = await runAgent(agentInput);
-
-        await db.agentJob.update({
-            where: { id: jobId },
-            data: {
-                status: "completed",
-                result: result as object,
-            },
+            data: { status: "processing" },
         });
 
-        return res.status(200).json({ ok: true });
-    } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        console.error(`[/api/agent] Job ${jobId} failed:`, err);
+        let agentInput: AgentRunInput;
+        try {
+            agentInput = JSON.parse(job.payload as string) as AgentRunInput;
+        } catch {
+            await db.agentJob.update({
+                where: { id: jobId },
+                data: { status: "failed", error: "Invalid job payload" },
+            });
+            return Response.json(
+                { ok: false, error: "Invalid payload" },
+                { status: 200 }
+            );
+        }
 
-        await db.agentJob.update({
-            where: { id: jobId },
-            data: { status: "failed", error: message },
-        }).catch(() => null);
+        try {
+            const result = await runAgent(agentInput);
 
-        return res.status(200).json({ ok: false, error: message });
+            await db.agentJob.update({
+                where: { id: jobId },
+                data: {
+                    status: "completed",
+                    result: result as object,
+                },
+            });
+
+            return Response.json({ ok: true });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unknown error";
+            console.error(`[/api/agent] Job ${jobId} failed:`, err);
+
+            await db.agentJob.update({
+                where: { id: jobId },
+                data: { status: "failed", error: message },
+            }).catch(() => null);
+
+            return Response.json({ ok: false, error: message }, { status: 200 });
+        }
+    } catch {
+        return Response.json(
+            { error: "Invalid JSON body" },
+            { status: 400 }
+        );
     }
 }
-
-export default verifySignature(handler);

@@ -26,6 +26,15 @@ export function clearPins(): void {
   pinStore = null;
 }
 
+/**
+ * Apply pinNumber to all pins in a list.
+ * Used to update the default pinNumber (1) with the user's specified value.
+ */
+export function applyPinNumber(pins: Pin[], pinNumber: number): Pin[] {
+  if (pinNumber <= 0) pinNumber = 1;
+  return pins.map((pin) => ({ ...pin, pinNumber }));
+}
+
 interface NewPlaceLocation {
   latitude: number;
   longitude: number;

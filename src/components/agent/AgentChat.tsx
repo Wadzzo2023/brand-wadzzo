@@ -969,6 +969,34 @@ function AgentResponseBlock({
             );
 
         case "results":
+            // If pinNumber not specified, show clarifying question first
+            if (!intent.pinNumberSpecified) {
+                const pinNumberQuestion: QuestionResponse = {
+                    type: "question",
+                    message: `How many pins do you want to drop at each location?`,
+                    fields: [
+                        {
+                            id: "pinNumber",
+                            label: "Number of pins per location",
+                            inputType: "number",
+                        },
+                    ],
+                };
+                return (
+                    <div>
+                        <p className="text-[13px] leading-relaxed text-foreground mb-3">
+                            {response.message}
+                        </p>
+                        <QuestionBlock
+                            data={pinNumberQuestion}
+                            onAnswer={onAnswer}
+                            answered={questionAnswered}
+                            answeredValues={questionAnsweredValues}
+                        />
+                    </div>
+                );
+            }
+
             return (
                 <div>
                     <ResultsBlock
@@ -1136,6 +1164,8 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
         confirmed: false,
         countSpecified: false,
         isNiche: false,
+        pinNumber: 1,
+        pinNumberSpecified: false,
     });
     const [stage, setStage] = useState<AgentStage>("idle");
     const [isLoading, setIsLoading] = useState(false);
@@ -1315,6 +1345,18 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
                     key === "city"
                 ) {
                     intentPatch.area = v;
+                } else if (
+                    key === "pinNumber" ||
+                    key === "pin number" ||
+                    key === "pins" ||
+                    key === "how many pins" ||
+                    key === "number of pins"
+                ) {
+                    const num = parseInt(v, 10);
+                    if (!isNaN(num) && num > 0) {
+                        intentPatch.pinNumber = num;
+                        intentPatch.pinNumberSpecified = true;
+                    }
                 }
             }
             const summary = Object.entries(answers)

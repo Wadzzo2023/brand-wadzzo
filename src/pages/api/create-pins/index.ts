@@ -3,7 +3,7 @@
 // It processes each Pin sequentially, updating progress in DB after every pin.
 
 import type { NextApiRequest, NextApiResponse } from "next"
-import { verifySignature } from "@upstash/qstash/nextjs"
+import { verifySignature, verifySignatureAppRouter } from "@upstash/qstash/nextjs"
 import { db } from "~/server/db"
 import { randomLocation as getLocationInLatLngRad } from "~/utils/map"
 import type { GroupingMode, Pin } from "~/lib/agent/types"
