@@ -471,7 +471,7 @@ export const agentRouter = createTRPCRouter({
       const result = await agent.invoke({
         messages: toLangChainMessages(messages),
       });
-
+      console.log("result:", result.messages);
       console.log(
         "[agentRouter] Message types:",
         result.messages.map(m => m._getType())
