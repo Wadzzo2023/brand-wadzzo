@@ -1,37 +1,9 @@
-// tools.ts
-// ─── LangChain Tool Definitions for the PinDrop Agent ────────────────────────
-//
-// GEOCODING STRATEGY (accuracy-first):
-//   LANDMARKS  → Google Places New API (Text Search) — precise business coords
-//   EVENTS     → web_search extracts venue/address → Google Geocoding API converts to lat/lng
-//   NICHE      → web_search extracts address → Google Geocoding API converts to lat/lng
-//
-// RULE: LLM finds the address. Google converts it to coordinates.
-//       Never trust LLM-generated raw lat/lng directly.
-//
-// COUNTRY→CITY PIPELINE:
-//   web_search identifies country/region from location hints in the query.
-//   city_discovery expands that country/region into a list of cities.
-//   places_search then runs across each discovered city.
-//
-// GAP-FILL STRATEGY:
-//   NICHE queries: re-run web_search asking for more locations not yet found.
-//   CHAIN queries: search additional cities from city_discovery.
-//   Final result is capped at the user's requested total.
-//
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { tool } from "@langchain/core/tools";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import pLimit from "p-limit";
 import type { Pin, CityDiscoveryResult } from "~/lib/agent/types";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PIN STORE — pins never travel through LLM text
-// Agent tools write here; agent.ts reads here.
-// This prevents JSON truncation when large pin arrays pass through LLM responses.
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface PinStoreEntry {
   pins: Pin[];
@@ -53,10 +25,6 @@ export function retrievePins(): PinStoreEntry | null {
 export function clearPins(): void {
   pinStore = null;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Google API response shapes
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface NewPlaceLocation {
   latitude: number;
@@ -137,20 +105,12 @@ interface RawEventResult {
   image?: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Named location shape returned by web_search (niche path)
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface NamedLocation {
   name: string;
   address: string;
   city?: string;
   country?: string;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Web search result shape — extended with country/region discovery fields
-// ─────────────────────────────────────────────────────────────────────────────
 
 export interface WebSearchResult {
   canonicalName: string;
@@ -166,11 +126,6 @@ export interface WebSearchResult {
   namedLocations: NamedLocation[];
   searchHint: string;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Cache — with TTL + eviction
-// Events are intentionally NOT cached (time-sensitive data)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 200;
@@ -204,9 +159,6 @@ function setCached<T>(key: string, value: T): T {
   return value;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Retry helper
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -225,9 +177,6 @@ async function withRetry<T>(
   throw new Error("Unreachable");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 function todayString(): string {
   return new Date().toISOString().split("T")[0];
@@ -244,9 +193,7 @@ function isFutureDate(dateStr: string): boolean {
   return new Date(dateStr) >= new Date(todayString());
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GEOCODING — Core accuracy function
-// ─────────────────────────────────────────────────────────────────────────────
+
 async function normalizeQuery(rawQuery: string): Promise<string> {
   const cacheKey = `normalize:${rawQuery.toLowerCase().trim()}`;
   const cached = getCached<string>(cacheKey);
@@ -304,10 +251,6 @@ async function geocodeAddress(
     return null;
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Map Google Place (New API) → Pin (LANDMARK)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const GENERIC_GOOGLE_TYPES = new Set([
   "point_of_interest", "establishment", "premise", "political",
@@ -472,13 +415,6 @@ async function getCityBounds(area: string, apiKey: string): Promise<CityBounds |
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Google Places NEW API — Text Search
-// ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// Query classifier — runs BEFORE web search to pick the right prompt
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface QueryClassification {
   type: "niche" | "event" | "chain";
   searchFocus: string;
@@ -520,9 +456,6 @@ async function classifyQuery(query: string): Promise<QueryClassification> {
     return { type: "chain", searchFocus: "find locations of this place worldwide" };
   }
 }
-// ─────────────────────────────────────────────────────────────────────────────
-// Address quality filter — strips vague entries before geocoding
-// ─────────────────────────────────────────────────────────────────────────────
 
 function filterByAddressQuality(locations: NamedLocation[]): NamedLocation[] {
   const VAGUE_TERMS = ["various", "worldwide", "multiple", "unknown", "tbd", "several", "many"];
@@ -633,10 +566,6 @@ async function searchPlacesNewAPI(
   return allPins;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Legacy fallback: Google Places Text Search
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface LegacyPlaceResult {
   place_id?: string;
   name?: string;
@@ -732,9 +661,6 @@ async function searchPlacesLegacyFallback(
   return allPins;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main landmark search — New Places API with legacy fallback
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function searchViaGooglePlaces(query: string, area: string, count: number): Promise<Pin[]> {
   const cacheKey = `places:${query}:${area}:${count}`;
@@ -777,13 +703,6 @@ async function searchViaGooglePlaces(query: string, area: string, count: number)
   return setCached(cacheKey, final);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COUNTRY → CITIES discovery
-// When web_search detects a country (or the query mentions a country/region),
-// this resolves all major cities in that country so places_search can cover
-// them systematically rather than hoping for a single vague area hit.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function discoverCitiesForCountry(
   countryOrRegion: string,
   limit = 20
@@ -824,12 +743,6 @@ export async function discoverCitiesForCountry(
     return [];
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COUNTRY-AWARE places search
-// Runs places_search across all cities discovered from a country/region.
-// This is the main entry point when the user says "in Bangladesh" or "in France".
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function searchAcrossCountry(
   query: string,
@@ -882,11 +795,6 @@ export async function searchAcrossCountry(
   return allPins;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Niche gap-fill via web search
-// For artist installations, sculptures, etc. — NOT Google Places chains.
-// Re-runs a web search asking for more locations beyond those already found.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function gapFillNicheViaWebSearch(
   query: string,
@@ -970,12 +878,6 @@ export async function gapFillNicheViaWebSearch(
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Web Search
-// ALWAYS called first before any search tool.
-// Returns structured info including namedLocations to detect niche vs chain.
-// NEW: also extracts detectedCountry / detectedRegion for the city pipeline.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const webSearchTool = tool(
   async ({ query }): Promise<string> => {
@@ -1153,13 +1055,6 @@ export const webSearchTool = tool(
     }),
   }
 );
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Country → City Search
-// NEW TOOL: When web_search detects a country/region, this tool:
-//   1. Discovers all major cities in that country via LLM
-//   2. Runs places_search in parallel across every city
-//   3. Returns a deduplicated pin set covering the whole country
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const countrycitySearchTool = tool(
   async ({ query, country, count = 20 }): Promise<string> => {
@@ -1238,9 +1133,6 @@ export const countrycitySearchTool = tool(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Geocode Address
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const geocodeAddressTool = tool(
   async ({ address, title, description }): Promise<string> => {
@@ -1282,10 +1174,6 @@ export const geocodeAddressTool = tool(
     }),
   }
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Event Search
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const eventSearchTool = tool(
   async ({ query, city, count = 5 }): Promise<string> => {
@@ -1356,9 +1244,6 @@ export const eventSearchTool = tool(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: City Discovery
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const cityDiscoveryTool = tool(
   async ({ region, limit = 20 }): Promise<string> => {
@@ -1404,10 +1289,6 @@ export const cityDiscoveryTool = tool(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Places Search
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const placesSearchTool = tool(
   async ({ query, city, count = 20 }): Promise<string> => {
     console.log("[placesSearchTool]", { query, city, count });
@@ -1452,9 +1333,6 @@ export const placesSearchTool = tool(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool: Drop Pins
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const dropPinsTool = tool(
   async (): Promise<string> => {
@@ -1478,9 +1356,6 @@ export const dropPinsTool = tool(
   }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// All tools export
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const ALL_TOOLS = [
   webSearchTool,
@@ -1494,9 +1369,6 @@ export const ALL_TOOLS = [
 
 export { searchViaGooglePlaces as searchViaGooglePlacesExported };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Agent System Prompt
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const AGENT_SYSTEM_PROMPT = `You are a location-based pin-drop agent embedded in a mapping platform. Your job is to help users find and drop location pins into a database through a smart, efficient conversation.
 

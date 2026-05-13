@@ -15,7 +15,19 @@ import type {
     SuccessResponse,
     InfoResponse,
 } from "~/lib/agent/types";
-import { MapPin, Layers, Grid2x2, ChevronRight, Loader2, Minus, Trash2, X, ChevronDown, Send } from "lucide-react";
+import {
+    MapPin,
+    Layers,
+    Grid2x2,
+    ChevronRight,
+    Loader2,
+    Minus,
+    Trash2,
+    X,
+    ChevronDown,
+    Send,
+    CheckCircle2,
+} from "lucide-react";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { Label } from "~/components/shadcn/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/shadcn/ui/radio-group";
@@ -75,6 +87,64 @@ function parseReply(raw: string): AgentResponse {
     };
 }
 
+// ─── Poll helper ──────────────────────────────────────────────────────────────
+
+type PollResult = {
+    reply: string;
+    stage: AgentStage;
+    intent: PinIntent;
+    pins?: Pin[];
+    jobId?: string;
+};
+
+/**
+ * Polls `agentJobResult` every 1.5 s until status is completed/failed.
+ * Resolves with the typed result or rejects on failure / timeout (90 s).
+ */
+function usePollAgentJob() {
+    const utils = api.useUtils();
+
+    const poll = useCallback(
+        (
+            jobId: string,
+            onStatusChange?: (status: string) => void
+        ): Promise<PollResult> => {
+            return new Promise((resolve, reject) => {
+                const TIMEOUT_MS = 90_000;
+                const INTERVAL_MS = 1_500;
+                const startedAt = Date.now();
+
+                const tick = async () => {
+                    if (Date.now() - startedAt > TIMEOUT_MS) {
+                        reject(new Error("Timed out waiting for agent job"));
+                        return;
+                    }
+
+                    try {
+                        const job = await utils.agent.pollJobResult.fetch({ jobId });
+                        onStatusChange?.(job.status);
+
+                        if (job.status === "completed" && job.result) {
+                            resolve(job.result as PollResult);
+                        } else if (job.status === "failed") {
+                            reject(new Error(job.error ?? "Agent job failed"));
+                        } else {
+                            setTimeout(() => void tick(), INTERVAL_MS);
+                        }
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+
+                void tick();
+            });
+        },
+        [utils]
+    );
+
+    return poll;
+}
+
 // ─── Intent badge strip ───────────────────────────────────────────────────────
 
 function IntentBadge({ intent }: { intent: PinIntent }) {
@@ -123,9 +193,13 @@ function TypingDots({ label }: { label?: string }) {
 function QuestionBlock({
     data,
     onAnswer,
+    answered = false,
+    answeredValues,
 }: {
     data: QuestionResponse;
     onAnswer: (answers: Record<string, string>) => void;
+    answered?: boolean;
+    answeredValues?: Record<string, string>;
 }) {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [customValues, setCustomValues] = useState<Record<string, string>>({});
@@ -134,6 +208,26 @@ function QuestionBlock({
 
     const fields = data.fields;
     const currentField = fields[currentFieldIndex];
+
+    if (answered && answeredValues) {
+        return (
+            <div className="mt-2 flex flex-col gap-1.5">
+                {fields.map((f) => (
+                    <div
+                        key={f.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl
+                                   bg-muted/40 border border-border/50 opacity-70"
+                    >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                        <span className="text-[12px] text-muted-foreground">{f.label}:</span>
+                        <span className="text-[12px] font-semibold text-foreground truncate">
+                            {answeredValues[f.id] ?? "—"}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     const handleChoice = (fieldId: string, value: string) => {
         const updated = { ...answers, [fieldId]: value };
@@ -209,7 +303,14 @@ function QuestionBlock({
                        transition-all duration-150"
                     >
                         <span className="w-6 h-6 rounded-full border border-border flex items-center justify-center flex-shrink-0">
-                            <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                            <svg
+                                viewBox="0 0 12 12"
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                            >
                                 <path d="M6 1v10M1 6h10" />
                             </svg>
                         </span>
@@ -249,25 +350,112 @@ function QuestionBlock({
     );
 }
 
-// ─── ResultsConfirmPanel ──────────────────────────────────────────────────────
-// Shown inline inside the chat bubble when type === "results".
-// Step 1: QR Generation (Grouping mode)
-// Step 2: Auto Collect (Switch)
-// Navigation with Previous/Next buttons
+// ─── Job progress bar ─────────────────────────────────────────────────────────
 
-export interface ResultsConfirmPanelProps {
-    message: string;
-    pinCount: number;
-    onConfirm: (options: PinOptions) => void;
-    isLoading?: boolean;
+function JobProgressBar({
+    jobId,
+    onComplete,
+}: {
+    jobId: string;
+    onComplete: (count: number) => void;
+}) {
+    const [done, setDone] = useState(false);
+
+    const { data } = api.agent.jobStatus.useQuery(
+        { jobId },
+        {
+            enabled: !done,
+            refetchInterval: (data) => {
+                if (!data) return 1500;
+                const s = (data as { status?: string })?.status;
+                if (s === "completed" || s === "failed") return false;
+                return 1500;
+            },
+        }
+    );
+
+    useEffect(() => {
+        if (!data) return;
+        if (data.status === "completed" || data.status === "failed") {
+            setDone(true);
+            onComplete(data.completed ?? 0);
+        }
+    }, [data, onComplete]);
+
+    const status = data?.status ?? "pending";
+    const total = data?.total ?? 0;
+    const completed = data?.completed ?? 0;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const isError = status === "failed";
+    const isComplete = status === "completed";
+
+    return (
+        <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">
+                    {isComplete ? "Pins dropped!" : isError ? "Some pins failed" : "Dropping pins…"}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                    {completed}/{total}
+                </span>
+            </div>
+
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                    className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isError ? "bg-red-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+
+            {isError && data?.error && (
+                <p className="text-[11px] text-red-400">{data.error}</p>
+            )}
+
+            {(isComplete || isError) && data?.log && data.log.length > 0 && (
+                <details className="mt-1">
+                    <summary className="text-[11px] text-muted-foreground cursor-pointer select-none">
+                        View log ({data.log.filter((l) => l.status === "error").length} errors)
+                    </summary>
+                    <div className="mt-1.5 space-y-0.5 max-h-32 overflow-y-auto">
+                        {data.log.map((entry, i) => (
+                            <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                                <span
+                                    className={
+                                        entry.status === "ok" ? "text-emerald-500" : "text-red-400"
+                                    }
+                                >
+                                    {entry.status === "ok" ? "✓" : "✗"}
+                                </span>
+                                <span className="text-foreground truncate">{entry.title}</span>
+                                {entry.error && (
+                                    <span className="text-red-400 truncate">— {entry.error}</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </details>
+            )}
+        </div>
+    );
 }
+
+// ─── ResultsConfirmPanel ──────────────────────────────────────────────────────
 
 function ResultsConfirmPanel({
     message,
     pinCount,
     onConfirm,
     isLoading = false,
-}: ResultsConfirmPanelProps) {
+}: {
+    message: string;
+    pinCount: number;
+    onConfirm: (options: PinOptions) => void;
+    isLoading?: boolean;
+}) {
     const [autoCollect, setAutoCollect] = useState(false);
     const [groupingMode, setGroupingMode] = useState<GroupingMode>("per-location");
     const [currentStep, setCurrentStep] = useState(0);
@@ -284,16 +472,12 @@ function ResultsConfirmPanel({
     };
 
     const handlePrevious = () => {
-        if (!isFirstStep) {
-            setCurrentStep(currentStep - 1);
-        }
+        if (!isFirstStep) setCurrentStep(currentStep - 1);
     };
 
     return (
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/40 p-3 mt-2 max-w-sm">
-            <h2 className="sr-only">Search results — confirm pin drop settings</h2>
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/40 p-3 max-w-sm">
 
-            {/* Title and Step Indicator */}
             <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-foreground">Configuration</p>
                 <span className="text-[10px] text-muted-foreground font-medium">
@@ -301,7 +485,6 @@ function ResultsConfirmPanel({
                 </span>
             </div>
 
-            {/* Step 1: QR Generation / Grouping mode */}
             {isFirstStep && (
                 <section className="flex flex-col gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Location QR Code</p>
@@ -311,7 +494,6 @@ function ResultsConfirmPanel({
                         className="flex flex-col gap-1.5"
                         aria-label="Location grouping mode"
                     >
-                        {/* Option A — per-location (default) */}
                         <Label
                             htmlFor="group-per-location"
                             className={cn(
@@ -327,10 +509,14 @@ function ResultsConfirmPanel({
                                 className="mt-0.5 shrink-0 border-border text-primary"
                             />
                             <div className="flex flex-col gap-0.5 flex-1">
-                                <span className={cn(
-                                    "text-xs font-medium",
-                                    groupingMode === "per-location" ? "text-primary" : "text-foreground"
-                                )}>
+                                <span
+                                    className={cn(
+                                        "text-xs font-medium",
+                                        groupingMode === "per-location"
+                                            ? "text-primary"
+                                            : "text-foreground"
+                                    )}
+                                >
                                     {pinCount} QR codes
                                 </span>
                                 <span className="text-[11px] text-muted-foreground leading-tight">
@@ -339,7 +525,6 @@ function ResultsConfirmPanel({
                             </div>
                         </Label>
 
-                        {/* Option B — single-group */}
                         <Label
                             htmlFor="group-single"
                             className={cn(
@@ -355,10 +540,14 @@ function ResultsConfirmPanel({
                                 className="mt-0.5 shrink-0 border-border text-primary"
                             />
                             <div className="flex flex-col gap-0.5 flex-1">
-                                <span className={cn(
-                                    "text-xs font-medium",
-                                    groupingMode === "single-group" ? "text-primary" : "text-foreground"
-                                )}>
+                                <span
+                                    className={cn(
+                                        "text-xs font-medium",
+                                        groupingMode === "single-group"
+                                            ? "text-primary"
+                                            : "text-foreground"
+                                    )}
+                                >
                                     1 QR code
                                 </span>
                                 <span className="text-[11px] text-muted-foreground leading-tight">
@@ -370,7 +559,6 @@ function ResultsConfirmPanel({
                 </section>
             )}
 
-            {/* Step 2: Auto Collect / Switch */}
             {!isFirstStep && (
                 <section className="flex flex-col gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Auto Mode</p>
@@ -390,9 +578,7 @@ function ResultsConfirmPanel({
                                 {autoCollect ? "Enabled" : "Disabled"}
                             </Label>
                             <p className="text-[11px] text-muted-foreground leading-tight">
-                                {autoCollect
-                                    ? "Automatic on proximity"
-                                    : "Manual tap to collect"}
+                                {autoCollect ? "Automatic on proximity" : "Manual tap to collect"}
                             </p>
                         </div>
                         <Switch
@@ -405,7 +591,6 @@ function ResultsConfirmPanel({
                 </section>
             )}
 
-            {/* Navigation Buttons */}
             <div className="flex items-center gap-2 mt-2">
                 <button
                     type="button"
@@ -418,7 +603,6 @@ function ResultsConfirmPanel({
                             ? "opacity-40 cursor-not-allowed bg-muted/30 text-muted-foreground"
                             : "bg-muted hover:bg-muted/80 text-foreground active:scale-95"
                     )}
-                    aria-label="Previous question"
                 >
                     ← Previous
                 </button>
@@ -434,12 +618,9 @@ function ResultsConfirmPanel({
                         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
                         isLoading && "opacity-60 cursor-not-allowed"
                     )}
-                    aria-label={isLastStep ? "Confirm and drop pins" : "Next question"}
                 >
                     {isLoading ? (
-                        <>
-                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                        </>
+                        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
                     ) : (
                         <>
                             {isLastStep ? "Confirm" : "Next"}
@@ -453,8 +634,6 @@ function ResultsConfirmPanel({
 }
 
 // ─── ResultsBlock ─────────────────────────────────────────────────────────────
-// Shows pin list + the ResultsConfirmPanel (with autoCollect + grouping questions).
-// onConfirm receives PinOptions chosen by the user.
 
 function ResultsBlock({
     data,
@@ -462,18 +641,24 @@ function ResultsBlock({
     onConfirm,
     onDismiss,
     isLoading,
+    confirmed,
+    jobId,
+    onJobComplete,
 }: {
     data: ResultsResponse;
     pins: Pin[];
     onConfirm: (options: PinOptions) => void;
     onDismiss: () => void;
     isLoading: boolean;
+    confirmed: boolean;
+    jobId?: string;
+    onJobComplete: (count: number) => void;
 }) {
     const displayPins = pins.length > 0 ? pins : [];
     const count = displayPins.length || data.pinCount;
 
     return (
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2">
 
 
             {displayPins.length > 0 && (
@@ -484,21 +669,32 @@ function ResultsBlock({
                 </div>
             )}
 
-            {/* Options panel replaces the old confirm/cancel buttons */}
-            <ResultsConfirmPanel
-                message={data.message}
-                pinCount={count}
-                onConfirm={onConfirm}
-                isLoading={isLoading}
-            />
-
-            <button
-                onClick={onDismiss}
-                className="w-full py-2 rounded-xl bg-muted border border-border
-                     text-muted-foreground text-sm hover:text-foreground transition-colors"
-            >
-                Cancel
-            </button>
+            {jobId ? (
+                <JobProgressBar jobId={jobId} onComplete={onJobComplete} />
+            ) : confirmed ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-xs text-emerald-400 font-semibold">
+                        Queued {count} pins for drop
+                    </span>
+                </div>
+            ) : (
+                <>
+                    <ResultsConfirmPanel
+                        message={data.message}
+                        pinCount={count}
+                        onConfirm={onConfirm}
+                        isLoading={isLoading}
+                    />
+                    <button
+                        onClick={onDismiss}
+                        className="w-full py-2 rounded-xl bg-muted border border-border
+                             text-muted-foreground text-sm hover:text-foreground transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </>
+            )}
         </div>
     );
 }
@@ -519,7 +715,7 @@ function ConfirmBlock({
     isDropping: boolean;
 }) {
     return (
-        <div className="mt-2 space-y-3">
+        <div className=" space-y-3">
             <div className="rounded-xl bg-muted/30 border border-border divide-y divide-border">
                 {[
                     { label: "What", value: data.summary.what },
@@ -592,8 +788,10 @@ function ConfirmBlock({
 
 function SuccessBlock({ data }: { data: SuccessResponse }) {
     return (
-        <div className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl
-                    bg-emerald-500/10 border border-emerald-500/25">
+        <div
+            className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl
+                    bg-emerald-500/10 border border-emerald-500/25"
+        >
             <span className="text-2xl flex-shrink-0">🎉</span>
             <div>
                 <p className="text-emerald-400 text-sm font-bold">{data.message}</p>
@@ -674,7 +872,15 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                 )}
                 {!compact && (
                     <div className="flex items-center gap-1 mt-1">
-                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-muted-foreground flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                            viewBox="0 0 16 16"
+                            className="w-3 h-3 text-muted-foreground flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
                             <path d="M8 1.5C5.79 1.5 4 3.29 4 5.5c0 3.25 4 9 4 9s4-5.75 4-9c0-2.21-1.79-4-4-4z" />
                             <circle cx="8" cy="5.5" r="1.25" />
                         </svg>
@@ -691,7 +897,15 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                         onClick={(e) => e.stopPropagation()}
                         className="flex items-center gap-1 mt-1 group w-fit max-w-full"
                     >
-                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-muted-foreground group-hover:text-primary flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                            viewBox="0 0 16 16"
+                            className="w-3 h-3 text-muted-foreground group-hover:text-primary flex-shrink-0 transition-colors"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
                             <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9 2h5m0 0v5m0-5L7 10" />
                         </svg>
                         <span className="text-muted-foreground group-hover:text-primary text-[10px] truncate transition-colors">
@@ -716,26 +930,41 @@ function AgentResponseBlock({
     onDismiss,
     isDropping,
     isLoading,
+    questionAnswered,
+    questionAnsweredValues,
+    resultsConfirmed,
+    resultsJobId,
+    onJobComplete,
 }: {
     response: AgentResponse;
     pins: Pin[];
     intent: PinIntent;
     onAnswer: (answers: Record<string, string>) => void;
-    // Results stage: user picks PinOptions then confirms
     onConfirmWithOptions: (options: PinOptions) => void;
-    // Confirm stage: user approves the summary
     onConfirmPins: (pins: Pin[]) => void;
     onDismiss: () => void;
     isDropping: boolean;
     isLoading: boolean;
+    questionAnswered?: boolean;
+    questionAnsweredValues?: Record<string, string>;
+    resultsConfirmed?: boolean;
+    resultsJobId?: string;
+    onJobComplete: (count: number) => void;
 }) {
     switch (response.type) {
         case "question":
             return (
                 <div>
-                    <p className="text-[13px] leading-relaxed text-foreground mb-1">{response.message}</p>
-                    <QuestionBlock data={response} onAnswer={onAnswer} />
-                    <IntentBadge intent={intent} />
+                    <p className="text-[13px] leading-relaxed text-foreground mb-1">
+                        {response.message}
+                    </p>
+                    <QuestionBlock
+                        data={response}
+                        onAnswer={onAnswer}
+                        answered={questionAnswered}
+                        answeredValues={questionAnsweredValues}
+                    />
+                    {!questionAnswered && <IntentBadge intent={intent} />}
                 </div>
             );
 
@@ -748,6 +977,9 @@ function AgentResponseBlock({
                         onConfirm={onConfirmWithOptions}
                         onDismiss={onDismiss}
                         isLoading={isLoading}
+                        confirmed={resultsConfirmed ?? false}
+                        jobId={resultsJobId}
+                        onJobComplete={onJobComplete}
                     />
                 </div>
             );
@@ -755,7 +987,9 @@ function AgentResponseBlock({
         case "confirm":
             return (
                 <div>
-                    <p className="text-[13px] leading-relaxed text-foreground mb-1">{response.message}</p>
+                    <p className="text-[13px] leading-relaxed text-foreground mb-1">
+                        {response.message}
+                    </p>
                     <ConfirmBlock
                         data={response}
                         pins={pins}
@@ -788,7 +1022,15 @@ interface LocalChatMessage {
     content:
     | { kind: "text"; text: string }
     | { kind: "loading"; label?: string }
-    | { kind: "response"; data: AgentResponse; pins: Pin[] };
+    | {
+        kind: "response";
+        data: AgentResponse;
+        pins: Pin[];
+        questionAnswered?: boolean;
+        questionAnsweredValues?: Record<string, string>;
+        resultsConfirmed?: boolean;
+        resultsJobId?: string;
+    };
     createdAt: Date;
 }
 
@@ -803,15 +1045,17 @@ function MessageBubble({
     onDismiss,
     isDropping,
     isLoading,
+    onJobComplete,
 }: {
     msg: LocalChatMessage;
     intent: PinIntent;
-    onAnswer: (answers: Record<string, string>) => void;
+    onAnswer: (msgId: string, answers: Record<string, string>) => void;
     onConfirmWithOptions: (options: PinOptions) => void;
     onConfirmPins: (pins: Pin[]) => void;
     onDismiss: () => void;
     isDropping: boolean;
     isLoading: boolean;
+    onJobComplete: (count: number) => void;
 }) {
     const isUser = msg.role === "user";
 
@@ -835,7 +1079,7 @@ function MessageBubble({
 
             <div
                 className={cn(
-                    "max-w-[60%] rounded-2xl px-4 py-3 text-sm",
+                    "max-w-[60%] rounded-2xl px-4 py-3 text-sm h-full",
                     isUser
                         ? "bg-primary text-primary-foreground rounded-br-sm"
                         : "bg-muted text-foreground border border-border rounded-bl-sm w-[60%]"
@@ -852,12 +1096,17 @@ function MessageBubble({
                         response={msg.content.data}
                         pins={msg.content.pins}
                         intent={intent}
-                        onAnswer={onAnswer}
+                        onAnswer={(answers) => onAnswer(msg.id, answers)}
                         onConfirmWithOptions={onConfirmWithOptions}
                         onConfirmPins={onConfirmPins}
                         onDismiss={onDismiss}
                         isDropping={isDropping}
                         isLoading={isLoading}
+                        questionAnswered={msg.content.questionAnswered}
+                        questionAnsweredValues={msg.content.questionAnsweredValues}
+                        resultsConfirmed={msg.content.resultsConfirmed}
+                        resultsJobId={msg.content.resultsJobId}
+                        onJobComplete={onJobComplete}
                     />
                 )}
             </div>
@@ -876,7 +1125,7 @@ function MessageBubble({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PinAgentChat() {
+export default function PinAgentChat({ creatorId }: { creatorId: string }) {
     const [messages, setMessages] = useState<LocalChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [intent, setIntent] = useState<PinIntent>({
@@ -898,6 +1147,7 @@ export default function PinAgentChat() {
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const chatCreate = api.agent.create.useMutation();
+    const pollJob = usePollAgentJob();
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -915,11 +1165,13 @@ export default function PinAgentChat() {
                     if (m.content.kind === "response") {
                         const d = m.content.data;
                         const text =
-                            d.type === "info" || d.type === "question" || d.type === "success"
+                            d.type === "info" ||
+                                d.type === "question" ||
+                                d.type === "success" ||
+                                d.type === "results" ||
+                                d.type === "confirm"
                                 ? d.message
-                                : d.type === "results" || d.type === "confirm"
-                                    ? d.message
-                                    : "";
+                                : "";
                         return { role: "assistant" as const, text };
                     }
                     return null;
@@ -952,7 +1204,7 @@ export default function PinAgentChat() {
                 {
                     id: loadingId,
                     role: "assistant",
-                    content: { kind: "loading", label: "" },
+                    content: { kind: "loading", label: STAGE_LABEL["extracting_intent"] },
                     createdAt: new Date(),
                 },
             ]);
@@ -960,11 +1212,29 @@ export default function PinAgentChat() {
             setInput("");
 
             try {
-                const result = await chatCreate.mutateAsync({
+                // Step 1: enqueue and get jobId immediately
+                const { jobId } = await chatCreate.mutateAsync({
                     messages: buildHistory(userText),
                     intent: mergedIntent,
+                    creatorId,
                 });
 
+                // Step 2: poll until completed — update loading label on status changes
+                const result = await pollJob(jobId, (status) => {
+                    const label =
+                        status === "processing"
+                            ? STAGE_LABEL["searching"]
+                            : STAGE_LABEL["extracting_intent"];
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === loadingId
+                                ? { ...m, content: { kind: "loading" as const, label } }
+                                : m
+                        )
+                    );
+                });
+
+                // Step 3: render result
                 const serverPins = result.pins ?? [];
                 if (serverPins.length > 0) setCurrentPins(serverPins);
 
@@ -995,7 +1265,10 @@ export default function PinAgentChat() {
                         role: "assistant",
                         content: {
                             kind: "response",
-                            data: { type: "info", message: "Sorry, something went wrong. Please try again." },
+                            data: {
+                                type: "info",
+                                message: "Sorry, something went wrong. Please try again.",
+                            },
                             pins: [],
                         },
                         createdAt: new Date(),
@@ -1007,13 +1280,27 @@ export default function PinAgentChat() {
                 inputRef.current?.focus();
             }
         },
-        [isLoading, intent, currentPins, buildHistory, chatCreate]
+        [isLoading, intent, currentPins, buildHistory, chatCreate, pollJob]
     );
 
     // ── Handle question answers ───────────────────────────────────────────────
 
     const handleAnswer = useCallback(
-        (answers: Record<string, string>) => {
+        (msgId: string, answers: Record<string, string>) => {
+            setMessages((prev) =>
+                prev.map((m) => {
+                    if (m.id !== msgId || m.content.kind !== "response") return m;
+                    return {
+                        ...m,
+                        content: {
+                            ...m.content,
+                            questionAnswered: true,
+                            questionAnsweredValues: answers,
+                        },
+                    };
+                })
+            );
+
             const intentPatch: Partial<PinIntent> = {};
             for (const [k, v] of Object.entries(answers)) {
                 const key = k.toLowerCase().trim();
@@ -1021,51 +1308,90 @@ export default function PinAgentChat() {
                     intentPatch.count = parseInt(v, 10) || null;
                 } else if (key === "query" || key === "what" || key === "search") {
                     intentPatch.query = v;
-                } else if (key === "area" || key === "where" || key === "location" || key === "city") {
+                } else if (
+                    key === "area" ||
+                    key === "where" ||
+                    key === "location" ||
+                    key === "city"
+                ) {
                     intentPatch.area = v;
                 }
             }
-            const summary = Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join(", ");
+            const summary = Object.entries(answers)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(", ");
             void sendMessage(`I answered: ${summary}`, intentPatch);
         },
         [sendMessage]
     );
 
-    // ── Handle results confirmation (with PinOptions) ─────────────────────────
-    // Called from ResultsBlock → ResultsConfirmPanel when user clicks confirm.
-    // Sends the chosen options to the server along with the confirm message.
+    // ── Handle results confirmation ───────────────────────────────────────────
 
     const handleConfirmWithOptions = useCallback(
         async (options: PinOptions) => {
             setIsDropping(true);
+            setIsLoading(true);
             const pinsToUse = currentPins;
+
             try {
-                await chatCreate.mutateAsync({
+                // Step 1: enqueue confirm job
+                const { jobId } = await chatCreate.mutateAsync({
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
                     pinOptions: options,
                 });
 
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: uid(),
-                        role: "assistant",
-                        content: {
-                            kind: "response",
-                            data: {
-                                type: "success",
-                                message: `Successfully dropped ${pinsToUse.length} pins!`,
-                                count: pinsToUse.length,
-                            } satisfies SuccessResponse,
-                            pins: [],
+                // Step 2: poll until the agent finishes (it will enqueue the QStash pin-drop job)
+                const result = await pollJob(jobId);
+
+                const locationGroupJobId = result.jobId;
+
+                // Step 3: mark the results message as confirmed + attach pin-drop jobId
+                setMessages((prev) => {
+                    const copy = [...prev];
+                    for (let i = copy.length - 1; i >= 0; i--) {
+                        const m = copy[i]!;
+                        if (
+                            m.content.kind === "response" &&
+                            m.content.data.type === "results"
+                        ) {
+                            copy[i] = {
+                                ...m,
+                                content: {
+                                    ...m.content,
+                                    resultsConfirmed: true,
+                                    resultsJobId: locationGroupJobId,
+                                },
+                            };
+                            break;
+                        }
+                    }
+                    return copy;
+                });
+
+                // If no background job was returned, show immediate success
+                if (!locationGroupJobId) {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            id: uid(),
+                            role: "assistant",
+                            content: {
+                                kind: "response",
+                                data: {
+                                    type: "success",
+                                    message: `Successfully dropped ${pinsToUse.length} pins!`,
+                                    count: pinsToUse.length,
+                                } satisfies SuccessResponse,
+                                pins: [],
+                            },
+                            createdAt: new Date(),
                         },
-                        createdAt: new Date(),
-                    },
-                ]);
-                setStage("done");
+                    ]);
+                }
+
+                setStage("dropping_pins");
                 setIntent((p) => ({ ...p, confirmed: true }));
-                setCurrentPins([]);
             } catch {
                 setMessages((prev) => [
                     ...prev,
@@ -1074,7 +1400,10 @@ export default function PinAgentChat() {
                         role: "assistant",
                         content: {
                             kind: "response",
-                            data: { type: "info", message: "Failed to drop pins. Please try again." },
+                            data: {
+                                type: "info",
+                                message: "Failed to drop pins. Please try again.",
+                            },
                             pins: [],
                         },
                         createdAt: new Date(),
@@ -1082,22 +1411,50 @@ export default function PinAgentChat() {
                 ]);
             } finally {
                 setIsDropping(false);
+                setIsLoading(false);
             }
         },
-        [intent, currentPins, buildHistory, chatCreate]
+        [intent, currentPins, buildHistory, chatCreate, pollJob]
     );
 
-    // ── Handle legacy confirm-stage pin drop (ConfirmBlock) ───────────────────
+    // ── Called when background pin-drop job finishes ──────────────────────────
+
+    const handleJobComplete = useCallback((count: number) => {
+        setStage("done");
+        setCurrentPins([]);
+        setMessages((prev) => [
+            ...prev,
+            {
+                id: uid(),
+                role: "assistant",
+                content: {
+                    kind: "response",
+                    data: {
+                        type: "success",
+                        message: `Successfully dropped ${count} pin${count !== 1 ? "s" : ""}!`,
+                        count,
+                    } satisfies SuccessResponse,
+                    pins: [],
+                },
+                createdAt: new Date(),
+            },
+        ]);
+    }, []);
+
+    // ── Legacy confirm-stage pin drop ─────────────────────────────────────────
 
     const handleConfirmPins = useCallback(
         async (pins: Pin[]) => {
             setIsDropping(true);
+            setIsLoading(true);
             const pinsToUse = pins.length > 0 ? pins : currentPins;
             try {
-                await chatCreate.mutateAsync({
+                const { jobId } = await chatCreate.mutateAsync({
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
                 });
+
+                await pollJob(jobId);
 
                 setMessages((prev) => [
                     ...prev,
@@ -1127,7 +1484,10 @@ export default function PinAgentChat() {
                         role: "assistant",
                         content: {
                             kind: "response",
-                            data: { type: "info", message: "Failed to drop pins. Please try again." },
+                            data: {
+                                type: "info",
+                                message: "Failed to drop pins. Please try again.",
+                            },
                             pins: [],
                         },
                         createdAt: new Date(),
@@ -1135,12 +1495,13 @@ export default function PinAgentChat() {
                 ]);
             } finally {
                 setIsDropping(false);
+                setIsLoading(false);
             }
         },
-        [intent, currentPins, buildHistory, chatCreate]
+        [intent, currentPins, buildHistory, chatCreate, pollJob]
     );
 
-    // ── Dismiss ───────────────────────────────────────────────────────────────
+    // ── Dismiss ─────────────────────────────────────────��─────────────────────
 
     const handleDismiss = useCallback(() => {
         void sendMessage("Cancel that, let me start over.");
@@ -1164,24 +1525,25 @@ export default function PinAgentChat() {
         setCurrentPins([]);
         inputRef.current?.focus();
     };
+
     function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault()
-            void sendMessage(input)
+            e.preventDefault();
+            void sendMessage(input);
         }
     }
+
     const isEmpty = messages.length === 0;
 
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
         <>
-            {/* Minimized pill */}
             {isMinimized && (
                 <button
                     onClick={() => {
-                        setIsMinimized(false)
-                        setIsOpen(true)
+                        setIsMinimized(false);
+                        setIsOpen(true);
                     }}
                     className="fixed bottom-12 left-1/2 z-40 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
                 >
@@ -1209,7 +1571,7 @@ export default function PinAgentChat() {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask me anything..."
-                            disabled={isLoading}
+                            disabled={isLoading || isDropping}
                             className="flex-1 rounded-full bg-white px-5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
                         />
                         <button
@@ -1228,23 +1590,25 @@ export default function PinAgentChat() {
                             className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary/80 px-4 py-3 text-primary-foreground transition-all hover:scale-105 active:scale-95"
                         >
                             <ChevronDown
-                                className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "" : "rotate-180"}`}
+                                className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "" : "rotate-180"
+                                    }`}
                             />
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Main chat panel */}
             {!isMinimized && isOpen && (
-                <div className="fixed inset-x-0 bottom-24 z-40 mx-auto flex h-[85vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl animate-in slide-in-from-bottom-5 duration-300 ">
-
-                    {/* Header */}
-                    <header className="flex-shrink-0 flex items-center justify-between px-4 py-3
-                                 border-b border-border bg-primary text-primary-foreground">
+                <div className="fixed inset-x-0 bottom-24 z-40 mx-auto max-w-2xl rounded-2xl border border-border bg-background shadow-2xl animate-in slide-in-from-bottom-5 duration-300 flex flex-col"
+                    style={{
+                        height: 'calc(100vh - 15vh)',
+                        maxHeight: '85vh',
+                    }}
+                >
+                    {/* Header - Fixed */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-primary-foreground rounded-t-2xl">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-primary-foreground
-                                    flex items-center justify-center shadow-lg flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary-foreground flex items-center justify-center shadow-lg flex-shrink-0">
                                 <Image
                                     src="/favicon.ico"
                                     alt="Wadzzo Icon"
@@ -1255,7 +1619,11 @@ export default function PinAgentChat() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h1 className="text-xs font-bold tracking-tight">Wadzzo Agent</h1>
-                                <p className="text-[11px] text-white/70">AI Assistant</p>
+                                <p className="text-[11px] text-white/70">
+                                    {stage !== "idle" && stage !== "error"
+                                        ? STAGE_LABEL[stage]
+                                        : "AI Assistant"}
+                                </p>
                             </div>
                         </div>
 
@@ -1268,7 +1636,10 @@ export default function PinAgentChat() {
                                 <Trash2 className="h-4 w-4" />
                             </button>
                             <button
-                                onClick={() => { setIsMinimized(true); setIsOpen(false); }}
+                                onClick={() => {
+                                    setIsMinimized(true);
+                                    setIsOpen(false);
+                                }}
                                 title="Minimize"
                                 className="rounded-full p-2 transition-colors hover:bg-white/20"
                             >
@@ -1282,28 +1653,25 @@ export default function PinAgentChat() {
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
-                    </header>
+                    </div>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+                    {/* Messages - Scrollable */}
+                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
                         {isEmpty ? (
-                            <div className="flex flex-col items-center justify-center h-full gap-4 pb-6">
-                                <div className="text-center space-y-1.5">
-                                    <div className="text-4xl mb-2">🗺️</div>
+                            <div className="flex flex-col items-center justify-center h-full gap-4">
+                                <div className="text-center space-y-2">
+                                    <div className="text-5xl">🗺️</div>
                                     <h2 className="text-sm font-bold text-foreground">Drop pins</h2>
                                     <p className="text-muted-foreground text-xs leading-relaxed max-w-xs">
                                         Tell me what to pin and where
                                     </p>
                                 </div>
-                                <div className="w-full space-y-1.5">
+                                <div className="w-full max-w-sm space-y-2">
                                     {SUGGESTIONS.map((s) => (
                                         <button
                                             key={s}
                                             onClick={() => void sendMessage(s)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs text-left text-foreground
-                                     bg-muted border border-border
-                                     hover:border-primary/40 hover:bg-muted/80
-                                     transition-all duration-150"
+                                            className="w-full px-3 py-2.5 rounded-lg text-xs text-left text-foreground bg-muted border border-border hover:border-primary/40 hover:bg-muted/80 transition-all duration-150"
                                         >
                                             {s}
                                         </button>
@@ -1322,12 +1690,12 @@ export default function PinAgentChat() {
                                     onDismiss={handleDismiss}
                                     isDropping={isDropping}
                                     isLoading={isLoading}
+                                    onJobComplete={handleJobComplete}
                                 />
                             ))
                         )}
                         <div ref={bottomRef} />
                     </div>
-
                 </div>
             )}
         </>
