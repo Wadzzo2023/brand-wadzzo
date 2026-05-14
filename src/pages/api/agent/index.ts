@@ -176,6 +176,7 @@ Return ONLY valid JSON — no markdown, no explanation:
 RULES:
 - "pin"/"pins" = ACTION VERB, never the search subject. NEVER set query="pin" or "pins".
 - "drop N pins" with NO category → pinNumber=N, count=1, query=null
+- When count is not specified by the user (countSpecified=false), default count=200
 - N > 10 + generic category + area → count=N, pinNumber=1, countSpecified=true
 - N 2-10 + generic category, no "each" phrase → ambiguousPinIntent=true
 - Correct obvious typos: "hostipals"→"hospitals", "resturant"→"restaurant"
@@ -207,7 +208,7 @@ PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${p
     try {
         const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()) as Partial<PinIntent>;
         return {
-            count: parsed.count ?? prior?.count ?? 1,
+            count: parsed.count ?? prior?.count ?? 200,
             countSpecified: parsed.countSpecified ?? prior?.countSpecified ?? false,
             query: parsed.query ?? prior?.query ?? null,
             area: parsed.area ?? prior?.area ?? null,
@@ -219,7 +220,7 @@ PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${p
         };
     } catch {
         return {
-            count: prior?.count ?? 1,
+            count: prior?.count ?? 200,
             countSpecified: prior?.countSpecified ?? false,
             query: prior?.query ?? null,
             area: prior?.area ?? null,
@@ -278,7 +279,7 @@ DO NOT call any tools.`;
     if (ambiguous) {
         countStrategy = `PAUSED — ask clarifying question first.`;
     } else if (!countSpecified) {
-        countStrategy = `RETURN ALL locations found. Do not cap. Do not ask "how many?".`;
+        countStrategy = `RETURN up to 200 locations. Do not ask "how many?".`;
     } else if (totalCount === 1) {
         countStrategy = `Find exactly 1 location. Stop after first result.`;
     } else {

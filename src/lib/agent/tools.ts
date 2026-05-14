@@ -7,7 +7,6 @@ import type { Pin, CityDiscoveryResult } from "~/lib/agent/types";
 // ═══════════════════════════════════════════════════════════════════════════════
 // PIN STORE  (unchanged — keeps out-of-band pin state)
 // ═══════════════════════════════════════════════════════════════════════════════
-const MIN_LOCATIONS_TO_CACHE = 100;
 interface PinStoreEntry {
   pins: Pin[];
   searchType: "LANDMARK" | "EVENT";
@@ -125,37 +124,6 @@ interface RawEventResult {
   city?: string;
   url?: string;
   image?: string;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CACHE (unchanged)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-const CACHE_TTL_MS = 10 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 200;
-const cache = new Map<string, { value: unknown; expires: number }>();
-
-function evictExpired(): void {
-  const now = Date.now();
-  for (const [key, entry] of cache.entries()) {
-    if (now > entry.expires) cache.delete(key);
-  }
-  if (cache.size > MAX_CACHE_ENTRIES) {
-    const keys = Array.from(cache.keys());
-    for (let i = 0; i < cache.size - MAX_CACHE_ENTRIES; i++) cache.delete(keys[i]);
-  }
-}
-
-function getCached<T>(key: string): T | null {
-  const entry = cache.get(key);
-  if (!entry || Date.now() > entry.expires) { cache.delete(key); return null; }
-  return entry.value as T;
-}
-
-function setCached<T>(key: string, value: T): T {
-  evictExpired();
-  cache.set(key, { value, expires: Date.now() + CACHE_TTL_MS });
-  return value;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -322,10 +290,6 @@ function parseLooseJson<T>(raw: string): T | null {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function normalizeQuery(rawQuery: string): Promise<string> {
-  const cacheKey = `normalize:${rawQuery.toLowerCase().trim()}`;
-  const cached = getCached<string>(cacheKey);
-  if (cached) return cached;
-
   const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
   const res = await llm.invoke([{
     role: "user",
@@ -341,7 +305,7 @@ async function normalizeQuery(rawQuery: string): Promise<string> {
       `Return ONLY the resolved name. No explanation.`,
   }]);
   const text = typeof res.content === "string" ? res.content.trim() : rawQuery;
-  return setCached(cacheKey, text || rawQuery);
+  return text || rawQuery;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -353,9 +317,6 @@ async function geocodeRaw(
   apiKey: string
 ): Promise<{ lat: number; lng: number } | null> {
   if (!address?.trim()) return null;
-  const cacheKey = `geocode:${address.toLowerCase().trim()}`;
-  const cached = getCached<{ lat: number; lng: number }>(cacheKey);
-  if (cached) return cached;
 
   try {
     const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
@@ -365,7 +326,7 @@ async function geocodeRaw(
     const data = (await res.json()) as GeocodeResponse;
     if (data.status !== "OK" || !data.results?.[0]?.geometry?.location) return null;
     const { lat, lng } = data.results[0].geometry.location;
-    return setCached(cacheKey, { lat, lng });
+    return { lat, lng };
   } catch {
     return null;
   }
@@ -452,10 +413,6 @@ export async function smartGeocode(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function getCityBounds(area: string, apiKey: string): Promise<CityBounds | null> {
-  const cacheKey = `bounds:${area}`;
-  const cached = getCached<CityBounds>(cacheKey);
-  if (cached) return cached;
-
   try {
     const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
     url.searchParams.append("address", area);
@@ -479,7 +436,7 @@ async function getCityBounds(area: string, apiKey: string): Promise<CityBounds |
     } else {
       return null;
     }
-    return setCached(cacheKey, bounds);
+    return bounds;
   } catch {
     return null;
   }
@@ -529,10 +486,6 @@ export async function discoverCitiesForCountry(
   countryOrRegion: string,
   limit = 20
 ): Promise<string[]> {
-  const cacheKey = `cities:${countryOrRegion.toLowerCase()}:${limit}`;
-  const cached = getCached<string[]>(cacheKey);
-  if (cached) return cached;
-
   const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
   const response = await llm.invoke([{
     role: "user",
@@ -547,7 +500,7 @@ export async function discoverCitiesForCountry(
     const text = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
     const parsed = parseLooseJson<{ cities?: string[] }>(text);
     const cities = (parsed?.cities ?? []).slice(0, limit);
-    return setCached(cacheKey, cities);
+    return cities;
   } catch {
     return [];
   }
@@ -736,10 +689,6 @@ async function searchPlacesLegacyFallback(
 
 /** Combined Places search: New API first, then legacy fallback. */
 export async function searchViaGooglePlaces(query: string, area: string, count: number): Promise<Pin[]> {
-  const cacheKey = `places:${query}:${area}:${count}`;
-  const cached = getCached<Pin[]>(cacheKey);
-  if (cached) return cached;
-
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY;
   if (!apiKey) return [];
 
@@ -759,7 +708,7 @@ export async function searchViaGooglePlaces(query: string, area: string, count: 
   }
 
   const final = results.slice(0, count);
-  return setCached(cacheKey, final);
+  return final;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -840,9 +789,6 @@ export const classifyQueryTool = tool(
     console.log("[classifyQueryTool]", { query, area });
 
     const normalized = await normalizeQuery(query);
-    const cacheKey = `classify5:${normalized.toLowerCase()}:${(area ?? "").toLowerCase()}`;
-    const cached = getCached<QueryClassification>(cacheKey);
-    if (cached) return JSON.stringify({ ...cached, canonicalName: normalized });
 
     const llm = new ChatOpenAI({ model: "gpt-5.4-mini", temperature: 0 });
     const res = await llm.invoke([{
@@ -890,7 +836,6 @@ export const classifyQueryTool = tool(
       if (!parsed.countries) parsed.countries = [];
       if (!parsed.subcategories) parsed.subcategories = [];
 
-      setCached(cacheKey, parsed);
       return JSON.stringify({ ...parsed, canonicalName: normalized });
     } catch (err) {
       console.error("[classifyQueryTool] Parse error:", err);
@@ -936,10 +881,6 @@ export const classifyQueryTool = tool(
 export const backboneFetchTool = tool(
   async ({ searchQuery, query, area }): Promise<string> => {
     console.log("[backboneFetchTool]", { searchQuery, query, area });
-
-    const cacheKey = `backbone:${query.toLowerCase()}`;
-    const cached = getCached<BackboneResult>(cacheKey);
-    if (cached) return JSON.stringify(cached);
 
     const areaClause = area ? ` in ${area}` : "";
 
@@ -1015,10 +956,6 @@ export const backboneFetchTool = tool(
     );
 
     const result: BackboneResult = { locations: merged, source: null };
-
-    if (merged.length >= MIN_LOCATIONS_TO_CACHE) {
-      setCached(cacheKey, result);
-    }
 
     return JSON.stringify({
       total: merged.length,
