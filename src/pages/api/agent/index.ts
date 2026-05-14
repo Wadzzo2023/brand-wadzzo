@@ -183,12 +183,9 @@ RULES:
 - Preserve prior values unless the latest message changes them.
 
 VAGUE AREA RULE:
-If the user says any of these as the area, set area=null and areaType="unknown":
-- "anywhere", "everywhere", "any place", "wherever"
-- "around the world", "globally", "all over", "worldwide"
-- "no preference", "doesn't matter", "any location"
-These are NOT real geographic areas. They mean the user did NOT specify a location.
-Do NOT set area="anywhere" or area="everywhere" — always set area=null for these.
+If the user says "anywhere", "everywhere", "globally", "all over", "around the world":
+  → Set area="worldwide" and areaType="worldwide"
+  → These mean the user wants a global search.
 
 PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.count ?? 1}, pinNumber=${prior?.pinNumber ?? 1}, confirmed=${prior?.confirmed ?? false}`,
         },

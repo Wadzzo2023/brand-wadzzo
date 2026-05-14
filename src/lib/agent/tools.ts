@@ -1492,7 +1492,7 @@ export const ALL_TOOLS = [
   subcategoryFanoutTool,   // 7. Commercial category fan-out
   eventSearchTool,         // 8. Events
   cityDiscoveryTool,       // 9. Discover cities for broad area
-  dropPinsTool,            // 10. Persist pins
+  // dropPinsTool,            // 10. Persist pins
 ] as const;
 
 export { searchViaGooglePlaces as searchViaGooglePlacesExported };
@@ -1555,54 +1555,52 @@ After classify_query returns, follow the EXACT path for the type:
 
 ── TYPE: commercial_brand ──────────────────────────────────────────────
   Example: "KFC", "Starbucks", "Hilton", "McDonald's"
-  
+
+  IF area is missing → ask the user where (see MISSING AREA RULE)
   IF area is a specific city:
     → places_search(query, city, count)
   IF area is a country:
     → brand_country_search(query, country, count)
-  IF area is broad/worldwide:
-    → city_discovery(region) → places_search per city
-    
-  TOOLS USED: classify_query → places_search OR brand_country_search
-  TOOLS FORBIDDEN: backbone_fetch, regional_search, smart_geocode
+  IF area is "worldwide":
+    → city_discovery("worldwide") → places_search(query, city, 10) per city
 
 ── TYPE: commercial_category ───────────────────────────────────────────
   Example: "restaurants", "hospitals", "pharmacies", "hotels"
 
-  IF area is missing → ask the user (see MISSING AREA RULE below)
+  IF area is missing → ask the user where (see MISSING AREA RULE)
   IF area is a specific city or small region:
     → subcategory_fanout(query, area, subcategories, count)
-  IF area is a country or large region (e.g. "USA", "France", "Europe"):
+  IF area is a country:
     → brand_country_search(query, country, count)
-
-  TOOLS USED: classify_query → subcategory_fanout OR brand_country_search
-  TOOLS FORBIDDEN: backbone_fetch, regional_search
+  IF area is "worldwide":
+    → city_discovery("worldwide") → places_search(query, city, 10) per city
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MISSING AREA RULE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-VAGUE AREA DETECTION:
-If the user says "anywhere", "everywhere", "any place", "wherever", "around the world",
-"globally", "all over", or similar non-specific area terms:
-  → Treat as NO area specified. These are NOT real geographic areas.
-  → Do NOT pass these words as an area to any tool.
+When area is NOT specified, decide based on query type:
 
-For commercial_brand and commercial_category queries with NO area specified:
-  → Do NOT search worldwide. Do NOT call any search tools.
-  → First time asking: respond with:
-  {"type":"question","message":"Where would you like to find [query]?","fields":[{"id":"area","label":"Location","inputType":"text","placeholder":"e.g. New York, USA, London..."}]}
-  → If user replies with a vague term again (anywhere, worldwide, etc.):
-  {"type":"question","message":"I need a specific location to search — a city, state, or country. Where should I look for [query]?","fields":[{"id":"area","label":"City, state, or country","inputType":"text","placeholder":"e.g. Chicago, California, Japan..."}]}
-  
-For official_list and niche_scattered queries with NO area specified:
-  → Assume worldwide. Do NOT ask — these queries naturally span the globe.
-  → Proceed directly to backbone_fetch.
+FOR official_list / niche_scattered:
+  → Search worldwide immediately. Do NOT ask.
 
-For event queries with NO area specified:
-  → Ask the user where. Events need a city or region to search.
-  → Respond with:
-  {"type":"question","message":"Where would you like to find [query] events?","fields":[{"id":"area","label":"City or region","inputType":"text","placeholder":"e.g. New York, London, Tokyo..."}]}
+FOR commercial_brand / commercial_category:
+  → Try searching WITHOUT area first: places_search(query, "", count)
+  → Google Places can find results without an area constraint.
+  → If results come back → return them.
+  → If 0 results → THEN ask the user where.
+
+FOR event:
+  → Ask the user where. Events need a city.
+
+If the user ever says "anywhere", "worldwide", "everywhere", "globally":
+  → Treat as worldwide.
+  → For commercial_brand → city_discovery("worldwide") → places_search per city
+  → For commercial_category → city_discovery("worldwide") → places_search per city
+  → For official_list / niche_scattered → backbone_fetch with no area
+  → For event → city_discovery("worldwide") → event_search per city
+
+NEVER ask for location more than once.
 
 
 ── TYPE: event ─────────────────────────────────────────────────────────
