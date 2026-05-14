@@ -1,12 +1,30 @@
 {
     "name": "express-app",
     "version": "1.0.0",
-    "main": "server.js",
+    "main": "server.ts",
+    "type": "module",
     "scripts": {
-        "start": "node server.js",
-        "dev": "node --watch server.js"
+        "dev": "tsx watch server.ts",
+        "start": "tsx server.ts"
     },
     "dependencies": {
-        "express": "^5.1.0"
+        "@langchain/core": "^1.1.46",
+        "@langchain/openai": "^1.4.5",
+        "@prisma/client": "^5.22.0",
+        "cors": "^2.8.6",
+        "dotenv": "^17.4.2",
+        "express": "^5.1.0",
+        "langchain": "^1.4.0",
+        "p-limit": "^7.3.0",
+        "tsx": "^4.21.0",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/node": "^25.7.0",
+        "prisma": "^5.22.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^6.0.3"
     }
 }
