@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { api } from "~/utils/api";
 import type {
     ChatMessage,
@@ -1687,6 +1687,25 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
 
     const isEmpty = messages.length === 0;
 
+    const pendingAssistantResponse = useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i];
+            if (msg.role !== "assistant" || msg.content.kind !== "response") continue;
+            return msg;
+        }
+        return null;
+    }, [messages]);
+
+    const isInteractionPending = useMemo(() => {
+        if (!pendingAssistantResponse) return false;
+
+        const { data, questionAnswered, resultsConfirmed } = pendingAssistantResponse.content;
+        if (data.type === "question" && !questionAnswered) return true;
+        if (data.type === "results" && !resultsConfirmed) return true;
+        if (data.type === "confirm") return true;
+        return false;
+    }, [pendingAssistantResponse]);
+
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
@@ -1723,12 +1742,12 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask me anything..."
-                            disabled={isLoading || isDropping}
+                            disabled={isLoading || isDropping || isInteractionPending}
                             className="flex-1 rounded-full bg-white px-5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
                         />
                         <button
                             onClick={() => void sendMessage(input)}
-                            disabled={!input.trim() || isLoading}
+                            disabled={!input.trim() || isLoading || isInteractionPending}
                             className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary px-4 py-3 text-primary-foreground transition-all hover:scale-105 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                         >
                             {isLoading ? (
