@@ -1274,7 +1274,7 @@ export default function PinAgentChat({ creatorId }: { creatorId: string }) {
     const [isDropping, setIsDropping] = useState(false);
     const [currentPins, setCurrentPins] = useState<Pin[]>([]);
     const [isOpen, setIsOpen] = useState(true);
-    const [isMinimized, setIsMinimized] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(true);
 
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
