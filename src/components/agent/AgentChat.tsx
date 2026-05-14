@@ -1412,7 +1412,7 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
                 inputRef.current?.focus();
             }
         },
-        [isLoading, intent, currentPins, buildHistory, chatCreate, pollJob]
+        [isLoading, intent, currentPins, buildHistory, chatCreate, pollJob, creatorId]
     );
 
     // ── Handle question answers ───────────────────────────────────────────────
@@ -1489,7 +1489,8 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
                     pinOptions: options,
-                    pins: currentPins,  // ← add this line
+                    pins: currentPins,
+                    creatorId,
                 });
 
                 // Step 2: poll until the agent finishes (it will enqueue the QStash pin-drop job)
@@ -1565,7 +1566,7 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
                 setIsLoading(false);
             }
         },
-        [intent, currentPins, buildHistory, chatCreate, pollJob]
+        [intent, currentPins, buildHistory, chatCreate, pollJob, creatorId]
     );
 
     // ── Called when background pin-drop job finishes ──────────────────────────
@@ -1603,6 +1604,7 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
                 const { jobId } = await chatCreate.mutateAsync({
                     messages: buildHistory("Yes, confirm and drop the pins."),
                     intent: { ...intent, confirmed: true },
+                    creatorId,
                 });
 
                 await pollJob(jobId);
@@ -1649,10 +1651,10 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
                 setIsLoading(false);
             }
         },
-        [intent, currentPins, buildHistory, chatCreate, pollJob]
+        [intent, currentPins, buildHistory, chatCreate, pollJob, creatorId]
     );
 
-    // ── Dismiss ─────────────────────────────────────────��─────────────────────
+    // ── Dismiss ───────────────────────────────────────────
 
     const handleDismiss = useCallback(() => {
         void sendMessage("Cancel that, let me start over.");
