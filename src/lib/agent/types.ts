@@ -24,6 +24,19 @@ export type AgentStage =
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Pagination (shared envelope used by all paginated tools)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PaginationMeta {
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  showing: string; // e.g. "1–25 of 87"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Intent classification (from classify-intent.ts)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -167,6 +180,8 @@ export interface PinListData {
     isActive: boolean;
     drops: PinListPinRow[];
   }>;
+  // pagination added in all paginated responses
+  pagination?: PaginationMeta;
 }
 
 export interface AnalyticsData {
@@ -195,6 +210,79 @@ export interface CollectorsData {
   }>;
 }
 
+// ─── ReportData ───────────────────────────────────────────────────────────────
+// Returned when user says "generate report / pin report".
+// Combines query_analytics_summary + query_analytics_detail in one response.
+
+export interface ReportData {
+  summary: {
+    totalClaimed: number;
+    totalRedeemed: number;
+    claimRate: string;
+    redeemRate: string;
+    totalPins: number;
+    activePins: number;
+    expiredPins: number;
+    fullyClaimedPins: number;
+  };
+  topPerformers: Array<{
+    id: string;
+    title: string;
+    claimed: number;
+    limit: number;
+    remaining: number;
+    claimRate: string;
+  }>;
+  perPin: Array<{
+    id: string;
+    title: string;
+    claimed: number;
+    redeemed: number;
+    limit: number;
+    remaining: number;
+    claimRate: string;
+  }>;
+  pagination?: PaginationMeta;
+  generatedAt: string; // ISO string
+}
+
+// ─── CollectorReportData ──────────────────────────────────────────────────────
+// Returned when user says "show collection report for [email]" or
+// "show collection report" (all collectors).
+
+export interface CollectorReportData {
+  mode: "single_collector" | "all_collectors";
+
+  // mode === "single_collector"
+  collector?: {
+    name: string;
+    email: string;
+    image: string | null;
+    totalCollected: number;
+    totalRedeemed: number;
+  };
+  collections?: Array<{
+    pinId: string;
+    pinTitle: string;
+    pinStartDate: string | null;
+    pinEndDate: string | null;
+    claimedAt: string | null;
+    isRedeemed: boolean;
+  }>;
+
+  // mode === "all_collectors"
+  collectors?: Array<{
+    name: string;
+    email: string;
+    image: string | null;
+    collected: number;
+    redeemed: number;
+    lastClaimedAt: string | null;
+  }>;
+
+  pagination: PaginationMeta;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent response shapes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,9 +298,9 @@ export interface ListResponse {
   message: string;
   action: "edit" | "delete" | "pause" | "resume";
   items: {
-    id: string;           // internal id — never shown to user
-    label: string;        // "KFC Bashundhara (May 13–Apr 19)"
-    sublabel?: string;    // "created May 13 23:39" — only when needed
+    id: string;
+    label: string;
+    sublabel?: string;
     hotspotId?: string | null;
   }[];
 }
@@ -233,7 +321,6 @@ export interface ConfirmResponse {
     where: string;
     count: number;
     type: "EVENT" | "LANDMARK";
-    // management confirm extras
     action?: "edit" | "delete" | "pause" | "resume";
     targets?: string[];
     affected?: string;
@@ -247,14 +334,16 @@ export interface SuccessResponse {
   count: number;
 }
 
-// InfoResponse carries an optional `data` field for the three magic strings:
-//   message === "__PINLIST__"    → data is PinListData
-//   message === "__ANALYTICS__"  → data is AnalyticsData
-//   message === "__COLLECTORS__" → data is CollectorsData
+// InfoResponse carries an optional `data` field for magic strings:
+//   message === "__PINLIST__"          → data is PinListData
+//   message === "__ANALYTICS__"        → data is AnalyticsData
+//   message === "__COLLECTORS__"       → data is CollectorsData
+//   message === "__REPORT__"           → data is ReportData
+//   message === "__COLLECTOR_REPORT__" → data is CollectorReportData
 export interface InfoResponse {
   type: "info";
   message: string;
-  data?: PinListData | AnalyticsData | CollectorsData;
+  data?: PinListData | AnalyticsData | CollectorsData | ReportData | CollectorReportData;
 }
 
 export type AgentResponse =
@@ -362,19 +451,12 @@ export interface MgmtAnalytics {
 }
 
 export interface AgentPollResult {
-  // ── always present ──────────────────────────────
-  reply: string;        // JSON string of AgentResponse
+  reply: string;
   stage: AgentStage;
   intent: PinIntent;
-
-  // ── pin-drop flow only ──────────────────────────
   pins?: Pin[];
   pinOptions?: PinOptions;
-
-  // ── after confirmation ──────────────────────────
   jobId?: string;
-
-  // ── routing metadata ────────────────────────────
   mode?: AgentMode;
 }
 

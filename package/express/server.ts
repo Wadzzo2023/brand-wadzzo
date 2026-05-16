@@ -17,7 +17,7 @@ import {
 import {
     ALL_TOOLS,
     AGENT_SYSTEM_PROMPT
-} from "../../src/lib/agent/tools";
+} from "../../src/lib/agent/pin-drop-tools.js";
 import type { MessageRole, PinIntent, Pin, PinOptions, AgentResponse, AgentStage } from "../../src/lib/agent/types";
 
 dotenv.config({ path: "../../.env" });

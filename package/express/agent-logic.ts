@@ -8,13 +8,13 @@ import type {
     Pin,
     MessageRole,
     PinOptions,
-}  from "../../src/lib/agent/types.js";
+} from "../../src/lib/agent/types.js";
 import {
     ALL_TOOLS,
     AGENT_SYSTEM_PROMPT,
     searchViaGooglePlacesExported,
     gapFillNicheViaWebSearch,
-} from "../../src/lib/agent/tools.js";
+} from "../../src/lib/agent/pin-drop-tools.js";
 
 // ─── LangChain helpers ────────────────────────────────────────────────────────
 

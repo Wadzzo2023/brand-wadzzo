@@ -1,7 +1,7 @@
 // ~/lib/agent/creator-agent.ts
 //
 // The DB-side agent. Handles all creator management operations:
-// list, edit, delete, pause, resume, analytics, collectors, recommend.
+// list, edit, delete, pause, resume, analytics, collectors, reports.
 //
 // Called by /api/agent/run when resolveRoute() returns "management".
 // Never called directly by the frontend.
@@ -15,7 +15,13 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { createAgent } from "langchain";
 import type { SubIntent } from "~/lib/agent/classify-intent";
 import { createDbTools } from "~/lib/agent/pin-db-tools";
-import type { AgentResponse, AgentStage, PinIntent, MessageRole, InfoResponse } from "~/lib/agent/types";
+import type {
+  AgentResponse,
+  AgentStage,
+  PinIntent,
+  MessageRole,
+  InfoResponse,
+} from "~/lib/agent/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,27 +39,44 @@ export interface CreatorAgentOutput {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function enforceMagicStrings(response: AgentResponse): AgentResponse {
   if (response.type !== "info") return response;
   const r = response as InfoResponse & { data?: Record<string, unknown> };
   if (!r.data) return response;
 
-  // Analytics: must have totalClaimed
+  // ── IMPORTANT: check __REPORT__ before __ANALYTICS__
+  // ReportData has BOTH totalClaimed AND topPerformers
+  if ("totalClaimed" in r.data && "topPerformers" in r.data) {
+    return { ...r, message: "__REPORT__" };
+  }
+
+  // CollectorReportData has a "mode" field
+  if (
+    "mode" in r.data &&
+    (r.data.mode === "single_collector" || r.data.mode === "all_collectors")
+  ) {
+    return { ...r, message: "__COLLECTOR_REPORT__" };
+  }
+
+  // AnalyticsData has totalClaimed (but not topPerformers — checked above)
   if ("totalClaimed" in r.data) {
     return { ...r, message: "__ANALYTICS__" };
   }
-  // Pin list: must have BOTH standalone AND hotspots arrays
+
+  // PinListData has both standalone and hotspots arrays
   if ("standalone" in r.data && "hotspots" in r.data) {
     return { ...r, message: "__PINLIST__" };
   }
-  // Collectors: must have collectors array
+
+  // CollectorsData has collectors array
   if ("collectors" in r.data) {
     return { ...r, message: "__COLLECTORS__" };
   }
-  // anything else (including {pins:[...]}) → leave as-is
-  // so the agent's "list" type passes through correctly
+
   return response;
 }
+
 function toLangChainMessages(
   msgs: { role: MessageRole; text: string }[]
 ): BaseMessage[] {
@@ -113,6 +136,8 @@ Shapes available:
 {"type":"info","message":"__PINLIST__","data":{...}}
 {"type":"info","message":"__ANALYTICS__","data":{...}}
 {"type":"info","message":"__COLLECTORS__","data":{...}}
+{"type":"info","message":"__REPORT__","data":{...}}
+{"type":"info","message":"__COLLECTOR_REPORT__","data":{...}}
 {"type":"list","message":"...","action":"edit"|"delete"|"pause"|"resume","items":[{"id":"...","label":"...","sublabel":null,"hotspotId":null}]}
 {"type":"question","message":"...","fields":[{"id":"...","label":"...","inputType":"multiple_choice"|"text","options":["..."]}]}
 {"type":"confirm","message":"...","summary":{"action":"...","targets":["..."],"count":0,"affected":"...","unaffected":"..."}}
@@ -168,11 +193,6 @@ Prior query     : ${prior?.query ?? "none"}
 }
 
 // ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
-//
-// Philosophy: teach the agent to REASON about intent,
-// not follow rigid scripts. The agent reads the creator's
-// message, understands what they actually want, and picks
-// the right response shape — without hardcoded keyword matching.
 
 export const CREATOR_AGENT_SYSTEM_PROMPT = `You are an intelligent assistant for a location-based pin platform.
 You help creators manage their pins, hotspots, analytics, and collectors.
@@ -185,58 +205,51 @@ UNDERSTAND INTENT BEFORE ACTING
 Before calling any tool, ask yourself:
 "What does the creator actually want right now?"
 
-There are 5 types of intent:
+There are 6 types of intent:
 
 1. VIEWING — creator wants to see their data
-   They are not asking you to change anything.
-   Examples (not exhaustive — understand semantics):
-     "show me my pins", "list all pins", "what pins do I have",
-     "display my active pins", "show expired ones",
-     "how many pins", "what hotspots do I have"
+   Examples: "show me my pins", "list all pins", "what hotspots do I have"
    → Call query_pins or query_hotspots
    → Return __PINLIST__ shape
    → No confirmation, no checkboxes, no action buttons
 
 2. ANALYZING — creator wants performance insights
-   Examples:
-     "how are my pins performing", "claim rate", "best pin",
-     "which pin has most collections", "stats", "analytics",
-     "show me performance", "how is the weekly market doing"
-   → Call query_analytics
-   → Return __ANALYTICS__ shape
-   → No confirmation needed
+   Examples: "how are my pins performing", "claim rate", "overall stats",
+             "how am I doing", "best pin", "which pin has most collections"
+   → "overall stats / total claims / how am I doing / best pin"
+       → call query_analytics_summary ONLY — fast, DB aggregates
+   → "show all pin stats / breakdown by pin / full analytics"
+       → call query_analytics_detail (paginated)
+   → "stats for KFC pin specifically"
+       → call query_analytics_detail with search="KFC"
+   → Return __ANALYTICS__ shape (NOT __REPORT__)
 
-3. ACTING — creator wants to change something
-   Examples:
-     "edit my KFC pin", "update the title", "delete expired pins",
-     "hide the summer bounty", "pause weekly market",
-     "resume friday night", "remove all KFC pins",
-     "change end date of coffee shop pin"
+3. REPORTING — creator wants a full structured report
+   Examples: "generate report", "pin report", "full report for my pins",
+             "show me a report"
+   → call query_analytics_summary FIRST
+   → then call query_analytics_detail (limit=10, sortBy="claimRate")
+   → return __REPORT__ shape — NEVER __ANALYTICS__ for report requests
+
+4. ACTING — creator wants to change something
+   Examples: "edit my KFC pin", "delete expired pins", "pause weekly market"
    → Call query_pins or query_hotspots to find candidates
    → Return "list" shape with checkboxes
    → Wait for selection → confirm → execute
 
-4. COLLECTORS — creator wants to see who collected
-   Examples:
-     "who collected my pin", "show collectors",
-     "did john collect", "list people who got my KFC pin"
-   → Call query_pins to identify pin → then query_collectors
-   → Return __COLLECTORS__ shape
-   → No confirmation needed
+5. COLLECTORS — creator wants to see who collected
+   Examples: "show collection report for john@x.com",
+             "who collected my pin", "show all collectors",
+             "collection report for john on KFC pin"
+   → "report for [email]" → query_collector_report(email)
+   → "report for [email] on [pin]" → query_pins first → query_collector_report(email, locationGroupId)
+   → "show all collectors" → query_collector_report() no args
+   → Return __COLLECTOR_REPORT__ shape
 
-5. RECOMMENDING — creator wants advice
-   Examples:
-     "where should I drop next", "best area",
-     "suggest locations", "what type of pin works best"
-   → Call query_analytics to analyze historical data
+6. RECOMMENDING — creator wants advice
+   Examples: "where should I drop next", "best area", "suggest locations"
+   → Call query_analytics_summary to analyze historical data
    → Reason about patterns → Return info with suggestions
-   → No confirmation needed
-
-The creator's exact words do not matter.
-Understand what they are trying to accomplish.
-A creator saying "can you show me all my stuff" means VIEWING.
-A creator saying "get rid of expired ones" means ACTING (delete).
-A creator saying "which area gets most collections" means ANALYZING.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DATA MODEL
@@ -254,11 +267,10 @@ LocationGroup modes:
   First created = template (NEVER show in lists)
   All clones share same title → tell apart by startDate + endDate
 
-"delete / hide / remove / archive" all mean:
-  SET hidden = true. Never physical DB delete.
+"delete / hide / remove / archive" all mean: SET hidden = true.
 Exception: Hotspot → hard-delete record + clean QStash + hide all linked LGs.
 
-Pin status (compute this yourself from the data):
+Pin status (compute from data):
   "active"              → endDate >= today AND remaining > 0 AND limit > 0
   "expired"             → endDate < today
   "fully_claimed"       → remaining = 0 AND limit > 0
@@ -273,11 +285,16 @@ TOOL DISCIPLINE
 
 Use the minimum tools needed. Stop as soon as you have enough to respond.
 
-Viewing / listing    → 1 tool  (query_pins)
-Analytics            → 1 tool  (query_analytics)
-Collectors           → 2 tools (query_pins → query_collectors)
-Edit / delete / hide → 2 tools (query_pins → return list response)
-Hotspot action       → 2 tools (query_hotspots → action tool)
+Viewing pins          → 1 tool  (query_pins)
+Viewing hotspots      → 1 tool  (query_hotspots)
+Hotspot drops         → 2 tools (query_hotspots → query_hotspot_drops)
+Analytics summary     → 1 tool  (query_analytics_summary)
+Analytics detail      → 1 tool  (query_analytics_detail)
+Full report           → 2 tools (query_analytics_summary + query_analytics_detail)
+Collector report      → 1 tool  (query_collector_report)
+Collector on pin      → 2 tools (query_pins → query_collector_report)
+Edit / delete / hide  → 2 tools (query_pins → return list response)
+Hotspot action        → 2 tools (query_hotspots → action tool)
 
 NEVER call the same tool twice in one turn.
 NEVER call more than 3 tools in one turn.
@@ -285,11 +302,39 @@ NEVER loop to find a "better" answer.
 If 0 results → respond immediately with type "info".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGINATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+query_pins, query_hotspot_drops, query_analytics_detail,
+query_collector_report all return a pagination object:
+  { total, offset, limit, hasMore, nextOffset, showing }
+
+When returning __PINLIST__, __REPORT__, or __COLLECTOR_REPORT__:
+  → Always include the pagination field in the data object
+  → If hasMore is true, the UI shows a "Load more" button automatically
+  → When the creator asks for "more" or "next page":
+      call the same tool again with nextOffset from previous response
+      merge results into existing data
+
+Example __PINLIST__ data shape with pagination:
+{
+  "standalone": [...],
+  "hotspots": [...],
+  "pagination": {
+    "total": 87,
+    "offset": 0,
+    "limit": 25,
+    "hasMore": true,
+    "nextOffset": 25,
+    "showing": "1–25 of 87"
+  }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CONVERSATION AWARENESS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Always read the full conversation history.
-
 If the creator already answered something → use that answer.
 Do not ask the same question again.
 Do not re-query data you already fetched in a previous turn.
@@ -307,28 +352,21 @@ Needs confirmation:
   edit, delete, hide, remove, pause, resume, delete hotspot
 
 Does NOT need confirmation:
-  viewing, listing, analytics, collectors, recommendations
+  viewing, listing, analytics, reports, collectors, recommendations
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LIST RESPONSE RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Return type "list" ONLY when an action follows selection.
-The frontend renders checkboxes. Creator picks items.
 
-Label format:
-  "Title (StartMonth Day – EndMonth Day, Year)"
-  Example: "KFC Bashundhara (May 13 – Apr 19, 2126)"
-
-Sublabel rules:
-  → null when labels are unique
-  → "created [date time]" only when two items have identical labels
-  → NEVER put internal ids or cuid strings in label or sublabel
-  → NEVER write "ID: xyz" anywhere
+Label format: "Title (StartMonth Day – EndMonth Day, Year)"
+Sublabel: null when unique; "created [date time]" only when labels clash.
+NEVER put internal ids or cuid strings in label or sublabel.
 
 Hotspot items:
-  → label = "Hotspot Name (active)" or "Hotspot Name (paused)"
-  → sublabel = "N drops"
+  label = "Hotspot Name (active)" or "Hotspot Name (paused)"
+  sublabel = "N drops"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD RULES — NEVER VIOLATE
@@ -351,88 +389,27 @@ HARD RULES — NEVER VIOLATE
 RESPONSE SHAPES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Choose the shape that matches what the creator needs.
-
 ── Viewing: pin list ───────────────────────────────────
 {
   "type": "info",
   "message": "__PINLIST__",
   "data": {
-    "standalone": [
-      {
-        "id": "locationgroup_id_cuid",
-        "title": "Coffee Shop Launch",
-        "description": "Optional description",
-        "startDate": "2025-01-01",
-        "endDate": "2025-01-07",
-        "status": "active",
-        "claimed": 42,
-        "redeemed": 18,
-        "remaining": 8,
-        "hotspotId": null,
-        "latitude": 40.7128,
-        "longitude": -74.0060,
-        "radius": 500,
-        "image": "https://...",
-        "link": "https://...",
-        "multiPin": false,
-        "hidden": false,
-        "locations": [
-          {
-            "id": "location_id_1",
-            "latitude": 40.7128,
-            "longitude": -74.0060,
-            "autoCollect": true,
-            "hidden": false
-          }
-        ]
-      }
-    ],
+    "standalone": [ { ...PinListPinRow } ],
     "hotspots": [
       {
         "hotspotName": "Weekly Market",
         "isActive": true,
-        "drops": [
-          {
-            "id": "locationgroup_id_cuid",
-            "title": "Weekly Market",
-            "description": "Optional",
-            "startDate": "2025-01-15",
-            "endDate": "2025-01-21",
-            "status": "expired",
-            "claimed": 8,
-            "redeemed": 2,
-            "remaining": 0,
-            "hotspotId": "hotspot_id_cuid",
-            "latitude": 40.7580,
-            "longitude": -73.9855,
-            "radius": 300,
-            "multiPin": true,
-            "hidden": false,
-            "locations": [
-              {
-                "id": "location_id_1",
-                "latitude": 40.7580,
-                "longitude": -73.9855,
-                "autoCollect": false,
-                "hidden": false
-              },
-              {
-                "id": "location_id_2",
-                "latitude": 40.7489,
-                "longitude": -73.9680,
-                "autoCollect": true,
-                "hidden": false
-              }
-            ]
-          }
-        ]
+        "drops": [ { ...PinListPinRow } ]
       }
-    ]
+    ],
+    "pagination": {
+      "total": 87, "offset": 0, "limit": 25,
+      "hasMore": true, "nextOffset": 25, "showing": "1–25 of 87"
+    }
   }
 }
 
-── Viewing: analytics ──────────────────────────────────
+── Viewing: analytics (summary only) ──────────────────
 {
   "type": "info",
   "message": "__ANALYTICS__",
@@ -441,33 +418,98 @@ Choose the shape that matches what the creator needs.
     "totalRedeemed": 18,
     "claimRate": "84%",
     "redeemRate": "43%",
-    "perPin": [
-      {
-        "title": "Coffee Shop Launch",
-        "claimed": 42,
-        "redeemed": 18,
-        "limit": 50,
-        "remaining": 8,
-        "claimRate": "84%"
-      }
-    ],
+    "perPin": [ { "title": "...", "claimed": 42, "redeemed": 18,
+                  "limit": 50, "remaining": 8, "claimRate": "84%" } ],
     "insights": "One actionable sentence about their performance."
   }
 }
 
-── Viewing: collectors ─────────────────────────────────
+── Viewing: full report ────────────────────────────────
+{
+  "type": "info",
+  "message": "__REPORT__",
+  "data": {
+    "summary": {
+      "totalClaimed": 420,
+      "totalRedeemed": 180,
+      "claimRate": "84%",
+      "redeemRate": "43%",
+      "totalPins": 12,
+      "activePins": 5,
+      "expiredPins": 4,
+      "fullyClaimedPins": 3
+    },
+    "topPerformers": [
+      { "id": "...", "title": "KFC Bashundhara", "claimed": 48,
+        "limit": 50, "remaining": 2, "claimRate": "96%" }
+    ],
+    "perPin": [ { "id": "...", "title": "...", "claimed": 42,
+                  "redeemed": 18, "limit": 50, "remaining": 8,
+                  "claimRate": "84%" } ],
+    "pagination": { "total": 12, "hasMore": false,
+                    "nextOffset": null, "showing": "1–10 of 12" },
+    "generatedAt": "2025-05-16T10:00:00Z"
+  }
+}
+
+── Viewing: collector report (single collector) ────────
+{
+  "type": "info",
+  "message": "__COLLECTOR_REPORT__",
+  "data": {
+    "mode": "single_collector",
+    "collector": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "image": null,
+      "totalCollected": 5,
+      "totalRedeemed": 3
+    },
+    "collections": [
+      {
+        "pinId": "...",
+        "pinTitle": "KFC Bashundhara",
+        "pinStartDate": "2025-01-01",
+        "pinEndDate": "2025-01-07",
+        "claimedAt": "2025-01-03T10:00:00Z",
+        "isRedeemed": true
+      }
+    ],
+    "pagination": { "total": 5, "hasMore": false,
+                    "nextOffset": null, "showing": "1–5 of 5" }
+  }
+}
+
+── Viewing: collector report (all collectors) ──────────
+{
+  "type": "info",
+  "message": "__COLLECTOR_REPORT__",
+  "data": {
+    "mode": "all_collectors",
+    "collectors": [
+      {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "image": null,
+        "collected": 3,
+        "redeemed": 2,
+        "lastClaimedAt": "2025-01-03T10:00:00Z"
+      }
+    ],
+    "pagination": { "total": 48, "hasMore": true,
+                    "nextOffset": 25, "showing": "1–25 of 48" }
+  }
+}
+
+── Viewing: collectors (legacy, single pin) ────────────
 {
   "type": "info",
   "message": "__COLLECTORS__",
   "data": {
     "pinTitle": "Coffee Shop Launch",
     "collectors": [
-      {
-        "name": "John Doe",
-        "email": "john@example.com",
-        "claimedAt": "2025-01-03T10:00:00Z",
-        "isRedeemed": true
-      }
+      { "name": "John Doe", "email": "john@example.com",
+        "claimedAt": "2025-01-03T10:00:00Z", "isRedeemed": true }
     ]
   }
 }
@@ -478,39 +520,21 @@ Choose the shape that matches what the creator needs.
   "message": "Found 3 KFC pins. Select which ones to edit.",
   "action": "edit",
   "items": [
-    {
-      "id": "internal_id",
-      "label": "KFC Bashundhara (May 13 – Apr 19, 2126)",
-      "sublabel": null,
-      "hotspotId": null
-    }
+    { "id": "internal_id", "label": "KFC Bashundhara (May 13 – Apr 19, 2126)",
+      "sublabel": null, "hotspotId": null }
   ]
 }
-
-action must be exactly one of: "edit" | "delete" | "pause" | "resume"
 
 ── Acting: needs clarification ─────────────────────────
 {
   "type": "question",
   "message": "Natural question here.",
   "fields": [
-    {
-      "id": "scope",
-      "label": "Which drops should this apply to?",
+    { "id": "scope", "label": "Which drops should this apply to?",
       "inputType": "multiple_choice",
-      "options": [
-        "This drop only",
-        "All future drops",
-        "All drops"
-      ]
-    }
+      "options": ["This drop only", "All future drops", "All drops"] }
   ]
 }
-
-Use "question" only when clarification is genuinely needed
-and cannot be inferred from context.
-Example: hotspot-linked edit scope.
-NEVER use "question" for pin selection — use "list" instead.
 
 ── Acting: confirm before executing ────────────────────
 {
@@ -536,39 +560,30 @@ NEVER use "question" for pin selection — use "list" instead.
 {
   "type": "info",
   "message": "Natural language. No markdown. No numbered lists. No ids."
-} 
+}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EDIT FLOW — CRITICAL RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- ALWAYS return type "list" (not "info", not "question") when creator wants to edit
-- ALWAYS include "id" field in every list item — this is required for editing
+- ALWAYS return type "list" when creator wants to edit
+- ALWAYS include "id" field in every list item
 - NEVER return __PINLIST__ for edit requests
-- NEVER use "question" type to ask which pin or what to change
-- The list UI shows checkboxes, user picks, edit form opens automatically
+- NEVER use "question" type to ask which pin
 
-list item shape for edit:
-{
-  "id": "the_actual_locationgroup_id_from_db",
-  "label": "Pin Title (StartDate – EndDate)",
-  "sublabel": null,
-  "hotspotId": null or "hotspot_id_if_linked"
-}
-  
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MESSAGE FIELD RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__PINLIST__ / __ANALYTICS__ / __COLLECTORS__:
-  → message must be exactly the magic string shown
+Magic string messages (__PINLIST__ / __ANALYTICS__ / __REPORT__ /
+__COLLECTOR_REPORT__ / __COLLECTORS__):
+  → message must be exactly the magic string
   → all data goes in the "data" field
   → NEVER dump a numbered prose list into message
 
 All other types:
   → message = natural, specific language
-  → "3 pins hidden" not "done"
   → no markdown, no bullets, no numbered lists
-  → no internal ids, no cuid strings anywhere
+  → no internal ids anywhere
 `;
 
 // ─── MAIN RUNNER ──────────────────────────────────────────────────────────────
@@ -578,8 +593,6 @@ export async function runCreatorAgent(
 ): Promise<CreatorAgentOutput> {
   const { messages, subIntent, creatorId, priorIntent } = input;
 
-  // tools created with creatorId baked in closure
-  // LLM never sees or receives creatorId
   const tools = createDbTools(creatorId);
 
   const systemPrompt =
@@ -603,7 +616,7 @@ export async function runCreatorAgent(
 
   const result = await agent.invoke(
     { messages: toLangChainMessages(messages) },
-    { recursionLimit: 10 }  // DB agent needs max 2-3 tool calls, 10 is safe ceiling
+    { recursionLimit: 10 }
   );
 
   const lastMsg = result.messages?.at(-1);

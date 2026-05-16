@@ -30,7 +30,7 @@ import {
     clearPins,
     type QueryType,
     type NamedLocation,
-} from "~/lib/agent/tools";
+} from "~/lib/agent/pin-drop-tools";
 
 import type {
     PinIntent,
