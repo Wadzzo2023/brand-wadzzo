@@ -358,6 +358,7 @@ export const pinRouter = createTRPCRouter({
 
       await ctx.db.locationGroup.create({
         data: {
+
           creatorId: ctx.session.user.id,
           endDate: input.endDate,
           startDate: input.startDate,
@@ -368,6 +369,9 @@ export const pinRouter = createTRPCRouter({
           limit: pinCollectionLimit,
           image: input.image,
           link: input.url,
+          latitude: input.lat,
+          longitude: input.lng,
+          radius: input.radius,
           locations: {
             createMany: {
               data: locations,
@@ -444,6 +448,9 @@ export const pinRouter = createTRPCRouter({
           limit: pinCollectionLimit,
           image: input.image,
           link: input.url,
+          latitude: input.lat,
+          longitude: input.lng,
+          radius: input.radius,
           locations: {
             createMany: {
               data: locations,
@@ -2169,6 +2176,9 @@ export async function dropPinsForHotspot(db: PrismaClient, hotspotId: string) {
       image: lastGroup.image,
       link: lastGroup.link,
       type: lastGroup.type,
+      latitude: lastGroup.latitude,
+      longitude: lastGroup.longitude,
+      radius: lastGroup.radius,
       approved: true,
       privacy: lastGroup.privacy,
       multiPin: lastGroup.multiPin,

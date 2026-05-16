@@ -1,9 +1,68 @@
-// types.ts
-// ─── Shared types for the PinDrop Agent ──────────────────────────────────────
+// ~/lib/agent/types.ts
+// ─── Unified types for Pin Agent (pin-drop + management) ─────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Primitives
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type MessageRole = "user" | "assistant" | "system";
 
 export type AreaType = "city" | "region" | "country" | "worldwide" | "unknown";
+
+export type GroupingMode = "per-location" | "single-group";
+
+export type InputType = "multiple_choice" | "text" | "number";
+
+export type AgentStage =
+  | "idle"
+  | "extracting_intent"
+  | "clarifying"
+  | "searching"
+  | "confirming"
+  | "dropping_pins"
+  | "done"
+  | "error";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intent classification (from classify-intent.ts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type IntentType = "management" | "pin_drop" | "ambiguous";
+
+export type SubIntent =
+  | "edit"
+  | "delete"
+  | "pause"
+  | "resume"
+  | "list"
+  | "analytics"
+  | "collectors"
+  | "recommend"
+  | "search"
+  | "create"
+  | "unknown";
+
+export interface IntentClassification {
+  intent: IntentType;
+  confidence: number;
+  subIntent: SubIntent;
+  reasoning: string;
+  missingInfo: string | null;
+  extractedSubject: string | null;
+}
+
+export interface DbPresenceCheck {
+  found: boolean;
+  count: number;
+  sample: {
+    id: string;
+    title: string;
+    startDate: Date | null;
+    endDate: Date | null;
+  }[];
+}
+
+export type AgentMode = "management" | "pin_drop";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pin
@@ -26,8 +85,6 @@ export interface GeneratedPin {
 export interface Pin extends GeneratedPin {
   startDate: string;
   endDate: string;
-  url?: string;
-  image?: string;
   pinCollectionLimit: number;
   pinNumber: number;
   radius: number;
@@ -35,59 +92,34 @@ export interface Pin extends GeneratedPin {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pin options — chosen by the user on the results screen before confirming
+// Pin options
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type GroupingMode = "per-location" | "single-group";
-
 export interface PinOptions {
-  /** Whether pins are auto-collected on proximity. Default: false. */
   autoCollect: boolean;
-  /**
-   * "per-location" → N pins into N location groups (one group per pin).
-   * "single-group"  → N pins all share 1 location group.
-   * Default: "per-location".
-   */
   groupingMode: GroupingMode;
   pinNumber: number;
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Intent
+// Pin intent (search pipeline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PinIntent {
   query: string | null;
   area: string | null;
   count: number | null;
-  countSpecified: boolean;   // true only when user gave an explicit number
+  countSpecified: boolean;
   areaType: AreaType;
   confirmed: boolean;
-  isNiche: boolean;          // true = geocode_address path; false = places_search path
-  pinNumber?: number;         // how many pins the user wants to drop (default: 1)
-  ambiguousPinIntent: boolean; // ← new
+  isNiche: boolean;
+  pinNumber?: number;
+  ambiguousPinIntent: boolean;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AgentStage
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type AgentStage =
-  | "idle"
-  | "extracting_intent"
-  | "clarifying"
-  | "searching"
-  | "confirming"
-  | "dropping_pins"
-  | "done"
-  | "error";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clarify question
 // ─────────────────────────────────────────────────────────────────────────────
-
-export type InputType = "multiple_choice" | "text" | "number";
 
 export interface ClarifyQuestion {
   id: string;
@@ -98,38 +130,73 @@ export interface ClarifyQuestion {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// City discovery
+// Magic-string payload types (returned in InfoResponse.data)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface CityDiscoveryResult {
-  cities: string[];
+export interface PinListPinRow {
+  id: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: "active" | "expired" | "fully_claimed" | "collection_disabled";
+  claimed: number;
+  redeemed: number;
+  remaining: number;
+  hotspotId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  radius?: number | null;
+  description?: string | null;
+  image?: string | null;
+  link?: string | null;
+  multiPin?: boolean;
+  hidden?: boolean;
+  locations?: Array<{
+    id: string;
+    latitude: number;
+    longitude: number;
+    autoCollect: boolean;
+    hidden: boolean;
+  }>;
+}
+
+export interface PinListData {
+  standalone: PinListPinRow[];
+  hotspots: Array<{
+    hotspotName: string;
+    isActive: boolean;
+    drops: PinListPinRow[];
+  }>;
+}
+
+export interface AnalyticsData {
+  totalClaimed: number;
+  totalRedeemed: number;
+  claimRate: string;
+  redeemRate?: string;
+  perPin: Array<{
+    title: string;
+    claimed: number;
+    redeemed: number;
+    limit: number;
+    remaining: number;
+    claimRate: string;
+  }>;
+  insights?: string;
+}
+
+export interface CollectorsData {
+  pinTitle: string;
+  collectors: Array<{
+    name: string;
+    email: string;
+    claimedAt: string;
+    isRedeemed: boolean;
+  }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// tRPC output
-// NOTE: pins are returned here directly from the server-side pin store.
-//       They are NOT embedded in the agent's JSON text response (avoids truncation).
-//       The frontend reads pins from this field, not from AgentResponse.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface ChatCreateOutput {
-  reply: string;              // JSON string of a lightweight AgentResponse (no pins array inside)
-  stage: AgentStage;
-  intent: PinIntent;
-  questions?: ClarifyQuestion[];
-  pins?: Pin[];               // Full pin array injected server-side — not from LLM text
-  /**
-   * Present only when stage === "confirming" and agentResponse.type === "results".
-   * Contains the default PinOptions the UI should pre-select.
-   */
-  pinOptions?: PinOptions;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Structured agent response types
-//
-// IMPORTANT: ResultsResponse and ConfirmResponse no longer carry a pins array.
-// Pins travel via ChatCreateOutput.pins (server-side store), not through LLM text.
+// Agent response shapes
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface QuestionResponse {
@@ -138,11 +205,23 @@ export interface QuestionResponse {
   fields: ClarifyQuestion[];
 }
 
+export interface ListResponse {
+  type: "list";
+  message: string;
+  action: "edit" | "delete" | "pause" | "resume";
+  items: {
+    id: string;           // internal id — never shown to user
+    label: string;        // "KFC Bashundhara (May 13–Apr 19)"
+    sublabel?: string;    // "created May 13 23:39" — only when needed
+    hotspotId?: string | null;
+  }[];
+}
+
 export interface ResultsResponse {
   type: "results";
   message: string;
   searchType: "EVENT" | "LANDMARK";
-  pinCount: number;           // count only — full pins come from ChatCreateOutput.pins
+  pinCount: number;
   confirmPrompt: string;
 }
 
@@ -154,8 +233,12 @@ export interface ConfirmResponse {
     where: string;
     count: number;
     type: "EVENT" | "LANDMARK";
+    // management confirm extras
+    action?: "edit" | "delete" | "pause" | "resume";
+    targets?: string[];
+    affected?: string;
+    unaffected?: string;
   };
-  // no pins array — frontend uses locally stored pins from the results step
 }
 
 export interface SuccessResponse {
@@ -164,34 +247,151 @@ export interface SuccessResponse {
   count: number;
 }
 
+// InfoResponse carries an optional `data` field for the three magic strings:
+//   message === "__PINLIST__"    → data is PinListData
+//   message === "__ANALYTICS__"  → data is AnalyticsData
+//   message === "__COLLECTORS__" → data is CollectorsData
 export interface InfoResponse {
   type: "info";
   message: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  content: AgentResponse[];
-  createdAt: Date;
+  data?: PinListData | AnalyticsData | CollectorsData;
 }
 
 export type AgentResponse =
   | QuestionResponse
+  | ListResponse
   | ResultsResponse
   | ConfirmResponse
   | SuccessResponse
   | InfoResponse;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// tRPC output
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChatCreateOutput {
+  reply: string;
+  stage: AgentStage;
+  intent: PinIntent;
+  questions?: ClarifyQuestion[];
+  pins?: Pin[];
+  pinOptions?: PinOptions;
+  jobId?: string;
+}
+
+export interface CityDiscoveryResult {
+  cities: string[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local chat message (frontend only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LocalMessageContent =
+  | { kind: "text"; text: string }
+  | { kind: "loading"; label?: string }
+  | {
+    kind: "response";
+    data: AgentResponse;
+    pins: Pin[];
+    mode?: AgentMode;
+    questionAnswered?: boolean;
+    questionAnsweredValues?: Record<string, string>;
+    resultsConfirmed?: boolean;
+    resultsJobId?: string;
+    managementConfirmed?: boolean;
+  };
+
+export interface LocalChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: LocalMessageContent;
+  createdAt: Date;
+  mode?: AgentMode;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Management data shapes (returned inside InfoResponse for DB agent)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MgmtPin {
+  id: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  hotspotId: string | null;
+  status: "active" | "expired" | "fully_claimed" | "collection_disabled";
+  claimed: number;
+  redeemed: number;
+  limit: number;
+  remaining: number;
+  claimRate: string;
+}
+
+export interface MgmtHotspot {
+  id: string;
+  displayName: string;
+  isActive: boolean;
+  dropEveryDays: number;
+  dropCount: number;
+  qstashScheduleId: string | null;
+}
+
+export interface MgmtCollector {
+  name: string;
+  image: string | null;
+  email: string;
+  claimedAt: string;
+  isRedeemed: boolean;
+}
+
+export interface MgmtAnalytics {
+  totalClaimed: number;
+  totalRedeemed: number;
+  claimRate: string;
+  redeemRate?: string;
+  perPin: Array<{
+    id: string;
+    title: string;
+    claimed: number;
+    redeemed: number;
+    limit: number;
+    remaining: number;
+    claimRate: string;
+  }>;
+}
+
+export interface AgentPollResult {
+  // ── always present ──────────────────────────────
+  reply: string;        // JSON string of AgentResponse
+  stage: AgentStage;
+  intent: PinIntent;
+
+  // ── pin-drop flow only ──────────────────────────
+  pins?: Pin[];
+  pinOptions?: PinOptions;
+
+  // ── after confirmation ──────────────────────────
+  jobId?: string;
+
+  // ── routing metadata ────────────────────────────
+  mode?: AgentMode;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Type guards
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isQuestionResponse = (r: AgentResponse): r is QuestionResponse => r.type === "question";
-export const isResultsResponse = (r: AgentResponse): r is ResultsResponse => r.type === "results";
-export const isConfirmResponse = (r: AgentResponse): r is ConfirmResponse => r.type === "confirm";
-export const isSuccessResponse = (r: AgentResponse): r is SuccessResponse => r.type === "success";
-export const isInfoResponse = (r: AgentResponse): r is InfoResponse => r.type === "info";
+export const isQuestionResponse = (r: AgentResponse): r is QuestionResponse =>
+  r.type === "question";
+export const isResultsResponse = (r: AgentResponse): r is ResultsResponse =>
+  r.type === "results";
+export const isConfirmResponse = (r: AgentResponse): r is ConfirmResponse =>
+  r.type === "confirm";
+export const isSuccessResponse = (r: AgentResponse): r is SuccessResponse =>
+  r.type === "success";
+export const isInfoResponse = (r: AgentResponse): r is InfoResponse =>
+  r.type === "info";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser
@@ -200,7 +400,10 @@ export const isInfoResponse = (r: AgentResponse): r is InfoResponse => r.type ==
 export function parseAgentResponse(raw: string): AgentResponse {
   try {
     const clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-    const parsed = JSON.parse(clean) as AgentResponse;
+    const start = clean.indexOf("{");
+    const end = clean.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON found");
+    const parsed = JSON.parse(clean.slice(start, end + 1)) as AgentResponse;
     if (!parsed.type) throw new Error("Missing type field");
     return parsed;
   } catch (err) {
@@ -208,3 +411,18 @@ export function parseAgentResponse(raw: string): AgentResponse {
     return { type: "info", message: raw };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stage labels (shared)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const STAGE_LABEL: Record<AgentStage, string> = {
+  idle: "",
+  extracting_intent: "Understanding request…",
+  clarifying: "",
+  searching: "Searching for places…",
+  confirming: "Ready to drop pins",
+  dropping_pins: "Dropping pins…",
+  done: "All done!",
+  error: "Something went wrong",
+};
