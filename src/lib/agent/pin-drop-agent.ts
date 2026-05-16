@@ -180,7 +180,10 @@ VAGUE AREA RULE:
 If the user says "anywhere", "everywhere", "globally", "all over", "around the world":
   → Set area="worldwide" and areaType="worldwide"
 
-PRIOR: query=${prior?.query ?? "null"}, area=${prior?.area ?? "null"}, count=${prior?.count ?? 1}, pinNumber=${prior?.pinNumber ?? 1}, confirmed=${prior?.confirmed ?? false}`,
+AREA RESET RULE:
+- If the new query is clearly a DIFFERENT topic from the prior query → reset area to null
+- Only preserve area if the user is refining/continuing the same search
+- "thomas dambo trolls" is a different topic from "music events" → reset area`
         },
         { role: "user", content: convo },
     ]);

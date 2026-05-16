@@ -51,6 +51,9 @@ interface AgentRunPayload {
     pinOptions: PinOptions | null;
     creatorId: string;
     pins?: Pin[];
+    loadMore?: boolean;           // ← add
+    loadMoreOffset?: number;      // ← add
+    loadMoreType?: string;        // ← add
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -92,7 +95,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(200).json({ ok: false, error: "Invalid payload" });
     }
 
-    const { messages, intent, pinOptions, creatorId, pins } = payload;
+    const { messages, intent, pinOptions, creatorId, pins, loadMore, loadMoreOffset, loadMoreType } = payload;
 
     // ── run pipeline ──────────────────────────────────────────────────────────
     try {
@@ -102,6 +105,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             pinOptions,
             creatorId,
             pins,
+            loadMore,
+            loadMoreOffset,
+            loadMoreType,
         });
 
         await db.agentJob.update({
@@ -130,58 +136,39 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 // Everything else (handler, config, types) is unchanged.
 
 async function runAgentPipeline(payload: AgentRunPayload): Promise<object> {
-    const { messages, intent, pinOptions, creatorId, pins } = payload;
+    const { messages, intent, pinOptions, creatorId, pins, loadMore, loadMoreOffset, loadMoreType } = payload;
 
-    console.log("[runAgentPipeline] Start", {
-        creatorId,
-        messageCount: messages.length,
-        hasPinOptions: !!pinOptions,
-        hasPins: !!pins?.length,
-    });
+
 
     // ── STEP 1: ROUTE ─────────────────────────────────────────────────────────
-    //
-    // resolveRoute() runs two cheap operations:
-    //   1. classifyIntent()  — dedicated LLM call (~200ms)
-    //   2. dbPresenceCheck() — single Prisma query (only when needed)
-    //
-    // Returns one of three decisions:
-    //   { route: "management" }
-    //   { route: "pin_drop"   }
-    //   { route: "clarify"    }
-
     const decision = await resolveRoute(messages, creatorId, intent);
 
-    console.log("[runAgentPipeline] Route decision:", {
-        route: decision.route,
-        intent: decision.classification.intent,
-        confidence: decision.classification.confidence,
-        subIntent: decision.classification.subIntent,
-        subject: decision.classification.extractedSubject,
-        ...(decision.route === "clarify" && { reason: decision.reason }),
-    });
 
-    // ── STEP 2: EXECUTE ───────────────────────────────────────────────────────
 
-    // ── MANAGEMENT ───────────────────────────────────────────────────────────
+    // ── MANAGEMENT ────────────────────────────────────────────────────────────
     if (decision.route === "management") {
+        console.log(`[decision.route: management] [runAgentPipeline] Running creator agent`);
         const result = await runCreatorAgent({
             messages,
-            subIntent: decision.classification.subIntent,
             creatorId,
             priorIntent: intent,
+            loadMore: loadMore ?? false,
+            loadMoreOffset,
+            loadMoreType,
         });
 
         return {
             reply: result.reply,
             stage: result.stage,
             intent: result.intent,
-            // pins / pinOptions / jobId not present for management
+            mode: "management",
+            pins: [],
         };
     }
 
-    // ── PIN DROP ─────────────────────────────────────────────────────────────
+    // ── PIN DROP ──────────────────────────────────────────────────────────────
     if (decision.route === "pin_drop") {
+        console.log(`[decision.route: pin_drop] [runAgentPipeline] Running pin drop agent with intent: ${decision.classification.intent}`);
         const result = await runPinDropAgent({
             messages,
             intent,
@@ -200,23 +187,15 @@ async function runAgentPipeline(payload: AgentRunPayload): Promise<object> {
         };
     }
 
-    // ── CLARIFY ──────────────────────────────────────────────────────────────
-    // Route could not be determined confidently.
-    // buildClarificationResponse() generates a targeted question
-    // based on WHY the route was unclear:
-    //   "db_conflict"    — creator already has matching pins
-    //   "ambiguous"      — intent unclear from message
-    //   "low_confidence" — classifier not confident enough
-
+    // ── CLARIFY ───────────────────────────────────────────────────────────────
     const clarification = buildClarificationResponse(decision);
 
-    console.log("[runAgentPipeline] Clarification needed:", {
+    console.log(`[decision.route: ${decision.route}] [runAgentPipeline] Clarification needed:`, {
         reason: decision.reason,
         subject: decision.classification.extractedSubject,
         message: clarification.message,
     });
 
-    // preserve prior intent so conversation context is not lost
     const preservedIntent: PinIntent = {
         count: intent?.count ?? 0,
         countSpecified: intent?.countSpecified ?? false,
@@ -235,5 +214,4 @@ async function runAgentPipeline(payload: AgentRunPayload): Promise<object> {
         intent: preservedIntent,
     };
 }
-
 export default verifySignature(handler);

@@ -1,17 +1,20 @@
 // ~/lib/agent/types.ts
 // ─── Unified types for Pin Agent (pin-drop + management) ─────────────────────
 
+import { z } from "zod";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitives
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type MessageRole = "user" | "assistant" | "system";
-
 export type AreaType = "city" | "region" | "country" | "worldwide" | "unknown";
-
 export type GroupingMode = "per-location" | "single-group";
-
 export type InputType = "multiple_choice" | "text" | "number";
+export type AgentMode = "management" | "pin_drop";
+export type IntentType = "management" | "pin_drop" | "ambiguous";
+export type PinListMode = "view" | "edit" | "delete";
+export type HotspotListMode = "view" | "edit" | "delete" | "pause" | "resume";
 
 export type AgentStage =
   | "idle"
@@ -23,42 +26,154 @@ export type AgentStage =
   | "done"
   | "error";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pagination (shared envelope used by all paginated tools)
-// ─────────────────────────────────────────────────────────────────────────────
 
-export interface PaginationMeta {
-  total: number;
-  offset: number;
-  limit: number;
-  hasMore: boolean;
-  nextOffset: number | null;
-  showing: string; // e.g. "1–25 of 87"
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Intent classification (from classify-intent.ts)
+// Zod schemas — source of truth for all management response shapes
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type IntentType = "management" | "pin_drop" | "ambiguous";
+export const PaginationSchema = z.object({
+  total: z.number(),
+  offset: z.number(),
+  limit: z.number(),
+  hasMore: z.boolean(),
+  nextOffset: z.number().nullable(),
+  showing: z.string(),
+});
 
-export type SubIntent =
-  | "edit"
-  | "delete"
-  | "pause"
-  | "resume"
-  | "list"
-  | "analytics"
-  | "collectors"
-  | "recommend"
-  | "search"
-  | "create"
-  | "unknown";
+export const LocationSchema = z.object({
+  id: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  autoCollect: z.boolean(),
+  hidden: z.boolean(),
+});
+
+export const PinRowSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  status: z.enum(["active", "expired", "fully_claimed", "collection_disabled"]),
+  claimed: z.number(),
+  redeemed: z.number(),
+  remaining: z.number(),
+  hotspotId: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  radius: z.number().nullable().optional(),
+  description: z.string().nullable().optional(),
+  image: z.string().nullable().optional(),
+  link: z.string().nullable().optional(),
+  multiPin: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  locations: z.array(LocationSchema).optional(),
+});
+
+export const HotspotLocationGroupSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  status: z.enum(["active", "expired", "fully_claimed", "collection_disabled"]),
+  claimed: z.number(),
+  redeemed: z.number(),
+  remaining: z.number(),
+  locations: z.array(LocationSchema),
+});
+
+export const HotspotRowSchema = z.object({
+  id: z.string(),
+  hotspotName: z.string(),
+  isActive: z.boolean(),
+  dropEveryDays: z.number().nullable(),
+  dropCount: z.number(),
+  locationGroups: z.array(HotspotLocationGroupSchema),
+});
+
+export const PerPinStatSchema = z.object({
+  id: z.string().optional(),
+  title: z.string(),
+  claimed: z.number(),
+  redeemed: z.number(),
+  limit: z.number(),
+  remaining: z.number(),
+  claimRate: z.string(),
+});
+
+export const TopPerformerSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  claimed: z.number(),
+  limit: z.number(),
+  remaining: z.number(),
+  claimRate: z.string(),
+});
+
+export const ReportSummarySchema = z.object({
+  totalClaimed: z.number(),
+  totalRedeemed: z.number(),
+  claimRate: z.string(),
+  redeemRate: z.string(),
+  totalPins: z.number(),
+  activePins: z.number(),
+  expiredPins: z.number(),
+  fullyClaimedPins: z.number(),
+});
+
+export const CollectorProfileSchema = z.object({
+  name: z.string(),
+  email: z.string(),
+  image: z.string().nullable(),
+  totalCollected: z.number(),
+  totalRedeemed: z.number(),
+});
+
+export const CollectionSchema = z.object({
+  pinId: z.string(),
+  pinTitle: z.string(),
+  pinStartDate: z.string().nullable(),
+  pinEndDate: z.string().nullable(),
+  claimedAt: z.string().nullable(),
+  isRedeemed: z.boolean(),
+});
+
+export const CollectorSummarySchema = z.object({
+  name: z.string(),
+  email: z.string(),
+  image: z.string().nullable(),
+  collected: z.number(),
+  redeemed: z.number(),
+  lastClaimedAt: z.string().nullable(),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Derived types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PaginationMeta = z.infer<typeof PaginationSchema>;
+export type LocationRow = z.infer<typeof LocationSchema>;
+export type PinListPinRow = z.infer<typeof PinRowSchema>;
+export type HotspotLocationGroup = z.infer<typeof HotspotLocationGroupSchema>;
+export type HotspotRow = z.infer<typeof HotspotRowSchema>;
+export type PerPinStat = z.infer<typeof PerPinStatSchema>;
+export type TopPerformer = z.infer<typeof TopPerformerSchema>;
+export type ReportSummary = z.infer<typeof ReportSummarySchema>;
+export type CollectorProfile = z.infer<typeof CollectorProfileSchema>;
+export type Collection = z.infer<typeof CollectionSchema>;
+export type CollectorSummary = z.infer<typeof CollectorSummarySchema>;
+export type PinListData = PinListResponse["data"];
+export type HotspotListData = HotspotListResponse["data"];
+export type AnalyticsData = AnalyticsResponse["data"];
+export type ReportData = ReportResponse["data"];
+export type CollectorReportData = CollectorReportResponse["data"];
+// ─────────────────────────────────────────────────────────────────────────────
+// Intent
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface IntentClassification {
   intent: IntentType;
   confidence: number;
-  subIntent: SubIntent;
   reasoning: string;
   missingInfo: string | null;
   extractedSubject: string | null;
@@ -67,15 +182,23 @@ export interface IntentClassification {
 export interface DbPresenceCheck {
   found: boolean;
   count: number;
-  sample: {
-    id: string;
-    title: string;
-    startDate: Date | null;
-    endDate: Date | null;
-  }[];
+  sample: { id: string; title: string; startDate: Date | null; endDate: Date | null }[];
 }
 
-export type AgentMode = "management" | "pin_drop";
+export interface PinIntent {
+  query: string | null;
+  area: string | null;
+  count: number | null;
+  countSpecified: boolean;
+  areaType: AreaType;
+  confirmed: boolean;
+  isNiche: boolean;
+  pinNumber?: number;
+  ambiguousPinIntent: boolean;
+  lastPinFilter?: "all" | "active" | "expired" | "fully_claimed" | "collection_disabled";
+  lastPinSearch?: string | null;
+  lastPinArea?: string | null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pin
@@ -104,30 +227,10 @@ export interface Pin extends GeneratedPin {
   autoCollect: boolean;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pin options
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface PinOptions {
   autoCollect: boolean;
   groupingMode: GroupingMode;
   pinNumber: number;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Pin intent (search pipeline)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface PinIntent {
-  query: string | null;
-  area: string | null;
-  count: number | null;
-  countSpecified: boolean;
-  areaType: AreaType;
-  confirmed: boolean;
-  isNiche: boolean;
-  pinNumber?: number;
-  ambiguousPinIntent: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,168 +246,72 @@ export interface ClarifyQuestion {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Magic-string payload types (returned in InfoResponse.data)
+// Agent response shapes
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface PinListPinRow {
-  id: string;
-  title: string;
-  startDate: string | null;
-  endDate: string | null;
-  status: "active" | "expired" | "fully_claimed" | "collection_disabled";
-  claimed: number;
-  redeemed: number;
-  remaining: number;
-  hotspotId?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  radius?: number | null;
-  description?: string | null;
-  image?: string | null;
-  link?: string | null;
-  multiPin?: boolean;
-  hidden?: boolean;
-  locations?: Array<{
-    id: string;
-    latitude: number;
-    longitude: number;
-    autoCollect: boolean;
-    hidden: boolean;
-  }>;
+export interface PinListResponse {
+  type: "pin_list";
+  mode: PinListMode;
+  data: {
+    standalone: PinListPinRow[];
+    hotspots: HotspotRow[];
+    pagination: PaginationMeta;
+  };
 }
 
-export interface PinListData {
-  standalone: PinListPinRow[];
-  hotspots: Array<{
-    hotspotName: string;
-    isActive: boolean;
-    drops: PinListPinRow[];
-  }>;
-  // pagination added in all paginated responses
-  pagination?: PaginationMeta;
+export interface HotspotListResponse {
+  type: "hotspot_list";
+  mode: HotspotListMode;
+  data: {
+    hotspots: HotspotRow[];
+    pagination: PaginationMeta;
+  };
 }
 
-export interface AnalyticsData {
-  totalClaimed: number;
-  totalRedeemed: number;
-  claimRate: string;
-  redeemRate?: string;
-  perPin: Array<{
-    title: string;
-    claimed: number;
-    redeemed: number;
-    limit: number;
-    remaining: number;
-    claimRate: string;
-  }>;
-  insights?: string;
-}
-
-export interface CollectorsData {
-  pinTitle: string;
-  collectors: Array<{
-    name: string;
-    email: string;
-    claimedAt: string;
-    isRedeemed: boolean;
-  }>;
-}
-
-// ─── ReportData ───────────────────────────────────────────────────────────────
-// Returned when user says "generate report / pin report".
-// Combines query_analytics_summary + query_analytics_detail in one response.
-
-export interface ReportData {
-  summary: {
+export interface AnalyticsResponse {
+  type: "analytics";
+  data: {
     totalClaimed: number;
     totalRedeemed: number;
     claimRate: string;
     redeemRate: string;
-    totalPins: number;
-    activePins: number;
-    expiredPins: number;
-    fullyClaimedPins: number;
+    perPin: PerPinStat[];
+    insights: string | null;
   };
-  topPerformers: Array<{
-    id: string;
-    title: string;
-    claimed: number;
-    limit: number;
-    remaining: number;
-    claimRate: string;
-  }>;
-  perPin: Array<{
-    id: string;
-    title: string;
-    claimed: number;
-    redeemed: number;
-    limit: number;
-    remaining: number;
-    claimRate: string;
-  }>;
-  pagination?: PaginationMeta;
-  generatedAt: string; // ISO string
 }
 
-// ─── CollectorReportData ──────────────────────────────────────────────────────
-// Returned when user says "show collection report for [email]" or
-// "show collection report" (all collectors).
-
-export interface CollectorReportData {
-  mode: "single_collector" | "all_collectors";
-
-  // mode === "single_collector"
-  collector?: {
-    name: string;
-    email: string;
-    image: string | null;
-    totalCollected: number;
-    totalRedeemed: number;
+export interface ReportResponse {
+  type: "report";
+  data: {
+    summary: ReportSummary;
+    topPerformers: TopPerformer[];
+    perPin: PerPinStat[];
+    pagination: PaginationMeta;
+    generatedAt: string;
   };
-  collections?: Array<{
-    pinId: string;
-    pinTitle: string;
-    pinStartDate: string | null;
-    pinEndDate: string | null;
-    claimedAt: string | null;
-    isRedeemed: boolean;
-  }>;
-
-  // mode === "all_collectors"
-  collectors?: Array<{
-    name: string;
-    email: string;
-    image: string | null;
-    collected: number;
-    redeemed: number;
-    lastClaimedAt: string | null;
-  }>;
-
-  pagination: PaginationMeta;
+}
+export interface InfoResponse {
+  type: "info";
+  message: string;
+  data?: Record<string, unknown>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Agent response shapes
-// ─────────────────────────────────────────────────────────────────────────────
+export interface CollectorReportResponse {
+  type: "collector_report";
+  data: {
+    mode: "single_collector" | "all_collectors";
+    collector?: CollectorProfile;
+    collections?: Collection[];
+    collectors?: CollectorSummary[];
+    pagination: PaginationMeta;
+  };
+}
 
 export interface QuestionResponse {
   type: "question";
   message: string;
   fields: ClarifyQuestion[];
 }
-
-export interface ListResponse {
-  type: "list";
-  message: string;
-  action: "edit" | "delete" | "pause" | "resume";
-  items: {
-    id: string;
-    label: string;
-    sublabel?: string;
-    hotspotId?: string | null;
-  }[];
-}
-
 export interface ResultsResponse {
   type: "results";
   message: string;
@@ -317,14 +324,11 @@ export interface ConfirmResponse {
   type: "confirm";
   message: string;
   summary: {
-    what: string;
-    where: string;
-    count: number;
-    type: "EVENT" | "LANDMARK";
-    action?: "edit" | "delete" | "pause" | "resume";
-    targets?: string[];
-    affected?: string;
-    unaffected?: string;
+    action: "edit" | "delete" | "pause" | "resume" | null;
+    targets: string[] | null;
+    count: number | null;
+    affected: string | null;
+    unaffected: string | null;
   };
 }
 
@@ -334,28 +338,21 @@ export interface SuccessResponse {
   count: number;
 }
 
-// InfoResponse carries an optional `data` field for magic strings:
-//   message === "__PINLIST__"          → data is PinListData
-//   message === "__ANALYTICS__"        → data is AnalyticsData
-//   message === "__COLLECTORS__"       → data is CollectorsData
-//   message === "__REPORT__"           → data is ReportData
-//   message === "__COLLECTOR_REPORT__" → data is CollectorReportData
-export interface InfoResponse {
-  type: "info";
-  message: string;
-  data?: PinListData | AnalyticsData | CollectorsData | ReportData | CollectorReportData;
-}
-
 export type AgentResponse =
+  | PinListResponse
+  | HotspotListResponse
+  | AnalyticsResponse
+  | ReportResponse
+  | CollectorReportResponse
   | QuestionResponse
-  | ListResponse
-  | ResultsResponse
   | ConfirmResponse
   | SuccessResponse
-  | InfoResponse;
+  | ResultsResponse
+  | InfoResponse
+  ;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// tRPC output
+// tRPC / poll output
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ChatCreateOutput {
@@ -366,6 +363,16 @@ export interface ChatCreateOutput {
   pins?: Pin[];
   pinOptions?: PinOptions;
   jobId?: string;
+}
+
+export interface AgentPollResult {
+  reply: string;
+  stage: AgentStage;
+  intent: PinIntent;
+  pins?: Pin[];
+  pinOptions?: PinOptions;
+  jobId?: string;
+  mode?: AgentMode;
 }
 
 export interface CityDiscoveryResult {
@@ -400,80 +407,17 @@ export interface LocalChatMessage {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Management data shapes (returned inside InfoResponse for DB agent)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface MgmtPin {
-  id: string;
-  title: string;
-  startDate: string | null;
-  endDate: string | null;
-  hotspotId: string | null;
-  status: "active" | "expired" | "fully_claimed" | "collection_disabled";
-  claimed: number;
-  redeemed: number;
-  limit: number;
-  remaining: number;
-  claimRate: string;
-}
-
-export interface MgmtHotspot {
-  id: string;
-  displayName: string;
-  isActive: boolean;
-  dropEveryDays: number;
-  dropCount: number;
-  qstashScheduleId: string | null;
-}
-
-export interface MgmtCollector {
-  name: string;
-  image: string | null;
-  email: string;
-  claimedAt: string;
-  isRedeemed: boolean;
-}
-
-export interface MgmtAnalytics {
-  totalClaimed: number;
-  totalRedeemed: number;
-  claimRate: string;
-  redeemRate?: string;
-  perPin: Array<{
-    id: string;
-    title: string;
-    claimed: number;
-    redeemed: number;
-    limit: number;
-    remaining: number;
-    claimRate: string;
-  }>;
-}
-
-export interface AgentPollResult {
-  reply: string;
-  stage: AgentStage;
-  intent: PinIntent;
-  pins?: Pin[];
-  pinOptions?: PinOptions;
-  jobId?: string;
-  mode?: AgentMode;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Type guards
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isQuestionResponse = (r: AgentResponse): r is QuestionResponse =>
-  r.type === "question";
-export const isResultsResponse = (r: AgentResponse): r is ResultsResponse =>
-  r.type === "results";
-export const isConfirmResponse = (r: AgentResponse): r is ConfirmResponse =>
-  r.type === "confirm";
-export const isSuccessResponse = (r: AgentResponse): r is SuccessResponse =>
-  r.type === "success";
-export const isInfoResponse = (r: AgentResponse): r is InfoResponse =>
-  r.type === "info";
+export const isPinListResponse = (r: AgentResponse): r is PinListResponse => r.type === "pin_list";
+export const isHotspotListResponse = (r: AgentResponse): r is HotspotListResponse => r.type === "hotspot_list";
+export const isAnalyticsResponse = (r: AgentResponse): r is AnalyticsResponse => r.type === "analytics";
+export const isReportResponse = (r: AgentResponse): r is ReportResponse => r.type === "report";
+export const isCollectorReportResponse = (r: AgentResponse): r is CollectorReportResponse => r.type === "collector_report";
+export const isQuestionResponse = (r: AgentResponse): r is QuestionResponse => r.type === "question";
+export const isConfirmResponse = (r: AgentResponse): r is ConfirmResponse => r.type === "confirm";
+export const isSuccessResponse = (r: AgentResponse): r is SuccessResponse => r.type === "success";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser
@@ -490,12 +434,16 @@ export function parseAgentResponse(raw: string): AgentResponse {
     return parsed;
   } catch (err) {
     console.error("[parseAgentResponse] Failed to parse:", err);
-    return { type: "info", message: raw };
+    return {
+      type: "pin_list",
+      mode: "view",
+      data: { standalone: [], hotspots: [], pagination: { total: 0, offset: 0, limit: 10, hasMore: false, nextOffset: null, showing: "0–0 of 0" } },
+    };
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stage labels (shared)
+// Stage labels
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STAGE_LABEL: Record<AgentStage, string> = {

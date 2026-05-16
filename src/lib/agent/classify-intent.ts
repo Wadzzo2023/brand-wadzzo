@@ -15,25 +15,11 @@ import type { PinIntent } from "~/lib/agent/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type SubIntent =
-    | "edit"
-    | "delete"
-    | "pause"
-    | "resume"
-    | "list"
-    | "analytics"
-    | "collectors"
-    | "recommend"
-    | "search"
-    | "create"
-    | "unknown";
-
 export type IntentType = "management" | "pin_drop" | "ambiguous";
 
 export interface IntentClassification {
     intent: IntentType;
     confidence: number;          // 0.0 – 1.0
-    subIntent: SubIntent;
     reasoning: string;           // one sentence why
     missingInfo: string | null;  // what is missing to be certain
     extractedSubject: string | null; // the THING mentioned (e.g. "thomas dambo trolls")
@@ -126,7 +112,7 @@ A CREATOR can do exactly two things:
 HARD CLASSIFICATION RULES:
 - "my pins / my hotspot / my analytics" → management, high confidence
 - external brand/place + area, no possessive → pin_drop, high confidence
-- "delete / hide / edit / pause / resume" → management subIntent
+- "delete / hide / edit / pause / resume" → management, high confidence
 - "find / search / drop pins at [external thing]" → pin_drop
 - verb missing entirely → ambiguous, low confidence
 - subject missing entirely → ambiguous, missingInfo = "missing WHAT"
@@ -135,16 +121,6 @@ HARD CLASSIFICATION RULES:
     if prior turn was management and follow-up is "what about X" → management
 - typos do NOT lower confidence — understand semantically
 - NEVER classify based on tone alone
-
-SUB-INTENT RULES (management only):
-- show / list / display → "list"
-- edit / update / change / rename / set → "edit"
-- delete / hide / remove / archive → "delete"
-- pause → "pause"
-- resume → "unpause" → "resume"
-- analytics / performance / stats / rate → "analytics"
-- who collected / collectors → "collectors"
-- where should I drop / recommend → "recommend"
 
 EXTRACTED SUBJECT:
 - The THING being talked about (not the action, not "pins")
@@ -160,7 +136,6 @@ Return ONLY valid JSON — no markdown, no explanation:
 {
   "intent": "management" | "pin_drop" | "ambiguous",
   "confidence": 0.0 to 1.0,
-  "subIntent": "edit" | "delete" | "pause" | "resume" | "list" | "analytics" | "collectors" | "recommend" | "search" | "create" | "unknown",
   "reasoning": "one sentence",
   "missingInfo": "what is missing to be certain, or null",
   "extractedSubject": "the thing being searched or acted on, or null"
@@ -182,7 +157,6 @@ Return ONLY valid JSON — no markdown, no explanation:
         return {
             intent: "ambiguous",
             confidence: 0.0,
-            subIntent: "unknown",
             reasoning: "Could not parse classifier response",
             missingInfo: "Unable to determine intent",
             extractedSubject: null,
@@ -192,15 +166,12 @@ Return ONLY valid JSON — no markdown, no explanation:
     // clamp confidence to valid range
     parsed.confidence = Math.max(0, Math.min(1, parsed.confidence ?? 0));
 
-    // enforce subIntent default
-    if (!parsed.subIntent) parsed.subIntent = "unknown";
     if (!parsed.extractedSubject) parsed.extractedSubject = null;
     if (!parsed.missingInfo) parsed.missingInfo = null;
 
     console.log("[classifyIntent]", {
         intent: parsed.intent,
         confidence: parsed.confidence,
-        subIntent: parsed.subIntent,
         extractedSubject: parsed.extractedSubject,
         reasoning: parsed.reasoning,
     });

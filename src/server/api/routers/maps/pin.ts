@@ -176,6 +176,9 @@ export const pinRouter = createTRPCRouter({
               multiPin: input.multiPin,
               assetId,
               pageAsset,
+              latitude: 0,
+              longitude: 0,
+              radius: 0,
               limit: pinCollectionLimit,
               remaining: pinCollectionLimit,
               subscriptionId: tierId,
@@ -812,7 +815,11 @@ export const pinRouter = createTRPCRouter({
       where: { approved: { equals: true }, endDate: { gte: new Date() }, hidden: false },
       include: {
         creator: { select: { name: true, id: true } },
-        locations: true,
+        locations: {
+          where: {
+            hidden: false,
+          }
+        },
       },
       orderBy: { createdAt: "desc" },
     });
