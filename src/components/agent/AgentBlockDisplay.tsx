@@ -766,6 +766,7 @@ function AgentResponseBlock({
     isDropping, isLoading,
     questionAnswered, questionAnsweredValues,
     resultsConfirmed, resultsJobId,
+    onViewLocationCollectors,  // ← ADD
     onJobComplete,
     onListConfirm, onListDismiss,
 }: {
@@ -784,6 +785,7 @@ function AgentResponseBlock({
     onDeleteHotspot?: (hotspotId: string) => void;
     onPauseHotspot?: (hotspotId: string) => void;
     onResumeHotspot?: (hotspotId: string) => void;
+    onViewLocationCollectors: (locationId: string) => void;
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
     isDropping: boolean;
@@ -884,6 +886,8 @@ function AgentResponseBlock({
                         onResumeHotspot={onResumeHotspot}
                         onLoadMore={onLoadMore}
                         isLoadingMore={isLoadingMore}
+                        onViewLocationCollectors={onViewLocationCollectors}  // ← ADD
+
                     />
                 </div>
             );
@@ -901,6 +905,7 @@ function MessageBubble({
     onLoadMore, isLoadingMore,
     isDropping, isLoading,
     onJobComplete, onListConfirm, onListDismiss,
+    onViewLocationCollectors,
 }: {
     msg: LocalChatMessage;
     intent: PinIntent;
@@ -915,6 +920,7 @@ function MessageBubble({
     onDeleteHotspot?: (hotspotId: string) => void;
     onPauseHotspot?: (hotspotId: string) => void;
     onResumeHotspot?: (hotspotId: string) => void;
+    onViewLocationCollectors: (locationId: string) => void;
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
     isDropping: boolean;
@@ -962,6 +968,7 @@ function MessageBubble({
                         onDeleteHotspot={onDeleteHotspot}
                         onPauseHotspot={onPauseHotspot}
                         onResumeHotspot={onResumeHotspot}
+                        onViewLocationCollectors={onViewLocationCollectors}
                         onLoadMore={onLoadMore}
                         isLoadingMore={isLoadingMore}
                         isDropping={isDropping}
@@ -1017,6 +1024,7 @@ export interface AgentBlockDisplayProps {
     onDeleteHotspot?: (hotspotId: string) => void;
     onPauseHotspot?: (hotspotId: string) => void;
     onResumeHotspot?: (hotspotId: string) => void;
+    onViewLocationCollectors: (locationId: string) => void;  // ← ADD
     onLoadMore?: (nextOffset: number) => void;
     onJobComplete: (count: number) => void;
     onListConfirm: (msgId: string, selectedIds: string[]) => void;
@@ -1037,6 +1045,7 @@ export default function AgentBlockDisplay({
     onPauseHotspot, onResumeHotspot,
     onLoadMore, onJobComplete,
     onListConfirm, onListDismiss,
+    onViewLocationCollectors,
     onKeyDown, inputRef,
 }: AgentBlockDisplayProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -1186,6 +1195,7 @@ export default function AgentBlockDisplay({
                                     onDeleteHotspot={onDeleteHotspot}
                                     onPauseHotspot={onPauseHotspot}
                                     onResumeHotspot={onResumeHotspot}
+                                    onViewLocationCollectors={onViewLocationCollectors}
                                     onLoadMore={onLoadMore}
                                     isLoadingMore={isLoadingMore}
                                     onConfirmWithOptions={onConfirmWithOptions}

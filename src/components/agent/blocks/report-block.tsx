@@ -31,7 +31,7 @@ export function ReportBlock({
 }) {
     const [sortCol, setSortCol] = useState<SortCol>("claimRate");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-
+    console.log("ReportBlock data:", data);
     // ── Sorting ──────────────────────────────────────────────────────────────
     const sorted = [...(data.perPin ?? [])].sort((a, b) => {
         const parse = (v: string | number) =>

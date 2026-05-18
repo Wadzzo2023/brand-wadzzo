@@ -30,7 +30,7 @@ import {
     buildClarificationResponse,
 } from "~/lib/agent/classify-intent";
 
-import { runCreatorAgent } from "~/lib/agent/creator-agent";
+import { runCreatorAgent } from "~/lib/agent/pin-manage-agent";
 import { runPinDropAgent } from "~/lib/agent/pin-drop-agent";
 
 import type { PinIntent, MessageRole, PinOptions, Pin } from "~/lib/agent/types";

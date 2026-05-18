@@ -46,7 +46,11 @@ export const agentRouter = createTRPCRouter({
         pins: z.array(z.any()).optional(),
         loadMore: z.boolean().optional(),
         loadMoreOffset: z.number().int().min(0).optional(),
-        loadMoreType: z.enum(["pin_list", "report", "collector_report"]).optional(),
+        loadMoreType: z.enum(["pin_list",
+          "report",
+          "collector_report",
+          "collector_loyalty",
+          "location_collectors"]).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {

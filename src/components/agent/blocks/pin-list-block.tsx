@@ -12,8 +12,14 @@ import type { PinListData } from "~/lib/agent/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface GeoContext {
+    area: string;
+    radiusKm: number;
+}
+
 interface PinListBlockProps {
     data: PinListData;
+    geoContext?: GeoContext;                    // ← NEW
     onEdit?: (ids: string[], fields: PinEditFields, scope?: HotspotScope, locationEdits?: Record<string, LocationEditFields>) => void;
     onDelete?: (ids: string[]) => void;
     onPauseHotspot?: (hotspotId: string) => void;
@@ -28,6 +34,7 @@ interface PinListBlockProps {
 
 export function PinListBlock({
     data,
+    geoContext,                                // ← NEW
     onEdit, onDelete,
     onPauseHotspot, onResumeHotspot, onEditHotspot, onDeleteHotspot,
     onLoadMore, isLoadingMore,
@@ -132,6 +139,19 @@ export function PinListBlock({
     return (
         <>
             <div className="flex flex-col gap-3">
+
+                {/* ── Geo context header ── NEW ─────────────────────────────── */}
+                {geoContext && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border/50">
+                        <span className="text-base">🌍</span>
+                        <span className="text-[12px] font-semibold text-foreground">
+                            {geoContext.area}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                            within {geoContext.radiusKm} km
+                        </span>
+                    </div>
+                )}
 
                 {selectedIds.size > 1 && (
                     <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25">
