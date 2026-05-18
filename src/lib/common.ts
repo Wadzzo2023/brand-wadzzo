@@ -1,4 +1,4 @@
 
 import { env } from "~/env";
 
-export const BASE_URL = "https://funnier-jeni-qualmishly.ngrok-free.dev";
+export const BASE_URL = "https://brand.wadzzo.com";
