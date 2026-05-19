@@ -37,6 +37,7 @@ interface InfoBlockProps {
     onDropHere?: (area: string) => void;
     // send arbitrary message (used for recommendation → pin drop)
     onSendMessage?: (text: string) => void;
+    isSlate?: boolean;  // whether this block is rendered in a "slate" style (used for all but the last block in a message)
 }
 
 // ─── InfoBlock ────────────────────────────────────────────────────────────────
@@ -47,8 +48,9 @@ export function InfoBlock({
     onLoadMore, isLoadingMore,
     onViewLocationCollectors,
     onDropHere, onSendMessage,
+    isSlate = false,
 }: InfoBlockProps) {
-
+    console.log("Rendering InfoBlock with data:", data.type);
     switch (data.type) {
 
         // ── Pin list (standalone + hotspot grouped) ───────────────────────────
@@ -72,6 +74,7 @@ export function InfoBlock({
                     onResumeHotspot={onResumeHotspot}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 
@@ -88,6 +91,7 @@ export function InfoBlock({
                     onResumeHotspot={onResumeHotspot}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 
@@ -102,6 +106,7 @@ export function InfoBlock({
                     data={data.data}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 
@@ -137,6 +142,7 @@ export function InfoBlock({
                     data={data.data}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 
@@ -147,6 +153,7 @@ export function InfoBlock({
                     data={data.data}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 
@@ -157,6 +164,7 @@ export function InfoBlock({
                     data={data.data}
                     onLoadMore={onLoadMore}
                     isLoadingMore={isLoadingMore}
+                    isSlate={isSlate}
                 />
             );
 

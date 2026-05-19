@@ -16,6 +16,7 @@ interface HotspotListBlockProps {
     onDeleteHotspot?: (hotspotId: string) => void;
     onPauseHotspot?: (hotspotId: string) => void;
     onResumeHotspot?: (hotspotId: string) => void;
+    isSlate?: boolean;  // whether this block is rendered in a "slate" style (used for all but the last block in a message)
 }
 
 // ─── HotspotListBlock ─────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ export function HotspotListBlock({
     hotspots,
     onEdit, onDelete,
     onEditHotspot, onDeleteHotspot, onPauseHotspot, onResumeHotspot,
+    isSlate = false,
 }: HotspotListBlockProps) {
     if (hotspots.length === 0) return null;
 
@@ -41,6 +43,7 @@ export function HotspotListBlock({
                         onDeleteHotspot={onDeleteHotspot}
                         onPauseHotspot={onPauseHotspot}
                         onResumeHotspot={onResumeHotspot}
+                        isSlate={isSlate}
                     />
                 ))}
             </div>

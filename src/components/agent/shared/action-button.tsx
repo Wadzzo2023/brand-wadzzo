@@ -10,10 +10,11 @@ interface ActionButtonsProps {
     onResume?: () => void;
     isActive?: boolean;   // controls Pause vs Resume
     size?: "sm" | "xs";
+    isSlate?: boolean;  // whether this button group is rendered in a "slate" style (used for all but the last block in a message)
 }
 
 export function ActionButtons({
-    onEdit, onDelete, onPause, onResume, isActive, size = "sm",
+    onEdit, onDelete, onPause, onResume, isActive, size = "sm", isSlate = false,
 }: ActionButtonsProps) {
     const cls = size === "xs"
         ? "h-6 px-2 text-[10px] gap-1"
@@ -26,6 +27,7 @@ export function ActionButtons({
                     variant="outline"
                     size="sm"
                     onClick={onEdit}
+                    disabled={isSlate}
                     className={`${cls} font-semibold`}
                 >
                     <Pencil className="w-3 h-3" />
@@ -39,6 +41,7 @@ export function ActionButtons({
                         variant="outline"
                         size="sm"
                         onClick={onPause}
+                        disabled={isSlate}
                         className={`${cls} font-semibold text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:border-amber-500/50`}
                     >
                         <PauseCircle className="w-3 h-3" />
@@ -49,6 +52,7 @@ export function ActionButtons({
                         variant="outline"
                         size="sm"
                         onClick={onResume}
+                        disabled={isSlate}
                         className={`${cls} font-semibold text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/50`}
                     >
                         <PlayCircle className="w-3 h-3" />
@@ -61,6 +65,7 @@ export function ActionButtons({
                 <Button
                     variant="outline"
                     size="sm"
+                    disabled={isSlate}
                     onClick={onDelete}
                     className={`${cls} font-semibold text-red-400 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50`}
                 >

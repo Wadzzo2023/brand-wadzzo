@@ -20,6 +20,7 @@ interface HotspotTileProps {
     onDeleteHotspot?: (hotspotId: string) => void;
     onPauseHotspot?: (hotspotId: string) => void;
     onResumeHotspot?: (hotspotId: string) => void;
+    isSlate?: boolean;  // whether this tile is rendered in a "slate" style (used for all but the last tile in a message)
 }
 
 // ─── Helper — map HotspotLocationGroup to PinRowData ─────────────────────────
@@ -44,6 +45,7 @@ export function HotspotTile({
     hotspot,
     onEditPin, onDeletePin,
     onEditHotspot, onDeleteHotspot, onPauseHotspot, onResumeHotspot,
+    isSlate = false,
 }: HotspotTileProps) {
     const [expanded, setExpanded] = useState(false);
     const [editingHotspot, setEditingHotspot] = useState(false);
@@ -136,6 +138,7 @@ export function HotspotTile({
                         onResume={onResumeHotspot ? () => onResumeHotspot(hotspot.id) : undefined}
                         isActive={hotspot.isActive}
                         size="xs"
+                        isSlate={isSlate}
                     />
                 </div>
 

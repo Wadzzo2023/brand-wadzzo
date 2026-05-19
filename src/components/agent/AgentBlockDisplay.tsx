@@ -757,6 +757,7 @@ function AgentResponseBlock({
     onViewLocationCollectors,  // ← ADD
     onJobComplete,
     onListConfirm, onListDismiss,
+    isSlate,
 }: {
     response: AgentResponse;
     pins: Pin[];
@@ -785,6 +786,7 @@ function AgentResponseBlock({
     onJobComplete: (count: number) => void;
     onListConfirm: (selectedIds: string[]) => void;
     onListDismiss: () => void;
+    isSlate?: boolean;
 }) {
     switch (response.type) {
 
@@ -875,6 +877,7 @@ function AgentResponseBlock({
                         onLoadMore={onLoadMore}
                         isLoadingMore={isLoadingMore}
                         onViewLocationCollectors={onViewLocationCollectors}  // ← ADD
+                        isSlate={isSlate}
 
                     />
                 </div>
@@ -894,6 +897,7 @@ function MessageBubble({
     isDropping, isLoading,
     onJobComplete, onListConfirm, onListDismiss,
     onViewLocationCollectors,
+    isSlate
 }: {
     msg: LocalChatMessage;
     intent: PinIntent;
@@ -916,6 +920,7 @@ function MessageBubble({
     onJobComplete: (count: number) => void;
     onListConfirm: (msgId: string, selectedIds: string[]) => void;
     onListDismiss: () => void;
+    isSlate: boolean;
 }) {
     const isUser = msg.role === "user";
 
@@ -968,6 +973,7 @@ function MessageBubble({
                         onJobComplete={onJobComplete}
                         onListConfirm={(ids) => onListConfirm(msg.id, ids)}
                         onListDismiss={onListDismiss}
+                        isSlate={isSlate}
                     />
                 )}
             </div>
@@ -1036,6 +1042,7 @@ export default function AgentBlockDisplay({
     onViewLocationCollectors,
     onKeyDown, inputRef,
 }: AgentBlockDisplayProps) {
+    const isSlate = false;
     const bottomRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1171,32 +1178,38 @@ export default function AgentBlockDisplay({
                                 </div>
                             </div>
                         ) : (
-                            messages.map((msg) => (
-                                <MessageBubble
-                                    key={msg.id}
-                                    msg={msg}
-                                    intent={intent}
-                                    onAnswer={onAnswer}
-                                    onEdit={onEdit}
-                                    onDelete={onDelete}
-                                    onEditHotspot={onEditHotspot}
-                                    onDeleteHotspot={onDeleteHotspot}
-                                    onPauseHotspot={onPauseHotspot}
-                                    onResumeHotspot={onResumeHotspot}
-                                    onViewLocationCollectors={onViewLocationCollectors}
-                                    onLoadMore={onLoadMore}
-                                    isLoadingMore={isLoadingMore}
-                                    onConfirmWithOptions={onConfirmWithOptions}
-                                    onConfirmPins={onConfirmPins}
-                                    onConfirmManagement={handleConfirmManagement}
-                                    onDismiss={onDismiss}
-                                    isDropping={isDropping}
-                                    isLoading={isLoading}
-                                    onJobComplete={onJobComplete}
-                                    onListConfirm={onListConfirm}
-                                    onListDismiss={onListDismiss}
-                                />
-                            ))
+                            messages.map((msg, idx) => {
+                                console.log("Rendering message", idx < messages.length - 1);
+                                return (
+
+                                    <MessageBubble
+                                        key={msg.id}
+                                        msg={msg}
+                                        intent={intent}
+                                        onAnswer={onAnswer}
+                                        onEdit={onEdit}
+                                        onDelete={onDelete}
+                                        onEditHotspot={onEditHotspot}
+                                        onDeleteHotspot={onDeleteHotspot}
+                                        onPauseHotspot={onPauseHotspot}
+                                        onResumeHotspot={onResumeHotspot}
+                                        onViewLocationCollectors={onViewLocationCollectors}
+                                        onLoadMore={onLoadMore}
+                                        isLoadingMore={isLoadingMore}
+                                        onConfirmWithOptions={onConfirmWithOptions}
+                                        onConfirmPins={onConfirmPins}
+                                        onConfirmManagement={handleConfirmManagement}
+                                        onDismiss={onDismiss}
+                                        isDropping={isDropping}
+                                        isLoading={isLoading}
+                                        onJobComplete={onJobComplete}
+                                        onListConfirm={onListConfirm}
+                                        onListDismiss={onListDismiss}
+                                        isSlate={idx < messages.length - 1}
+                                    />
+
+                                )
+                            })
                         )}
                         <div ref={bottomRef} />
                     </div>

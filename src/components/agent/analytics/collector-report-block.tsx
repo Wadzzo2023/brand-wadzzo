@@ -13,10 +13,12 @@ export function CollectorReportBlock({
     data,
     onLoadMore,
     isLoadingMore,
+    isSlate = false,
 }: {
     data: CollectorReportData;
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
+    isSlate?: boolean;
 }) {
 
     // ── Single collector ───────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ export function CollectorReportBlock({
                             onLoadMore={onLoadMore ?? (() => undefined)}
                             isLoading={isLoadingMore ?? false}
                             entityLabel="collections"
+                            isSlate={isSlate}
                         />
                     </div>
                 )}
@@ -206,6 +209,7 @@ export function CollectorReportBlock({
                 onLoadMore={onLoadMore ?? (() => undefined)}
                 isLoading={isLoadingMore ?? false}
                 entityLabel="collectors"
+                isSlate={isSlate}
             />
         </div>
     );

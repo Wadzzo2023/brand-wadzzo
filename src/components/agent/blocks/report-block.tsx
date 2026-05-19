@@ -18,10 +18,12 @@ export function ReportBlock({
     data,
     onLoadMore,
     isLoadingMore,
+    isSlate = false,
 }: {
     data: ReportData;
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
+    isSlate?: boolean;  // whether this block is rendered in a "slate" style (used for all but the last block in a message)
 }) {
     const [sortCol, setSortCol] = useState<SortCol>("claimRate");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -256,6 +258,7 @@ export function ReportBlock({
                         onLoadMore={onLoadMore ?? (() => undefined)}
                         isLoading={isLoadingMore ?? false}
                         entityLabel="pins"
+                        isSlate={isSlate}
                     />
                 </div>
             )}

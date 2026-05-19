@@ -34,6 +34,7 @@ interface PinRowProps {
     indent?: boolean;
     isSelected?: boolean;
     isEditing?: boolean;
+    isSlate?: boolean;
     onToggleSelect?: (id: string) => void;
     onEdit?: (pin: PinRowData) => void;
     onDelete?: (pin: PinRowData) => void;
@@ -41,16 +42,20 @@ interface PinRowProps {
 
 // ─── Checkbox ─────────────────────────────────────────────────────────────────
 
-function Checkbox({ checked, onChange, color = "primary" }: {
+function Checkbox({ checked, onChange, color = "primary", isSlate }: {
     checked: boolean;
     onChange: () => void;
     color?: "primary" | "red";
+    disabled?: boolean;
+    isSlate?: boolean;
 }) {
     return (
         <button
+            disabled={isSlate}
             onClick={onChange}
             className={cn(
                 "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                isSlate && "cursor-not-allowed border-muted-foreground/30 bg-transparent",
                 checked
                     ? color === "red"
                         ? "bg-red-500 border-red-500"
@@ -71,7 +76,7 @@ function Checkbox({ checked, onChange, color = "primary" }: {
 // ─── PinRow ───────────────────────────────────────────────────────────────────
 
 export function PinRow({
-    pin, mode, indent = false,
+    pin, mode, indent = false, isSlate = false,
     isSelected = false, isEditing = false,
     onToggleSelect, onEdit, onDelete,
 }: PinRowProps) {
@@ -93,6 +98,7 @@ export function PinRow({
                     {showCheckbox && (
                         <Checkbox
                             checked={isSelected}
+                            isSlate={isSlate}
                             onChange={() => onToggleSelect?.(pin.id)}
                             color={mode === "delete" ? "red" : "primary"}
                         />
@@ -121,6 +127,7 @@ export function PinRow({
                         <ActionButtons
                             onEdit={onEdit ? () => onEdit(pin) : undefined}
                             onDelete={onDelete ? () => onDelete(pin) : undefined}
+                            isSlate={isSlate}
                         />
                         {pin.hotspotId && (
                             <span className="text-[10px] text-blue-400 ml-auto">🔁 hotspot</span>

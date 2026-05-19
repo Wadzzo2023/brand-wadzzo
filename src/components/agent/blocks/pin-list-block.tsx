@@ -28,6 +28,7 @@ interface PinListBlockProps {
     onDeleteHotspot?: (hotspotId: string) => void;
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
+    isSlate?: boolean;  // whether this block is rendered in a "slate" style (used for all but the last block in a message)
 }
 
 // ─── PinListBlock ─────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ export function PinListBlock({
     geoContext,                                // ← NEW
     onEdit, onDelete,
     onPauseHotspot, onResumeHotspot, onEditHotspot, onDeleteHotspot,
-    onLoadMore, isLoadingMore,
+    onLoadMore, isLoadingMore, isSlate,
 }: PinListBlockProps) {
     const [editingPin, setEditingPin] = useState<PinRowData | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,12 +103,13 @@ export function PinListBlock({
         }
     };
 
-    const renderPinWithForm = (pin: PinRowData, indent = false) => (
+    const renderPinWithForm = (pin: PinRowData, indent = false, isSlate = false) => (
         <div key={pin.id} className="flex flex-col gap-1.5">
             <PinRow
                 pin={pin}
                 mode="edit"
                 indent={indent}
+                isSlate={isSlate}
                 isSelected={selectedIds.has(pin.id)}
                 isEditing={editingPin?.id === pin.id}
                 onToggleSelect={toggleSelect}
@@ -174,7 +176,7 @@ export function PinListBlock({
                     <section className="flex flex-col gap-2">
                         <SectionHeader label="Standalone" count={standalone.length} icon="📍" />
                         <div className="flex flex-col gap-2">
-                            {standalone.map(pin => renderPinWithForm(pin, false))}
+                            {standalone.map(pin => renderPinWithForm(pin, false, isSlate))}
                         </div>
                     </section>
                 )}
@@ -188,6 +190,7 @@ export function PinListBlock({
                         onResumeHotspot={onResumeHotspot}
                         onEditHotspot={onEditHotspot}
                         onDeleteHotspot={onDeleteHotspot}
+                        isSlate={isSlate}
                     />
                 )}
 
@@ -197,6 +200,7 @@ export function PinListBlock({
                         onLoadMore={onLoadMore}
                         isLoading={isLoadingMore ?? false}
                         entityLabel="pins"
+                        isSlate={isSlate}
                     />
                 )}
             </div>

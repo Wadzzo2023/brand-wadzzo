@@ -10,9 +10,10 @@ interface Props {
     data: LocationCollectorsResponse["data"];
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
+    isSlate?: boolean;
 }
 
-export function LocationCollectorsBlock({ data, onLoadMore, isLoadingMore }: Props) {
+export function LocationCollectorsBlock({ data, onLoadMore, isLoadingMore, isSlate }: Props) {
     const { pinTitle, totalClaimed, totalRedeemed, collectors, pagination } = data;
 
     const redeemRate = totalClaimed > 0
@@ -111,6 +112,7 @@ export function LocationCollectorsBlock({ data, onLoadMore, isLoadingMore }: Pro
                 onLoadMore={onLoadMore ?? (() => undefined)}
                 isLoading={isLoadingMore ?? false}
                 entityLabel="collectors"
+                isSlate={isSlate}
             />
         </div>
     );

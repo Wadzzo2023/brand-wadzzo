@@ -69,6 +69,8 @@ function DatePickerField({ label, value, onChange }: {
                         selected={date}
                         onSelect={(d) => { if (d) { onChange(d.toISOString()); setOpen(false); } }}
                         initialFocus
+                        today={undefined}
+
                     />
                 </PopoverContent>
             </Popover>

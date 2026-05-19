@@ -9,10 +9,12 @@ interface PaginationFooterProps {
     onLoadMore: (nextOffset: number) => void;
     isLoading: boolean;
     entityLabel?: string;
+    isSlate?: boolean;  // whether this block is rendered in a "slate" style (used for all but the last block in a message)
 }
 
 export function PaginationFooter({
     pagination, onLoadMore, isLoading, entityLabel = "items",
+    isSlate = false
 }: PaginationFooterProps) {
     if (!pagination) return null;
 
@@ -29,7 +31,7 @@ export function PaginationFooter({
                 <Button
                     variant="outline"
                     size="sm"
-                    disabled={isLoading}
+                    disabled={isLoading || isSlate}
                     onClick={() => onLoadMore(pagination.nextOffset!)}
                     className="w-full h-9 text-xs font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10"
                 >

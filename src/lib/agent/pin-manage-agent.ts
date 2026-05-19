@@ -853,6 +853,7 @@ ACTING RULE — NEVER ASK "WHICH PIN?"
 
 When user wants to edit, delete, pause, or resume:
   → Query immediately, return the list, let the UI handle selection.
+  → For requests like "edit my [pin name]", search by the pin name and return type="pin_list" with mode="edit".
   → NEVER ask "which pin?" before querying.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -891,6 +892,10 @@ EDIT FLOW
 
 "SYSTEM: locationGroupIds=abc,def action=delete":
   → delete_pins([ids]) → confirm → success
+
+For direct pin-name edit requests like "edit my Los Amigos pin":
+  → query_pins(search="Los Amigos") → return pin_list mode=edit
+  → let the UI handle selection after the list is returned
 
 "SYSTEM: hotspotId=xxx action=edit":
   → show scope question first: "this drop only / all future drops / all drops"

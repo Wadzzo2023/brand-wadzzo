@@ -9,6 +9,7 @@ interface Props {
     data: CollectorLoyaltyResponse["data"];
     onLoadMore?: (nextOffset: number) => void;
     isLoadingMore?: boolean;
+    isSlate?: boolean;
 }
 
 type Segment = "champions" | "collectorsOnly" | "atRisk" | "newThisWeek";
@@ -52,7 +53,7 @@ function CollectorCard({ c }: { c: CollectorLoyalty }) {
     );
 }
 
-export function CollectorLoyaltyBlock({ data, onLoadMore, isLoadingMore }: Props) {
+export function CollectorLoyaltyBlock({ data, onLoadMore, isLoadingMore, isSlate }: Props) {
     const [activeTab, setActiveTab] = useState<Segment>("champions");
 
     const segments = data.segments;
@@ -130,6 +131,7 @@ export function CollectorLoyaltyBlock({ data, onLoadMore, isLoadingMore }: Props
                 onLoadMore={onLoadMore ?? (() => undefined)}
                 isLoading={isLoadingMore ?? false}
                 entityLabel="collectors"
+                isSlate={isSlate}
             />
         </div>
     );
