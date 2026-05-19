@@ -1,9 +1,5 @@
 "use client";
 
-// area-recommendation-block.tsx
-// Drop area recommendations — combines creator's historical data + live web search.
-// "Suggest best drop areas in Dhaka"
-
 import { cn, fmt } from "~/lib/utils";
 import type { AreaRecommendationResponse } from "~/lib/agent/types";
 

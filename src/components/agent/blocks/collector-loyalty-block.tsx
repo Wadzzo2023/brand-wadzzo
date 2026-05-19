@@ -1,9 +1,5 @@
 "use client";
 
-// collector-loyalty-block.tsx
-// Collector loyalty segments: champion, collector_only, at_risk, new.
-// "Who are my most loyal collectors?"
-
 import { useState } from "react";
 import { cn, fmt } from "~/lib/utils";
 import { PaginationFooter } from "~/components/agent/shared/pagination-footer";

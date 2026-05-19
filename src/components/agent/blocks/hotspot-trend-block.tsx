@@ -1,9 +1,5 @@
 "use client";
 
-// hotspot-trend-block.tsx
-// Per-drop claim rate trend for a hotspot.
-// Shows: sparkline bar chart, trend badge, peak drop, insight.
-
 import { cn, fmt } from "~/lib/utils";
 import type { HotspotTrendResponse } from "~/lib/agent/types";
 

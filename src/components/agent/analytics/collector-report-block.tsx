@@ -1,12 +1,5 @@
 "use client";
 
-// ~/components/agent/analytics/CollectorReportBlock.tsx
-//
-// Renders the __COLLECTOR_REPORT__ magic string payload.
-// Two modes:
-//   single_collector → profile card + stats + collections list
-//   all_collectors   → paginated list of collectors
-
 import { cn } from "~/lib/utils";
 import { SectionHeader } from "~/components/agent/shared/section-header";
 import { MetricCard } from "~/components/agent/shared/metric-card";

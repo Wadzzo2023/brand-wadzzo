@@ -1,10 +1,5 @@
 "use client";
 
-// ~/components/agent/analytics/AnalyticsBlock.tsx
-//
-// Renders the __ANALYTICS__ magic string payload.
-// Shows aggregate metrics + per-pin breakdown + insights string.
-
 import { SectionHeader } from "~/components/agent/shared/section-header";
 import { MetricCard } from "~/components/agent/shared/metric-card";
 import { Stat } from "~/components/agent/shared/stat";

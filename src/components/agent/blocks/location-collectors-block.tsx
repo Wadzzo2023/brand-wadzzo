@@ -1,9 +1,5 @@
 "use client";
 
-// location-collectors-block.tsx
-// Level 3 drill-down — full paginated collector list for one specific location point.
-// Triggered when creator expands a location in the UI.
-
 import { cn, fmt } from "~/lib/utils";
 import { SectionHeader } from "~/components/agent/shared/section-header";
 import { MetricCard } from "~/components/agent/shared/metric-card";

@@ -1,9 +1,5 @@
 "use client";
 
-// info-block.tsx
-// Router — dispatches every management AgentResponse type to the correct block.
-// Zero business logic here; just a type switch.
-
 import { PinListBlock } from "~/components/agent/blocks/pin-list-block";
 import { AnalyticsBlock } from "~/components/agent/analytics/analytics-block";
 import { ReportBlock } from "~/components/agent/blocks/report-block";

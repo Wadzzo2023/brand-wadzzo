@@ -1,11 +1,5 @@
 "use client";
 
-// ~/components/agent/analytics/ReportBlock.tsx
-//
-// Renders the __REPORT__ magic string payload.
-// Sections: summary cards, status breakdown bar,
-// top performers, sortable per-pin table, load-more.
-
 import { useState } from "react";
 import { cn } from "~/lib/utils";
 import { SectionHeader } from "~/components/agent/shared/section-header";

@@ -1,17 +1,5 @@
 "use client";
 
-// ~/components/agent/AgentBlockDisplay.tsx
-//
-// Layout shell — renders the chat bubble UI and routes each message
-// to the correct block component.  Contains ZERO business logic;
-// all state lives in AgentChat.tsx.
-//
-// Blocks that are NOT touched (per spec):
-//   QuestionBlock, JobProgressBar, ResultsConfirmPanel,
-//   PinCard, ResultsBlock, PinDropConfirmBlock
-// These are still inlined here because they are tightly coupled
-// to the pin-drop flow which is out of scope for this rewrite.
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {

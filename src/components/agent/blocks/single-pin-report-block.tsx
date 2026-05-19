@@ -1,9 +1,5 @@
 "use client";
 
-// single-pin-report-block.tsx
-// Deep analysis for one specific pin.
-// Shows: stats, view funnel, per-location breakdown (Level 2), top collectors.
-
 import { cn, fmt } from "~/lib/utils";
 import { SectionHeader } from "~/components/agent/shared/section-header";
 import { MetricCard } from "~/components/agent/shared/metric-card";

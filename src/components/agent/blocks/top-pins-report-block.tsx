@@ -1,9 +1,5 @@
 "use client";
 
-// top-pins-report-block.tsx
-// Ranked top N pins — each with stats, location breakdown, and top 5 collectors.
-// "Show me top 5 pins with details and locations and collection report"
-
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn, fmt } from "~/lib/utils";

@@ -1,11 +1,5 @@
 "use client";
 
-// ~/components/agent/blocks/SuccessBlock.tsx
-//
-// Renders a green success banner.
-// Kept as its own file so blocks/InfoBlock.tsx doesn't need to
-// inline presentation logic.
-
 import type { SuccessResponse } from "~/lib/agent/types";
 
 // ─── SuccessBlock ─────────────────────────────────────────────────────────────

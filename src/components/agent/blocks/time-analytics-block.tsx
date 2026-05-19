@@ -1,9 +1,5 @@
 "use client";
 
-// time-analytics-block.tsx
-// Best day/hour, claims by day of week, claims by hour, redemption lag, view funnel.
-// "When do my pins perform best?"
-
 import { cn } from "~/lib/utils";
 import { MetricCard } from "~/components/agent/shared/metric-card";
 import type { TimeAnalyticsResponse } from "~/lib/agent/types";

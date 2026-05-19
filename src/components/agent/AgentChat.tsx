@@ -1,9 +1,5 @@
 "use client";
 
-// AgentChat.tsx
-// Orchestration only — all state, polling, and event handlers.
-// Zero UI. All rendering delegated to AgentBlockDisplay.
-
 import { useState, useRef, useCallback, useMemo } from "react";
 import { api } from "~/utils/api";
 import { parseAgentResponse } from "~/lib/agent/types";

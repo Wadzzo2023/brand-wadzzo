@@ -1,9 +1,5 @@
 "use client";
 
-// pin-type-analytics-block.tsx
-// Performance breakdown by PinType — EVENT, LANDMARK, BOUNTY, etc.
-// "Do EVENT pins perform better?"
-
 import { cn } from "~/lib/utils";
 import type { PinTypeAnalyticsResponse } from "~/lib/agent/types";
 

@@ -1,13 +1,5 @@
 "use client";
 
-// ~/components/agent/hotspots/HotspotDropRow.tsx
-//
-// A single drop (LocationGroup) rendered inside a HotspotTile.
-// Thin wrapper around PinRow — adds the inline edit form panel
-// when this drop is the one being edited.
-// Kept separate so HotspotTile stays clean and HotspotDropRow
-// can evolve independently (e.g. location-level expand).
-
 import { PinRow, type PinRowData, type PinRowMode } from "~/components/agent/pins/pin-row";
 import { PinEditForm, type PinEditFields, type HotspotScope, type LocationEditFields, type PinData } from "~/components/agent/pins/pin-edit-form";
 
