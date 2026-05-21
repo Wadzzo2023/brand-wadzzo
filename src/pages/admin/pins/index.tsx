@@ -466,7 +466,7 @@ function PinsList({
                                                                                         alt="pin image"
                                                                                         width={40}
                                                                                         height={40}
-                                                                                        src={pin.image ?? "https://bandcoin.io/images/logo.png"}
+                                                                                        src={pin.image ?? "https://app.wadzzo.com/favicon.ico"}
                                                                                         className="h-10 w-10 object-cover rounded-md border"
                                                                                     />
                                                                                 </td>
