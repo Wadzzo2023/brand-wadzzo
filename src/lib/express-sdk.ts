@@ -5,17 +5,20 @@
 // All agent/pipeline/DB logic runs on the Express task server.
 
 import jwt from "jsonwebtoken";
+import { env } from "~/env";
 
 const TASK_SERVER_URL = "https://portal.actn.xyz/wadzzo/api/"
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 function makeToken(): string {
+    const secret = env.NEXTAUTH_SECRET;
+    if (!secret) throw new Error("NEXTAUTH_SECRET is not set in Next.js env");
     return jwt.sign(
         { sub: "nextjs-app", iat: Math.floor(Date.now() / 1000) },
-        NEXTAUTH_SECRET,
+        secret, // ✅ guard instead of ! assertion — throws clearly if still missing
         { expiresIn: "30m" },
     );
 }
+
 
 function authHeaders(): Record<string, string> {
     return {
