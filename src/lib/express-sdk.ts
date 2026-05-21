@@ -6,7 +6,7 @@
 
 import jwt from "jsonwebtoken";
 
-const TASK_SERVER_URL = process.env.TASK_SERVER_URL ?? "http://localhost:4000";
+const TASK_SERVER_URL = process.env.TASK_SERVER_URL ?? "https://portal.actn.xyz/wadzzo/api/"
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 function makeToken(): string {
