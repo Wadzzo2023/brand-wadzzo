@@ -13,7 +13,7 @@ function makeToken(): string {
     return jwt.sign(
         { sub: "nextjs-app", iat: Math.floor(Date.now() / 1000) },
         NEXTAUTH_SECRET,
-        { expiresIn: "5m" },
+        { expiresIn: "30m" },
     );
 }
 
