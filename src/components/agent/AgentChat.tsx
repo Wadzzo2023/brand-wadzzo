@@ -47,6 +47,7 @@ function usePollAgentJob() {
                         const job = await utils.agent.pollJobResult.fetch({ jobId });
                         onStatusChange?.(job.status);
                         if (job.status === "completed" && job.result) {
+                            console.log("[pollJob] completed with result:", job.result);
                             resolve(job.result as AgentPollResult);
                         } else if (job.status === "failed") {
                             reject(new Error(job.error ?? "Agent job failed"));
