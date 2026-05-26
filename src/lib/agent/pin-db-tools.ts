@@ -27,7 +27,7 @@ function buildPagination(total: number, offset: number, limit: number, fetched: 
 /** Returns IDs of the template LocationGroup for each hotspot (first drop, never shown). */
 async function getTemplateIds(creatorId: string): Promise<Set<string>> {
     const hotspots = await db.hotspot.findMany({
-        where: { creatorId },
+        where: { creatorId, hidden: false },
         select: {
             locationGroups: {
                 orderBy: { createdAt: "asc" },
@@ -217,7 +217,7 @@ export const createDbTools = (creatorId: string) => {
             const filtered = area && geoFilter
                 ? pins.filter(p =>
                     p.latitude != null && p.longitude != null &&
-                    haversineKm(p.latitude, p.longitude, geoFilter!.latitude.gte + (_radiusKm / 111), geoFilter!.longitude.gte + (_radiusKm / 111)) <= _radiusKm
+                    haversineKm(p.latitude, p.longitude, geoFilter.latitude.gte + (_radiusKm / 111), geoFilter!.longitude.gte + (_radiusKm / 111)) <= _radiusKm
                 )
                 : pins;
 
@@ -330,6 +330,7 @@ export const createDbTools = (creatorId: string) => {
             const _offset = offset ?? 0;
 
             const where = {
+                hidden: false,
                 creatorId,
                 ...(isActive !== null && isActive !== undefined && { isActive }),
                 ...(search && {

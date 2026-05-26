@@ -4,28 +4,10 @@
 // Next.js is now a THIN CLIENT — it only enqueues jobs and polls for results.
 // All agent/pipeline/DB logic runs on the Express task server.
 
-import jwt from "jsonwebtoken";
-import { env } from "~/env";
+import { EXPRESS_SERVER_URL } from "../common";
 
-const TASK_SERVER_URL = "https://portal.actn.xyz/wadzzo/api/"
-
-function makeToken(): string {
-    const secret = env.NEXTAUTH_SECRET;
-    if (!secret) throw new Error("NEXTAUTH_SECRET is not set in Next.js env");
-    return jwt.sign(
-        { sub: "nextjs-app", iat: Math.floor(Date.now() / 1000) },
-        secret, // ✅ guard instead of ! assertion — throws clearly if still missing
-        { expiresIn: "30m" },
-    );
-}
-
-
-function authHeaders(): Record<string, string> {
-    return {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${makeToken()}`,
-    };
-}
+const TASK_SERVER_URL = (EXPRESS_SERVER_URL).replace(/\/$/, "");
+const JSON_HEADERS = { "Content-Type": "application/json" };
 
 export type JobType = "agent_run" | "create_pins" | "generic";
 export type JobStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
@@ -48,7 +30,7 @@ export const taskClient = {
     ): Promise<{ jobId: string }> {
         const res = await fetch(`${TASK_SERVER_URL}/jobs/enqueue`, {
             method: "POST",
-            headers: authHeaders(),
+            headers: JSON_HEADERS,
             body: JSON.stringify({ type, creatorId, payload, maxAttempts }),
         });
         if (!res.ok) {
@@ -61,7 +43,7 @@ export const taskClient = {
     /** Poll once — compatible with your existing pollJobResult tRPC shape. */
     async poll(jobId: string): Promise<PollResult> {
         const res = await fetch(`${TASK_SERVER_URL}/jobs/${jobId}`, {
-            headers: authHeaders(),
+            headers: JSON_HEADERS,
         });
         if (res.status === 404) throw new Error("Job not found");
         if (!res.ok) throw new Error(`Poll error: ${res.status}`);
@@ -72,7 +54,7 @@ export const taskClient = {
     async cancel(jobId: string): Promise<void> {
         await fetch(`${TASK_SERVER_URL}/jobs/${jobId}/cancel`, {
             method: "POST",
-            headers: authHeaders(),
+            headers: JSON_HEADERS,
         });
     },
 };
