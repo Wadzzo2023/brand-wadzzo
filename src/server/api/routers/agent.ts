@@ -62,10 +62,8 @@ export const agentRouter = createTRPCRouter({
           message: "Must be signed in to drop pins.",
         });
       }
-      console.log("[runAgent] pinOptions received:", input.pinOptions);
-
       // 1. Persist a pending job row so the frontend can start polling right away
-      const job = await db.agentJob.create({
+      await db.agentJob.create({
         data: {
           creatorId,
           status: "pending",
@@ -105,9 +103,6 @@ export const agentRouter = createTRPCRouter({
     .input(z.object({ jobId: z.string() }))
     .query(async ({ input }) => {
       const job = await taskClient.poll(input.jobId);
-
-      console.log("job,", job);
-
       return {
         jobId: job.jobId,
         status: job.status,
