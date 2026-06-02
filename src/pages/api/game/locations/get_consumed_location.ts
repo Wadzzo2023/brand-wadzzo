@@ -65,6 +65,8 @@ export default async function handler(
         select: {
           userId: true,
           viewedAt: true,
+          redeemCode: true,
+          redeemedAt: true,
         },
       },
     },
@@ -92,7 +94,7 @@ export default async function handler(
     );
 
     const remaining = location.locationGroup.limit - totalGroupConsumers;
-
+    const redeemCode = location.consumers.find((c) => c.userId === session.sub)?.redeemCode ?? null;
     const loc: ConsumedLocation = {
       id: location.id,
       lat: location.latitude,
@@ -114,6 +116,7 @@ export default async function handler(
         location.locationGroup.creator.profileUrl ??
         WadzzoIconURL,
       url: location.locationGroup.link ?? "https://app.wadzzo.com/",
+      redeemCode: redeemCode,
     };
     return loc;
   });

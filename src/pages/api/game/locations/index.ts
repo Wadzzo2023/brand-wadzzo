@@ -109,6 +109,12 @@ export default async function handler(
         endDate: { gte: new Date() },
         subscriptionId: { equals: null },
         remaining: { gt: 0 },
+        hidden: false,
+        locations: {
+          some: {
+            hidden: false,
+          }
+        }
       },
       include: {
         locations: {

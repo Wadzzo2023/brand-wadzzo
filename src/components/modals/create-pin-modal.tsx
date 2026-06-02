@@ -5,8 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2, Calendar } from "lucide-react"
-import Image from "next/image"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2, Calendar, Tag, Plus } from "lucide-react"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
 import { Label } from "~/components/shadcn/ui/label"
@@ -65,6 +64,8 @@ export const createPinFormSchema = z.object({
     tier: z.string().optional(),
     multiPin: z.boolean().default(false),
     type: z.nativeEnum(PinType).default(PinType.OTHER),
+    tags: z.array(z.string()).default([]),
+
 })
 type CreatePinType = z.infer<typeof createPinFormSchema>
 
@@ -481,7 +482,7 @@ export default function CreatePinModal() {
                                                 </Card>
                                             </div>
                                         </div>
-
+                                        <TagsSection />
                                         <PinTypeToggles />
                                     </div>
                                 )}
@@ -1116,5 +1117,176 @@ function EnhanceDescriptionButton({ className }: { className?: string }) {
                 </>
             )}
         </Button>
+    )
+}
+function TagsSection() {
+    const { watch, getValues } = useFormContext<CreatePinType>()
+    const title = watch("title")
+    const description = watch("description")
+    const type = watch("type")
+
+    const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+    const [newTagInput, setNewTagInput] = useState("")
+    const [aiTags, setAiTags] = useState<string[]>([]) // AI suggested labels
+
+    const myTagsQuery = api.tag.myTags.useQuery({})
+
+    const createTagM = api.tag.create.useMutation({
+        onSuccess: () => { void myTagsQuery.refetch() },
+        onError: (err) => toast.error(err.message),
+    })
+
+    const aiGenerateM = api.tag.aiGenerate.useMutation({
+        onSuccess: (data) => {
+            setAiTags(data.tags)
+            toast.success("AI tags generated!")
+        },
+        onError: (err) => toast.error(err.message),
+    })
+
+    const handleCreateTag = () => {
+        const label = newTagInput.trim()
+        if (!label) return
+        createTagM.mutate({ label }, {
+            onSuccess: (tag) => {
+                setSelectedTagIds((prev) => [...prev, tag.id])
+                setNewTagInput("")
+            },
+        })
+    }
+
+    const handleAiGenerate = () => {
+        aiGenerateM.mutate({
+            title: title ?? "",
+            description: description ?? "",
+            type: type ?? "OTHER",
+            existingTagLabels: myTagsQuery.data?.map((t) => t.label) ?? [],
+            latitude: getValues("lat"),   // add this
+            longitude: getValues("lng"),  // add this
+        })
+    }
+
+    const handleAddAiTag = (label: string) => {
+        createTagM.mutate({ label }, {
+            onSuccess: (tag) => {
+                setSelectedTagIds((prev) =>
+                    prev.includes(tag.id) ? prev : [...prev, tag.id]
+                )
+                setAiTags((prev) => prev.filter((t) => t !== label))
+            },
+        })
+    }
+
+    const toggleTag = (id: string) => {
+        setSelectedTagIds((prev) =>
+            prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+        )
+    }
+
+    // sync to form
+    const { setValue } = useFormContext<CreatePinType>()
+    useEffect(() => {
+        setValue("tags", selectedTagIds)
+    }, [selectedTagIds, setValue])
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    <Tag className="w-5 h-5 text-primary" />
+                    Tags
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                        <Input
+                            placeholder="New tag name..."
+                            value={newTagInput}
+                            onChange={(e) => setNewTagInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleCreateTag())}
+                            className="bg-input border-border"
+                        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCreateTag}
+                            disabled={!newTagInput.trim() || createTagM.isLoading}
+                        >
+                            {createTagM.isLoading ? <Loader className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            New Tag
+                        </Button>
+                    </div>
+
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAiGenerate}
+                        disabled={!title || aiGenerateM.isLoading}
+                        className="border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                        {aiGenerateM.isLoading
+                            ? <Loader className="w-3 h-3 animate-spin mr-1" />
+                            : <Wand2 className="w-3 h-3 mr-1" />}
+                        AI Tags
+                    </Button>
+                </div>
+
+                {/* AI suggested tags */}
+                {aiTags.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">AI Suggestions — click to add:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {aiTags.map((label) => (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    onClick={() => handleAddAiTag(label)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-full border border-dashed border-primary/50 text-primary text-xs hover:bg-primary/10 transition-colors"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Creator's existing tags */}
+                {myTagsQuery.isLoading && <p className="text-xs text-muted-foreground">Loading tags...</p>}
+                {myTagsQuery.data && myTagsQuery.data.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">Your tags:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {myTagsQuery.data.map((tag) => {
+                                const selected = selectedTagIds.includes(tag.id)
+                                return (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => toggleTag(tag.id)}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${selected
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                                            }`}
+                                    >
+                                        {selected && <span className="mr-1">✓</span>}
+                                        {tag.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {selectedTagIds.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{selectedTagIds.length} tag(s) selected</p>
+                )}
+            </CardContent>
+        </Card>
     )
 }
