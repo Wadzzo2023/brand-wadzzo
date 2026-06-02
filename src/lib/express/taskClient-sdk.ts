@@ -28,6 +28,7 @@ export const taskClient = {
         payload: Record<string, unknown>,
         maxAttempts = 3,
     ): Promise<{ jobId: string }> {
+        console.log("Initializing taskClient with server URL:", TASK_SERVER_URL);
         const res = await fetch(`${TASK_SERVER_URL}/jobs/enqueue`, {
             method: "POST",
             headers: JSON_HEADERS,
@@ -52,7 +53,7 @@ export const taskClient = {
 
     /** Cancel a job. */
     async cancel(jobId: string): Promise<void> {
-        await fetch(`${TASK_SERVER_URL}/jobs/${jobId}/cancel`, {
+        await fetch(`${TASK_SERVER_URL} / jobs / ${jobId}/cancel`, {
             method: "POST",
             headers: JSON_HEADERS,
         });
