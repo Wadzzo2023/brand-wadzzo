@@ -215,7 +215,17 @@ export const pinRouter = createTRPCRouter({
           },
         },
       });
-      return hotspot ?? null;
+      if (!hotspot) return null;
+
+      let scheduleState = { hasSchedule: false, nextRunTime: null as string | null };
+      try {
+        const expressData = await hotspotClient.get(ctx.session.user.id, input.hotspotId);
+        scheduleState = { hasSchedule: expressData.hasSchedule, nextRunTime: expressData.nextRunTime ?? null };
+      } catch {
+        // Express server unavailable — return hotspot without schedule state
+      }
+
+      return { ...hotspot, ...scheduleState };
     }),
 
   pauseHotspotSchedule: creatorProcedure

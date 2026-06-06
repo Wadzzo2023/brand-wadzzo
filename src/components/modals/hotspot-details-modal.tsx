@@ -57,7 +57,7 @@ const HotspotDetailModal: React.FC<Props> = ({ isOpen, setIsOpen, hotspotId }) =
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <DialogTitle className="text-card-foreground text-base font-semibold tracking-tight">
-                                    {h?.title || "Hotspot"}
+                                    {(h?.locationGroups?.[0]?.title as string | undefined) || "Hotspot"}
                                 </DialogTitle>
                                 <DialogDescription className="text-muted-foreground text-[0.7rem] uppercase tracking-widest mt-0.5">
                                     {h ? "Schedule details" : null}
@@ -115,17 +115,17 @@ const HotspotDetailModal: React.FC<Props> = ({ isOpen, setIsOpen, hotspotId }) =
                                     <DataCell label="Pin duration" value={`${h.pinDurationDays} days`} />
                                 </div>
                                 {/* Row 3: full width */}
-                                <DataCell label="Next run" value={h.qstash?.nextScheduleTime ? new Date(h.qstash.nextScheduleTime).toLocaleString() : "—"} />
+                                <DataCell label="Next run" value={h.nextRunTime ? new Date(h.nextRunTime).toLocaleString() : "—"} />
                                 {/* Row 4: full width */}
                                 <DataCell
                                     label="Scheduled"
-                                    value={h.qstashScheduleId ? "Yes" : "No"}
-                                    valueClassName={h.qstashScheduleId ? "text-primary" : "text-muted-foreground"}
+                                    value={h.hasSchedule ? "Yes" : "No"}
+                                    valueClassName={h.hasSchedule ? "text-primary" : "text-muted-foreground"}
                                 />
                             </div>
 
                             <DialogFooter className="mt-5 flex gap-2">
-                                {/* <button
+                                <button
                                     onClick={handlePause}
                                     disabled={pauseSchedule.isLoading || !h.isActive}
                                     className={[
@@ -148,7 +148,7 @@ const HotspotDetailModal: React.FC<Props> = ({ isOpen, setIsOpen, hotspotId }) =
                                     ].join(" ")}
                                 >
                                     {resumeSchedule.isLoading ? "Resuming…" : !h.isActive ? "Resume schedule" : "Resumed"}
-                                </button> */}
+                                </button>
 
                                 <button
                                     onClick={handleDelete}

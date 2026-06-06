@@ -30,6 +30,7 @@ export interface HotspotSummary {
     autoCollect: boolean;
     totalDrops: number;
     hasSchedule: boolean;
+    nextRunTime?: string | null;
     createdAt: string;
 }
 
