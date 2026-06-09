@@ -109,12 +109,12 @@ export default async function handler(
         endDate: { gte: new Date() },
         subscriptionId: { equals: null },
         remaining: { gt: 0 },
-        hidden: false,
+        hidden: { equals: false },
         locations: {
           some: {
             hidden: false,
           }
-        }
+        },
       },
       include: {
         locations: {
@@ -123,6 +123,7 @@ export default async function handler(
               select: {
                 userId: true,
                 redeemCode: true,
+                isRedeemed: true,
               },
             },
           },
@@ -140,7 +141,6 @@ export default async function handler(
         },
       },
     });
-    console.log("locationGroup", locationGroup);
     const pins = locationGroup
       .flatMap((group) => {
         const multiPin = group.multiPin;
@@ -207,13 +207,15 @@ export default async function handler(
         url: location.link ?? "https://wadzzo.com/",
         image_url:
           location.image ?? location.creator.profileUrl ?? WadzzoIconURL,
+        circular_image_url: location.creator.circularProfileUrl ?? WadzzoCircularIconURL,
         collected: location.collected,
         collection_limit_remaining: location.remaining,
         auto_collect: location.autoCollect,
-        brand_image_url: location.creator.profileUrl ?? abaterIconUrl,
+        brand_image_url: location.creator.profileUrl ?? WadzzoIconURL,
         brand_id: location.creatorId,
         public: true,
         redeemCode: location.consumers.find((c) => c.userId === userId)?.redeemCode ?? null,
+        isRedeemed: location.consumers.find((c) => c.userId === userId)?.isRedeemed ?? null,
       };
     });
 
@@ -226,3 +228,4 @@ export default async function handler(
 }
 
 export const WadzzoIconURL = "https://app.wadzzo.com/images/loading.png";
+export const WadzzoCircularIconURL = "https://app.wadzzo.com/images/circular-default.png";

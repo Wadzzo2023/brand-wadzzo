@@ -4,7 +4,7 @@ import { EnableCors } from "~/server/api-cors";
 import { db } from "~/server/db";
 import { ConsumedLocation } from "~/types/game/location";
 import { avaterIconUrl } from "../brands";
-import { WadzzoIconURL } from "./index";
+import { WadzzoCircularIconURL, WadzzoIconURL } from "./index";
 
 // import { getSession } from "next-auth/react";
 
@@ -66,7 +66,7 @@ export default async function handler(
           userId: true,
           viewedAt: true,
           redeemCode: true,
-          redeemedAt: true,
+          isRedeemed: true,
         },
       },
     },
@@ -94,7 +94,7 @@ export default async function handler(
     );
 
     const remaining = location.locationGroup.limit - totalGroupConsumers;
-    const redeemCode = location.consumers.find((c) => c.userId === session.sub)?.redeemCode ?? null;
+
     const loc: ConsumedLocation = {
       id: location.id,
       lat: location.latitude,
@@ -106,6 +106,7 @@ export default async function handler(
       auto_collect: location.autoCollect,
       brand_image_url:
         location.locationGroup?.creator.profileUrl ?? avaterIconUrl,
+      circular_image_url: location.creator.circularProfileUrl ?? WadzzoCircularIconURL,
       brand_id: location.locationGroup?.creator.id,
       modal_url: "https://vong.cong/",
       collected: true,
@@ -116,7 +117,9 @@ export default async function handler(
         location.locationGroup.creator.profileUrl ??
         WadzzoIconURL,
       url: location.locationGroup.link ?? "https://app.wadzzo.com/",
-      redeemCode: redeemCode,
+      redeemCode: location.consumers.find((c) => c.userId === userId)?.redeemCode ?? null,
+      isRedeemed: location.consumers.find((c) => c.userId === userId)?.isRedeemed ?? null,
+
     };
     return loc;
   });

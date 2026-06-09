@@ -8,13 +8,15 @@ export interface Location {
   url: string;
   image_url: string;
   collected: boolean;
-
+  circular_image_url: string;
   collection_limit_remaining: number;
   auto_collect: boolean;
   brand_image_url: string;
   brand_id: string;
   aiUrlDescriptions?: string[];
   redeemCode: string | null;
+  isRedeemed: boolean | null;
+
 }
 
 export interface ConsumedLocation extends Location {
