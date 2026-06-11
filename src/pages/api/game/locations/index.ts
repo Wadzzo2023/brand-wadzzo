@@ -141,12 +141,16 @@ export default async function handler(
         },
       },
     });
+
+
     const pins = locationGroup
       .flatMap((group) => {
+        const { latitude, longitude, ...groupWithoutCoords } = group;
         const multiPin = group.multiPin;
         const hasConsumedOne = group.locations.some((location) =>
           location.consumers.some((consumer) => consumer.userId === userId),
         );
+
         if (group.privacy === ItemPrivacy.TIER) {
           const creatorPageAsset = group.creator.pageAsset;
           const subscription = group.Subscription;
@@ -159,17 +163,15 @@ export default async function handler(
             if (bal >= subscription.price) {
               if (multiPin) {
                 return group.locations.map((location) => ({
+                  ...groupWithoutCoords,
                   ...location,
-                  ...group,
                   id: location.id,
-                  collected: location.consumers.some(
-                    (c) => c.userId === userId,
-                  ),
+                  collected: location.consumers.some((c) => c.userId === userId),
                 }));
               } else {
                 return group.locations.map((location) => ({
+                  ...groupWithoutCoords,
                   ...location,
-                  ...group,
                   id: location.id,
                   collected: hasConsumedOne,
                 }));
@@ -179,15 +181,15 @@ export default async function handler(
         } else {
           if (multiPin) {
             return group.locations.map((location) => ({
+              ...groupWithoutCoords,
               ...location,
-              ...group,
               id: location.id,
               collected: location.consumers.some((c) => c.userId === userId),
             }));
           } else {
             return group.locations.map((location) => ({
+              ...groupWithoutCoords,
               ...location,
-              ...group,
               id: location.id,
               collected: hasConsumedOne,
             }));
@@ -195,7 +197,6 @@ export default async function handler(
         }
       })
       .filter((location) => location !== undefined);
-
     const locations: Location[] = pins.map((location) => {
       return {
         id: location.id,
