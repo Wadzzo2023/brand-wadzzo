@@ -38,6 +38,32 @@ type Pin = Location & {
 
 type DrawingMode = 'polygon' | 'rectangle' | 'circle'
 
+function MapViewController({
+    centerCommand,
+    zoomCommand,
+}: {
+    centerCommand: { center: google.maps.LatLngLiteral; version: number };
+    zoomCommand: { zoom: number; version: number };
+}) {
+    const map = useMap();
+    const lastCenterVersion = useRef(0);
+    const lastZoomVersion = useRef(0);
+
+    useEffect(() => {
+        if (!map || centerCommand.version === lastCenterVersion.current) return;
+        lastCenterVersion.current = centerCommand.version;
+        map.panTo(centerCommand.center);
+    }, [map, centerCommand]);
+
+    useEffect(() => {
+        if (!map || zoomCommand.version === lastZoomVersion.current) return;
+        lastZoomVersion.current = zoomCommand.version;
+        map.setZoom(zoomCommand.zoom);
+    }, [map, zoomCommand]);
+
+    return null;
+}
+
 // ─── Inner component lives inside <Map> so useMap() works ────────────────────
 function MapDrawingLayer({
     isCreatingHotspot,
@@ -82,10 +108,12 @@ function CreatorMapDashboardContent() {
 
     const { setBalance } = useCreatorStorageAcc()
     const {
-        mapZoom,
+        centerCommand,
+        zoomCommand,
+        currentZoomRef,
         setMapZoom,
-        mapCenter,
         setMapCenter,
+        trackZoom,
         centerChanged,
         setCenterChanged,
         isCordsSearch,
@@ -128,7 +156,7 @@ function CreatorMapDashboardContent() {
         duplicate,
         copiedPinData,
         setMapZoom,
-        mapZoom,
+        currentZoomRef,
         filterNearbyPins: (bounds) => filterNearbyPins(bounds, "my"),
         centerChanged,
     })
@@ -188,22 +216,20 @@ function CreatorMapDashboardContent() {
 
                 <Map
                     onCenterChanged={(center) => {
-                        setMapCenter(center.detail.center)
                         setCenterChanged(center.detail.bounds)
                     }}
-                    onZoomChanged={(zoom) => setMapZoom(zoom.detail.zoom)}
+                    onZoomChanged={(zoom) => trackZoom(zoom.detail.zoom)}
                     onClick={handleMapClick}
                     mapId={"bf51eea910020fa25a"}
                     className="h-full w-full transition-all duration-500 ease-out"
                     defaultCenter={{ lat: 22.54992, lng: 0 }}
                     defaultZoom={3}
                     minZoom={3}
-                    zoom={mapZoom}
-                    center={mapCenter}
                     gestureHandling={"greedy"}
                     disableDefaultUI={true}
                     onDragend={handleDragEnd}
                 >
+                    <MapViewController centerCommand={centerCommand} zoomCommand={zoomCommand} />
                     {position && !isCordsSearch && (
                         <Marker position={{ lat: position.lat, lng: position.lng }} />
                     )}

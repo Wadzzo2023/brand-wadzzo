@@ -23,7 +23,7 @@ interface UseMapInteractionsProps {
     duplicate: boolean
     copiedPinData: Pin | null // Updated to expect Pin | null
     setMapZoom: (zoom: number) => void
-    mapZoom: number
+    currentZoomRef: { current: number }
     filterNearbyPins: (center: google.maps.LatLngBoundsLiteral) => void
     centerChanged: google.maps.LatLngBoundsLiteral | null
 }
@@ -38,7 +38,7 @@ export function useMapInteractions({
     duplicate,
     copiedPinData, // Use copiedPinData
     setMapZoom,
-    mapZoom,
+    currentZoomRef,
     filterNearbyPins,
     centerChanged,
 }: UseMapInteractionsProps) {
@@ -62,11 +62,11 @@ export function useMapInteractions({
 
     // Then your handlers work as expected
     const handleZoomIn = () => {
-        setMapZoom(Math.min(mapZoom + 1, 20));
+        setMapZoom(Math.min(currentZoomRef.current + 1, 20));
     };
 
     const handleZoomOut = () => {
-        setMapZoom(Math.max(mapZoom - 1, 3));
+        setMapZoom(Math.max(currentZoomRef.current - 1, 3));
     };
     const handleDragEnd = () => {
         if (centerChanged) {
