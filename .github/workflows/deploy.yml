@@ -1,0 +1,62 @@
+name: Build and Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env.production
+        run: |
+          cat > .env.production << 'EOF'
+          ${{ secrets.ENV_PRODUCTION }}
+          EOF
+
+      - name: Build Next.js app
+        run: pnpm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync entire repo (except env, node_modules) to EC2
+        run: |
+          rsync -avz \
+          --exclude='.env.production' \
+          --exclude='node_modules' \
+          --exclude='.git' \
+          -e "ssh -i ~/.ssh/deploy_key.pem" \
+          ./ \
+          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.EC2_APP_PATH }}/
+
+      - name: Install deps and restart app on EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ${{ secrets.EC2_APP_PATH }}
+            pnpm install
+            pm2 restart brand-wadzzo || pm2 start "pnpm run start" --name brand-wadzzo
+            pm2 save
+          EOF
