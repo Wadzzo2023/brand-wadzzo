@@ -5,7 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
 import { z } from "zod"
 import toast from "react-hot-toast"
-import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2, Calendar, Tag, Plus } from "lucide-react"
+import { Loader, MapPin, ImageIcon, Settings, CheckCircle, Coins, Wand2, Calendar, Tag, Plus, X } from "lucide-react"
+import axios from "axios"
+import { cn } from "~/lib/utils"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
 import { Input } from "~/components/shadcn/ui/input"
@@ -68,6 +70,7 @@ export const createAdminPinFormSchema = z.object({
     type: z.nativeEnum(PinType).default(PinType.OTHER),
     creatorId: z.string(),
     tags: z.array(z.string()).default([]),
+    muralRefImages: z.array(z.string().url()).max(5).default([]),
 })
 type CreateAdminPinType = z.infer<typeof createAdminPinFormSchema>
 
@@ -80,6 +83,7 @@ export default function CreateAdminPinModal() {
     const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>()
     const [remainingBalance, setRemainingBalance] = useState<number>(0)
     const [collectionMode, setCollectionMode] = useState<"manual" | "auto">("manual")
+    const [enableMural, setEnableMural] = useState(false)
     const [currentStep, setCurrentStep] = useState<number>(1)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -115,6 +119,7 @@ export default function CreateAdminPinModal() {
             type: PinType.OTHER,
             url: "",
             creatorId: selectedCreator?.id,
+            muralRefImages: [],
         },
     })
 
@@ -170,6 +175,11 @@ export default function CreateAdminPinModal() {
     }
 
     const onSubmit: SubmitHandler<z.infer<typeof createAdminPinFormSchema>> = (data) => {
+        if (enableMural && (!data.muralRefImages || data.muralRefImages.length === 0)) {
+            toast.error("Please upload at least 1 reference image for the mural.");
+            return;
+        }
+
         if (selectedToken && data.pinCollectionLimit && data.pinCollectionLimit > selectedToken.bal) {
             setError("pinCollectionLimit", {
                 type: "manual",
@@ -409,6 +419,32 @@ export default function CreateAdminPinModal() {
                                                     </div>
 
                                                     <ImageUploadField coverUrl={coverUrl} setCover={setCover} setValue={setValue} />
+
+                                                    <div className="pt-4 border-t space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <Label className="text-base font-semibold text-foreground">Enable Mural Scan</Label>
+                                                                <p className="text-sm text-muted-foreground">Allow users to collect this pin by scanning a real-world mural.</p>
+                                                            </div>
+                                                            <Switch 
+                                                                checked={enableMural}
+                                                                onCheckedChange={setEnableMural}
+                                                            />
+                                                        </div>
+
+                                                        {enableMural && (
+                                                            <div className="p-4 border rounded-xl bg-slate-50/50 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label className="text-sm font-semibold text-gray-700">Reference Photos (Up to 5)</Label>
+                                                                    <span className="text-xs text-muted-foreground">{(watch("muralRefImages") || []).length}/5</span>
+                                                                </div>
+                                                                <MuralPhotosUploader
+                                                                    images={watch("muralRefImages") || []}
+                                                                    onChange={(urls) => setValue("muralRefImages", urls, { shouldValidate: true })}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
 
 
                                                 </CardContent>
@@ -953,6 +989,146 @@ function ManualCoordinatesInput({ manual, position }: ManualCoordinatesInputProp
             </CardContent>
         </Card>
     )
+}
+
+interface MuralPhotosUploaderProps {
+    images: string[];
+    onChange: (urls: string[]) => void;
+}
+
+function MuralPhotosUploader({
+    images,
+    onChange,
+}: MuralPhotosUploaderProps) {
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const getSignedURL = api.s3.getSignedURL.useMutation();
+
+    const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? []);
+        if (!files.length) return;
+
+        const remainingSlots = 5 - images.length;
+        const filesToUpload = files.slice(0, remainingSlots);
+
+        if (filesToUpload.length < files.length) {
+            toast.error("Maximum 5 mural reference photos allowed.");
+        }
+
+        setUploading(true);
+        setUploadProgress(0);
+
+        try {
+            const uploadedUrls: string[] = [];
+            for (let i = 0; i < filesToUpload.length; i++) {
+                const file = filesToUpload[i]!;
+                const buffer = await file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const checksum = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+                const signed = await getSignedURL.mutateAsync({
+                    fileSize: file.size,
+                    fileType: file.type || "image/jpeg",
+                    checksum,
+                    endPoint: "imageUploader",
+                    fileName: file.name,
+                });
+
+                await axios.put(signed.uploadUrl, file, {
+                    headers: {
+                        "Content-Type": file.type || "image/jpeg",
+                    },
+                    onUploadProgress: (progressEvent) => {
+                        if (progressEvent.total) {
+                            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            setUploadProgress(percent);
+                        }
+                    },
+                });
+
+                uploadedUrls.push(signed.fileUrl);
+            }
+
+            const updated = [...images, ...uploadedUrls];
+            onChange(updated);
+
+            toast.success(filesToUpload.length === 1 ? "Photo added" : `${filesToUpload.length} photos added`);
+        } catch (err) {
+            console.error("Mural upload failed:", err);
+            toast.error("Failed to upload image. Please try again.");
+        } finally {
+            setUploading(false);
+            setUploadProgress(0);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+
+    const handleRemove = (indexToRemove: number) => {
+        onChange(images.filter((_, idx) => idx !== indexToRemove));
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-3">
+            {images.map((url, i) => (
+                <div key={url + i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm group">
+                    <img src={url} alt={`Mural reference ${i + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(i);
+                        }}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                        title="Remove photo"
+                    >
+                        <X className="w-3 h-3" />
+                    </button>
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-[10px] text-white font-medium px-1.5 py-0.5 rounded">
+                        #{i + 1}
+                    </span>
+                </div>
+            ))}
+
+            {images.length < 5 && (
+                <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                        "w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50",
+                        "flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-blue-600 transition-all",
+                        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                        uploading && "opacity-70 cursor-not-allowed border-blue-400 bg-blue-50/30"
+                    )}
+                >
+                    {uploading ? (
+                        <>
+                            <Loader className="w-5 h-5 animate-spin text-blue-600" />
+                            <span className="text-[10px] font-medium text-blue-600">{uploadProgress}%</span>
+                        </>
+                    ) : (
+                        <>
+                            <Plus className="w-6 h-6 stroke-[2.2]" />
+                            <span className="text-[10px] font-medium leading-none">Add Photo</span>
+                        </>
+                    )}
+                </button>
+            )}
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+            />
+        </div>
+    );
 }
 
 interface ImageUploadFieldProps {

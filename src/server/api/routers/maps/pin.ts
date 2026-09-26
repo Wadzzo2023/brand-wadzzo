@@ -80,6 +80,7 @@ export const createPinFormSchema = z.object({
   tier: z.string().optional(),
   multiPin: z.boolean().optional(),
   tags: z.array(z.string()).default([]),
+  muralRefImages: z.array(z.string().url()).max(5).default([]),
 });
 
 export const PAGE_ASSET_NUM = -10;
@@ -116,6 +117,7 @@ export const createAdminPinFormSchema = z.object({
   multiPin: z.boolean().optional(),
   creatorId: z.string(),
   tags: z.array(z.string()).default([]),
+  muralRefImages: z.array(z.string().url()).max(5).default([]),
 });
 
 export const pinRouter = createTRPCRouter({
@@ -347,6 +349,7 @@ export const pinRouter = createTRPCRouter({
           privacy,
           remaining: pinCollectionLimit,
           multiPin,
+          muralRefImages: input.muralRefImages,
         },
       });
       if (input.tags && input.tags.length > 0) {
@@ -358,8 +361,40 @@ export const pinRouter = createTRPCRouter({
           skipDuplicates: true,
         })
       }
+
+      if (input.muralRefImages && input.muralRefImages.length > 0) {
+        try {
+          const { mirrorToGcs } = await import("../../../gcs");
+          const { indexMural } = await import("../../../vision/product-search");
+          
+          const gcsUris = [];
+          let idx = 0;
+          for (const url of input.muralRefImages) {
+            const dest = `murals/${locationGroup.id}/${idx}.jpg`;
+            const gcsUri = await mirrorToGcs(url, dest);
+            gcsUris.push(gcsUri);
+            idx++;
+          }
+          
+          const muralProductId = await indexMural({
+            locationGroupId: locationGroup.id,
+            creatorId: ctx.session.user.id,
+            gcsUris
+          });
+          
+          await ctx.db.locationGroup.update({
+            where: { id: locationGroup.id },
+            data: { muralProductId }
+          });
+        } catch (e) {
+          console.error("Mural indexing failed, skipping:", e);
+        }
+      }
+
       return locationGroup;
     }),
+
+
 
   createForAdminPin: adminProcedure
     .input(createAdminPinFormSchema)
@@ -413,6 +448,7 @@ export const pinRouter = createTRPCRouter({
           privacy,
           remaining: pinCollectionLimit,
           multiPin,
+          muralRefImages: input.muralRefImages,
         },
       });
       if (input.tags && input.tags.length > 0) {
@@ -424,6 +460,36 @@ export const pinRouter = createTRPCRouter({
           skipDuplicates: true,
         })
       }
+
+      if (input.muralRefImages && input.muralRefImages.length > 0) {
+        try {
+          const { mirrorToGcs } = await import("../../../gcs");
+          const { indexMural } = await import("../../../vision/product-search");
+
+          const gcsUris = [];
+          let idx = 0;
+          for (const url of input.muralRefImages) {
+            const dest = `murals/${locationGroup.id}/${idx}.jpg`;
+            const gcsUri = await mirrorToGcs(url, dest);
+            gcsUris.push(gcsUri);
+            idx++;
+          }
+
+          const muralProductId = await indexMural({
+            locationGroupId: locationGroup.id,
+            creatorId,
+            gcsUris
+          });
+
+          await ctx.db.locationGroup.update({
+            where: { id: locationGroup.id },
+            data: { muralProductId }
+          });
+        } catch (e) {
+          console.error("Mural indexing failed in createForAdminPin, skipping:", e);
+        }
+      }
+
       return locationGroup;
     }),
 
