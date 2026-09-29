@@ -1,4 +1,4 @@
-import { EmbedGesture, EmbedTheme, PinType, type PrismaClient } from "@prisma/client";
+import { EmbedGesture, EmbedPinSource, EmbedTheme, PinType, type PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -40,6 +40,7 @@ export const EmbedInput = z.object({
   gestureMode: z.nativeEnum(EmbedGesture),
   theme: z.nativeEnum(EmbedTheme),
   accentColor: z.string().regex(/^#[0-9a-f]{6}$/i, "Pick a colour"),
+  pinSource: z.nativeEnum(EmbedPinSource),
   pinTypes: z.array(z.nativeEnum(PinType)).max(6),
   showFilterChips: z.boolean(),
   showSearch: z.boolean(),

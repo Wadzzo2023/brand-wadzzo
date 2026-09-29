@@ -1,6 +1,6 @@
 "use client"
 
-import type { EmbedGesture, EmbedTheme, PinType } from "@prisma/client"
+import type { EmbedGesture, EmbedPinSource, EmbedTheme, PinType } from "@prisma/client"
 import { ArrowLeft, Crosshair, Laptop, Loader2, Monitor, PanelLeft, Smartphone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/router"
@@ -42,6 +42,8 @@ export default function EmbedEditorPage() {
     const setTab = (t: Tab) => void router.replace({ query: { ...router.query, tab: t === "settings" ? undefined : t } }, undefined, { shallow: true })
 
     const existing = api.embeds.get.useQuery({ id }, { enabled: !!id && !isNew, refetchOnWindowFocus: false })
+    const me = api.fan.creator.meCreator.useQuery(undefined, { refetchOnWindowFocus: false })
+    const creatorId = existing.data?.creatorId ?? me.data?.id ?? null
     const [draft, setDraft] = useState<EmbedDraft | null>(null)
     const [dirty, setDirty] = useState(false)
 
@@ -148,7 +150,7 @@ export default function EmbedEditorPage() {
                     <div className="min-h-0 overflow-y-auto border-r">
                         <Settings draft={draft} set={set} />
                     </div>
-                    <Preview draft={draft} onStartView={(v) => {
+                    <Preview draft={draft} creatorId={creatorId} onStartView={(v) => {
                         set("centerLat", v.lat)
                         set("centerLng", v.lng)
                         set("zoom", v.zoom)
@@ -228,6 +230,23 @@ function Settings({ draft, set }: { draft: EmbedDraft; set: <K extends keyof Emb
             </Section>
 
             <Section title="Which pins">
+                <div className="space-y-1.5">
+                    <Label>Show pins from</Label>
+                    <Segmented<EmbedPinSource>
+                        value={draft.pinSource}
+                        onChange={(v) => set("pinSource", v)}
+                        options={[
+                            { id: "ALL", label: "All brands" },
+                            { id: "CREATOR", label: "Only my brand" },
+                        ]}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        {draft.pinSource === "CREATOR"
+                            ? "Only your own drops appear — on the map, in the list and in search."
+                            : "Every brand's drops in the area appear, like the Wadzzo app."}
+                    </p>
+                </div>
+                <Label className="block pt-1">Pin types</Label>
                 <div className="flex flex-wrap gap-1.5">
                     {(Object.keys(PIN_TYPE_LABEL) as PinType[]).map((t) => {
                         const on = draft.pinTypes.includes(t)
@@ -313,15 +332,23 @@ function Settings({ draft, set }: { draft: EmbedDraft; set: <K extends keyof Emb
 
 // ── Live preview ──────────────────────────────────────────────────────────
 
-function Preview({ draft, onStartView }: { draft: EmbedDraft; onStartView: (v: { lat: number; lng: number; zoom: number }) => void }) {
+function Preview({
+    draft,
+    creatorId,
+    onStartView,
+}: {
+    draft: EmbedDraft
+    creatorId: string | null
+    onStartView: (v: { lat: number; lng: number; zoom: number }) => void
+}) {
     const frame = useRef<HTMLIFrameElement>(null)
     const [width, setWidth] = useState<(typeof WIDTHS)[number]["id"]>("hero")
     const [height, setHeight] = useState(520)
     const [view, setView] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
     // Loaded once with the settings at open; later edits go in by postMessage.
-    const [src] = useState(() => previewUrl(draft))
-    const latest = useRef(draft)
-    latest.current = draft
+    const [src] = useState(() => previewUrl(draft, creatorId))
+    const latest = useRef({ ...draft, creatorId })
+    latest.current = { ...draft, creatorId }
 
     const push = useCallback(() => {
         frame.current?.contentWindow?.postMessage({ type: "wadzzo-embed:config", config: latest.current }, AR_ORIGIN)
@@ -343,7 +370,7 @@ function Preview({ draft, onStartView }: { draft: EmbedDraft; onStartView: (v: {
     useEffect(() => {
         const t = setTimeout(push, 150)
         return () => clearTimeout(t)
-    }, [draft, push])
+    }, [draft, creatorId, push])
 
     const sameAsStart =
         view != null &&

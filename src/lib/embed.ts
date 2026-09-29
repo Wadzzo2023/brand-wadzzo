@@ -1,4 +1,4 @@
-import type { EmbedGesture, EmbedTheme, PinType } from "@prisma/client"
+import type { EmbedGesture, EmbedPinSource, EmbedTheme, PinType } from "@prisma/client"
 
 /**
  * Where the embedded map is served from — wadzzoAR (web.wadzzo.com), not this
@@ -20,6 +20,7 @@ export interface EmbedDraft {
     gestureMode: EmbedGesture
     theme: EmbedTheme
     accentColor: string
+    pinSource: EmbedPinSource
     pinTypes: PinType[]
     showFilterChips: boolean
     showSearch: boolean
@@ -41,6 +42,7 @@ export const DEFAULT_DRAFT: EmbedDraft = {
     gestureMode: "COOPERATIVE",
     theme: "AUTO",
     accentColor: "#39ff88",
+    pinSource: "ALL",
     pinTypes: [],
     showFilterChips: false,
     showSearch: true,
@@ -52,9 +54,12 @@ export const DEFAULT_DRAFT: EmbedDraft = {
     allowedDomains: [],
 }
 
-/** The editor's unsaved settings, as the `c` param wadzzoAR's preview reads. */
-export function previewUrl(draft: EmbedDraft) {
-    const json = JSON.stringify(draft)
+/**
+ * The editor's unsaved settings, as the `c` param wadzzoAR's preview reads.
+ * `creatorId` is the brand whose pins "Only my brand" shows.
+ */
+export function previewUrl(draft: EmbedDraft, creatorId: string | null) {
+    const json = JSON.stringify({ ...draft, creatorId })
     const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
     return `${WADZZO_AR_URL}/embed/preview?c=${b64}`
 }

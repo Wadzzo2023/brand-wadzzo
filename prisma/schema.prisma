@@ -1047,6 +1047,13 @@ enum EmbedTheme {
     DARK
 }
 
+enum EmbedPinSource {
+    // Every brand's live pins in view.
+    ALL
+    // Only the embed owner's own pins.
+    CREATOR
+}
+
 enum EmbedGesture {
     // Page scroll wins; zoom needs Ctrl/Cmd + scroll or two fingers.
     COOPERATIVE
@@ -1073,6 +1080,8 @@ model MapEmbed {
 
     theme       EmbedTheme @default(AUTO)
     accentColor String     @default("#39ff88")
+
+    pinSource EmbedPinSource @default(ALL)
 
     // Empty = every pin type.
     pinTypes        PinType[] @default([])
