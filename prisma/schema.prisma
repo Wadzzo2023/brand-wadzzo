@@ -231,6 +231,7 @@ model Creator {
     locationTags       LocationTag[]
     events        CreatorEvent[]
     announcements CreatorAnnouncement[]
+    mapEmbeds          MapEmbed[]
 
     @@index([bio, name])
 }
@@ -1037,4 +1038,76 @@ model AnnouncementComment {
     createdAt DateTime @default(now())
 
     @@index([announcementId, createdAt])
+}
+
+// ------------------------WEBSITE MAP EMBEDS-------------------------
+enum EmbedTheme {
+    AUTO
+    LIGHT
+    DARK
+}
+
+enum EmbedGesture {
+    // Page scroll wins; zoom needs Ctrl/Cmd + scroll or two fingers.
+    COOPERATIVE
+    // The map takes every scroll and drag, like the app.
+    GREEDY
+}
+
+model MapEmbed {
+    id String @id @default(cuid())
+
+    creatorId String
+    creator   Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+    name    String
+    enabled Boolean @default(true)
+
+    centerLat Float
+    centerLng Float
+    zoom      Float @default(12)
+
+    // Adds a "Near me" button that asks for location only when tapped.
+    userLocation Boolean      @default(false)
+    gestureMode  EmbedGesture @default(COOPERATIVE)
+
+    theme       EmbedTheme @default(AUTO)
+    accentColor String     @default("#39ff88")
+
+    // Empty = every pin type.
+    pinTypes        PinType[] @default([])
+    showFilterChips Boolean   @default(false)
+    showSearch      Boolean   @default(true)
+    showNearby      Boolean   @default(true)
+
+    // A button is hidden when its URL is null.
+    eventsLabel   String  @default("Find Events")
+    eventsUrl     String?
+    bountiesLabel String  @default("View Bounties")
+    bountiesUrl   String?
+
+    // Hostnames allowed to frame this embed; empty = any site.
+    allowedDomains String[] @default([])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    stats MapEmbedDailyStat[]
+
+    @@index([creatorId])
+}
+
+model MapEmbedDailyStat {
+    embedId String
+    embed   MapEmbed @relation(fields: [embedId], references: [id], onDelete: Cascade)
+    // UTC day.
+    day     DateTime @db.Date
+
+    views          Int @default(0)
+    pinTaps        Int @default(0)
+    openClicks     Int @default(0)
+    eventsClicks   Int @default(0)
+    bountiesClicks Int @default(0)
+
+    @@id([embedId, day])
 }
