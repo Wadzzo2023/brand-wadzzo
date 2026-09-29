@@ -957,6 +957,19 @@ export const creatorRouter = createTRPCRouter({
       }
     }),
 
+  /**
+   * For a creator row that exists but never entered the approval queue
+   * (`aprovalSend: false`, `approved: null`) — e.g. one made outside the join
+   * flow. Puts it in the admin queue; leaves decided rows alone.
+   */
+  requestApproval: protectedProcedure.mutation(async ({ ctx }) => {
+    const res = await ctx.db.creator.updateMany({
+      where: { id: ctx.session.user.id, approved: null, aprovalSend: false },
+      data: { aprovalSend: true },
+    });
+    return { requested: res.count > 0 };
+  }),
+
   getPermissionData: creatorProcedure.query(async ({ ctx, input }) => {
     const creator = await ctx.db.creator.findFirstOrThrow({
       where: { id: ctx.session.user.id },

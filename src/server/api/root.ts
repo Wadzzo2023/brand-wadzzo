@@ -15,6 +15,7 @@ import { qrRouter } from "./routers/qr";
 import { agentRouter } from "./routers/agent";
 import { pinAgentRouter } from "./routers/pin-agent";
 import { tagRouter } from "./routers/tags";
+import { eventsRouter } from "./routers/events";
 /**
  * This is the primary router for your server.
  *
@@ -37,6 +38,7 @@ export const appRouter = createTRPCRouter({
   agent: agentRouter,
   pinAgent: pinAgentRouter,
   tag: tagRouter,
+  events: eventsRouter,
 });
 
 // export type definition of API

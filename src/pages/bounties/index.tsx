@@ -59,7 +59,7 @@ const CreatorBounty = () => {
                 </div>
                 {getAllBounty.hasNextPage && (
                     <Button
-                        className="flex w-1/2 items-center justify-center  shadow-sm shadow-black md:w-1/4"
+                        className="flex w-1/2 items-center justify-center self-center shadow-sm shadow-black md:w-1/4"
                         onClick={() => void getAllBounty.fetchNextPage()}
                         disabled={getAllBounty.isFetchingNextPage}
                     >

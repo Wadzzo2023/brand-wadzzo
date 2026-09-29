@@ -126,3 +126,10 @@
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
+
+/* Google Places suggestions are appended to <body>; keep them above and
+   clickable inside Radix dialogs, which set pointer-events:none on body. */
+.pac-container {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}

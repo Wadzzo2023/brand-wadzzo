@@ -17,6 +17,7 @@ import JoinArtistPage from "~/components/brand/join-artist"
 import JoinArtistPageLoading from "~/components/loading/join-artist-loading"
 import PendingArtistPage from "~/components/brand/pending-artist"
 import { BannedCreatorCard } from "~/components/brand/ban-artist"
+import RequestApprovalCard from "~/components/brand/request-approval"
 import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
 import Image from "next/image"
 
@@ -80,6 +81,11 @@ export default function CreatorLayout({
             ) : creator.data?.aprovalSend && creator.data?.approved === false ? (
               <div className="flex h-full w-full items-center justify-center">
                 <BannedCreatorCard creatorName={creator.data.name} />
+              </div>
+            ) : creator.data && !creator.data.aprovalSend && creator.data.approved !== true ? (
+              // Exists but never entered the approval queue — used to render nothing.
+              <div className="flex h-screen w-full items-center justify-center">
+                <RequestApprovalCard creatorName={creator.data.name} />
               </div>
             ) : (
               !creator.data && (

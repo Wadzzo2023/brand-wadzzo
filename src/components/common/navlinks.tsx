@@ -1,7 +1,7 @@
 "use client"
 
 import {
-  BarChart3, FileText, Flag, Gift, HandCoins,
+  BarChart3, CalendarDays, FileText, Flag, Gift, HandCoins,
   Map, MapPin, Shield, Store, Target, Users, Wallet2,
 } from "lucide-react"
 import Link from "next/link"
@@ -13,6 +13,7 @@ const userNavItems = [
   { href: "/stores", label: "Stores", icon: Store, needProval: true },
   { href: "/posts", label: "Posts", icon: FileText, needProval: true },
   { href: "/bounties", label: "Bounties", icon: Target, needProval: true },
+  { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/gifts", label: "Gifts", icon: Gift, needProval: true },
   { href: "/membership", label: "Membership", icon: Wallet2, needProval: true },
   { href: "/report", label: "Report & Analytics", icon: BarChart3 },
