@@ -207,6 +207,7 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
 - Store edit pages & page asset sales: /stores/[id], /stores/page-asset/new, and /stores/page-asset/[id] converted from dialogs to full FormPages with live preview.
 - Admin pin and hotspot controls: Admins can drop pins/hotspots on behalf of any creator; admins can edit any creator pin at /pins/[id]/edit with automatic back-links to /admin/pins.
 - Dropzone preview fix: S3 extensionless hashes properly classified via endpoint/accept fallbacks.
-- Next: Redeem page redesign (/redeem) with separate full-page layout, DataTable, and activity filters; onboarding review; step 8 (connect_wallet / express-wadzzo).
+- Subprojects upgrade (Step 8): `package/connect_wallet` verified on branch `wadzzo-appRouter` with Next 16 / React 19 App Router; `package/express-wadzzo` on branch `upgrade` resolved Node 24 `ERR_INVALID_URL_SCHEME` issue by removing `.js` import extensions and replacing ESM `p-limit` with native zero-dependency `src/lib/limit.ts` (unit tests verified). Both `tsx watch` (dev) and `node dist/index.js` (prod) launch cleanly on Node 24.
+- Next: Hotspot edit page (`/pins/hotspots/[id]/edit`) to complete full-page create/edit forms; dead code cleanup approval (stores modals); onboarding review.
 - Open question: `maps.pin.getPin` is public and returns collectors; unused in the portal now — restrict or remove (check other apps first).
 
