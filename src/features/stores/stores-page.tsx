@@ -6,9 +6,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createElement, useMemo, useState } from "react";
 
-import CreatorStoredAssetModal from "~/components/modals/creator-stored-asset-modal";
-import SellPageAssetModal from "~/components/modals/sell-page-asset-modal";
-import SellPageAssetList from "~/components/sell-page-asset-list";
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
@@ -21,6 +18,7 @@ import { ErrorState } from "~/ui/error-state";
 import { PageBody, PageHeader } from "~/ui/page-header";
 import { Skeleton } from "~/ui/skeleton";
 import { Spinner } from "~/ui/spinner";
+import { PageAssetTab } from "./page-asset-tab";
 import { api } from "~/utils/api";
 
 type Tab = "assets" | "page-asset";
@@ -47,13 +45,13 @@ export default function StoresPage() {
   const tab: Tab = tabParam === "page-asset" ? "page-asset" : "assets";
   const setTab = (t: string) => router.replace(t === "assets" ? "/stores" : `/stores?tab=${t}`, { scroll: false });
 
-  const [sellOpen, setSellOpen] = useState(false);
-
   // One action per tab: the thing that tab is about.
   const actions =
     tab === "page-asset" ? (
-      <Button onClick={() => setSellOpen(true)}>
-        <Coins /> Sell page asset
+      <Button asChild>
+        <Link href="/stores/page-asset/new">
+          <Coins /> Sell page asset
+        </Link>
       </Button>
     ) : (
       <Button asChild>
@@ -80,11 +78,10 @@ export default function StoresPage() {
           <AssetsTab />
         </TabsContent>
         <TabsContent value="page-asset" className="mt-5">
-          <SellPageAssetList />
+          <PageAssetTab />
         </TabsContent>
       </Tabs>
 
-      {sellOpen && <SellPageAssetModal isOpen={sellOpen} onClose={() => setSellOpen(false)} />}
     </PageBody>
   );
 }
@@ -93,7 +90,6 @@ function AssetsTab() {
   const [type, setType] = useState<MediaType | "ALL">("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
-  const [selected, setSelected] = useState<MarketAssetType | null>(null);
 
   const nfts = api.marketplace.market.getACreatorNfts.useInfiniteQuery({ limit: 20 }, { getNextPageParam: (last) => last.nextCursor });
 
@@ -185,7 +181,7 @@ function AssetsTab() {
         <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {items.map((item) => (
             <li key={item.id}>
-              <AssetCard item={item} onOpen={() => setSelected(item)} />
+              <AssetCard item={item} />
             </li>
           ))}
         </ul>
@@ -200,17 +196,15 @@ function AssetsTab() {
         </div>
       )}
 
-      {selected && <CreatorStoredAssetModal data={selected} isOpen onClose={() => setSelected(null)} />}
     </>
   );
 }
 
 /** One store item: thumbnail, name, code and price. */
-export function AssetCard({ item, onOpen }: { item: MarketAssetType; onOpen: () => void }) {
+export function AssetCard({ item }: { item: MarketAssetType }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
+    <Link
+      href={`/stores/${item.id}`}
       className="group block w-full overflow-hidden rounded-xl border bg-card text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary"
     >
       <div className="relative aspect-square overflow-hidden bg-surface-2">
@@ -235,6 +229,6 @@ export function AssetCard({ item, onOpen }: { item: MarketAssetType; onOpen: () 
           </span>
         </p>
       </div>
-    </button>
+    </Link>
   );
 }

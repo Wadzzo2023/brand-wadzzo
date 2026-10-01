@@ -18,6 +18,7 @@ import {
   publicProcedure,
 } from "~/server/api/trpc";
 import { BADWORDS } from "~/utils/banned-word";
+import { assertOwnerOrAdmin } from "~/server/api/access";
 export const updateAssetFormShema = z.object({
   assetId: z.number(),
   price: z.number().nonnegative(),
@@ -139,6 +140,10 @@ export const shopRouter = createTRPCRouter({
     .input(updateAssetFormShema)
     .mutation(async ({ ctx, input }) => {
       const { assetId, price, priceUSD } = input;
+      // Only the brand that listed it (or an admin) can reprice it.
+      const listing = await ctx.db.marketAsset.findUnique({ where: { id: assetId }, select: { placerId: true, asset: { select: { creatorId: true } } } });
+      if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "Store item not found" });
+      await assertOwnerOrAdmin(ctx, listing.placerId, listing.asset.creatorId);
       return await ctx.db.marketAsset.update({
         where: { id: assetId },
         data: { price, priceUSD },
@@ -148,6 +153,9 @@ export const shopRouter = createTRPCRouter({
   deleteAsset: protectedProcedure // fix the logic
     .input(z.number())
     .mutation(async ({ ctx, input }) => {
+      const asset = await ctx.db.asset.findUnique({ where: { id: input }, select: { creatorId: true } });
+      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
+      await assertOwnerOrAdmin(ctx, asset.creatorId);
       return await ctx.db.asset.delete({
         where: { id: input },
       });
@@ -423,6 +431,31 @@ export const shopRouter = createTRPCRouter({
       });
     }
     ),
+  /** One of the brand's own page-asset listings, for its edit page. */
+  getMySellPageAsset: creatorProcedure.input(z.number()).query(async ({ ctx, input }) => {
+    const listing = await ctx.db.sellPageAsset.findFirst({ where: { id: input, placerId: ctx.session.user.id } });
+    if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+    return listing;
+  }),
+  /** One store item the brand listed (or any, for admins), for its edit page. */
+  getMyMarketAsset: protectedProcedure.input(z.number()).query(async ({ ctx, input }) => {
+    const item = await ctx.db.marketAsset.findUnique({
+      where: { id: input },
+      select: {
+        id: true, price: true, priceUSD: true, placerId: true, createdAt: true,
+        asset: {
+          select: {
+            id: true, name: true, description: true, code: true, issuer: true, mediaType: true,
+            mediaUrl: true, thumbnail: true, limit: true, privacy: true, creatorId: true,
+            tier: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Store item not found" });
+    await assertOwnerOrAdmin(ctx, item.placerId, item.asset.creatorId);
+    return item;
+  }),
   getMyAssets: creatorProcedure.query(async ({ ctx }) => {
     const creatorId = ctx.session.user.id;
     return await ctx.db.sellPageAsset.findMany({
@@ -434,9 +467,11 @@ export const shopRouter = createTRPCRouter({
       required_error: "Sell Pageasset id must be needed"
     })
   })).mutation(async ({ ctx, input }) => {
+    // Only the brand that listed it.
     const findSoldPageAsset = await ctx.db.sellPageAsset.findFirst({
       where: {
-        id: input.id
+        id: input.id,
+        placerId: ctx.session.user.id,
       }
     })
     if (!findSoldPageAsset) {

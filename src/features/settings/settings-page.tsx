@@ -7,7 +7,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-import CreatorStoredAssetModal from "~/components/modals/creator-stored-asset-modal";
 import { Badge } from "~/components/shadcn/ui/badge";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
@@ -21,7 +20,6 @@ import { BountyCard } from "~/features/bounties/bounties-page";
 import { MembershipTiers } from "~/features/membership/membership-page";
 import { AssetCard } from "~/features/stores/stores-page";
 import { WADZZO_AR_URL } from "~/lib/embed";
-import type { MarketAssetType } from "~/lib/state/play/use-modal-store";
 import { sortOptionEnum } from "~/types/bounty/bounty-type";
 import { cn } from "~/lib/utils";
 import { EmptyState } from "~/ui/empty-state";
@@ -564,7 +562,6 @@ function BountiesTab({ total }: { total: number }) {
 
 function StoreTab({ total }: { total: number }) {
   const nfts = api.marketplace.market.getACreatorNfts.useInfiniteQuery({ limit: 8 }, { getNextPageParam: (l) => l.nextCursor });
-  const [selected, setSelected] = useState<MarketAssetType | null>(null);
   const items = nfts.data?.pages[0]?.nfts ?? [];
   if (nfts.isPending) return <GridSkeleton />;
   if (nfts.isError) return <ErrorState message={nfts.error.message} onRetry={() => void nfts.refetch()} />;
@@ -586,12 +583,11 @@ function StoreTab({ total }: { total: number }) {
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => (
           <li key={item.id}>
-            <AssetCard item={item} onOpen={() => setSelected(item)} />
+            <AssetCard item={item} />
           </li>
         ))}
       </ul>
       <TabFooter shown={items.length} total={total} href="/stores" label="Open store" />
-      {selected && <CreatorStoredAssetModal data={selected} isOpen onClose={() => setSelected(null)} />}
     </>
   );
 }
