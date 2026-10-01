@@ -130,9 +130,9 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
       multiPin: data.multiPin,
       details: {
         title: data.title,
-        description: data.description ? data.description : null,
-        image: data.image ? data.image : null,
-        link: data.url ? data.url : null,
+        description: data.description ?? null,
+        image: data.image ?? null,
+        link: data.url ?? null,
         type: data.type,
         limit: data.limit,
       },
