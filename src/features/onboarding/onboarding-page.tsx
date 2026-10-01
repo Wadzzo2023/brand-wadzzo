@@ -1,2236 +1,925 @@
 "use client";
 
-import { type RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
-
-import type React from "react";
-
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    CheckCircle2,
-    Upload,
-    User,
-    FileText,
-    ImageIcon,
-    LinkIcon,
-    ArrowRight,
-    ArrowLeft,
-    CheckCheck,
-    Sparkles,
-    Plus,
-    ChevronRight,
-    AlertCircle,
-    ClipboardCheck,
-    PanelTop,
-    XCircle,
-    Loader2,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  CheckCheck,
+  ChevronRight,
+  ClipboardCheck,
+  Coins,
+  FileText,
+  ImageIcon,
+  LinkIcon,
+  Loader2,
+  PanelTop,
+  Plus,
+  Sparkles,
+  User,
+  XCircle,
 } from "lucide-react";
-import { z } from "zod";
+import toast from "react-hot-toast";
+import type { z } from "zod";
 
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
-import { Textarea } from "~/components/shadcn/ui/textarea";
 import { Label } from "~/components/shadcn/ui/label";
-import { RadioGroupItem } from "~/components/shadcn/ui/radio-group";
-import { Card, CardContent } from "~/components/shadcn/ui/card";
-import { cn } from "~/lib/utils";
-import { RadioGroup } from "~/components/shadcn/ui/radio-group";
-import { Badge } from "~/components/shadcn/ui/badge";
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "~/components/shadcn/ui/tabs";
-import { ipfsHashToPinataGatewayUrl } from "~/utils/ipfs";
-import { UploadS3Button } from "~/components/common/upload-button";
-import toast from "react-hot-toast";
-import { api } from "~/utils/api";
-import { useRouter } from "next/navigation";
+import { Textarea } from "~/components/shadcn/ui/textarea";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
-import Link from "next/link";
-// Form validation schemas
-const ProfileSchema = z.object({
-    displayName: z
-        .string()
-        .min(1, "Display name is required")
-        .max(99, "Display name must be less than 100 characters"),
-    bio: z.string().optional(),
-});
-
-const AssetNameSchema = z
-    .string()
-    .min(4, "Asset name must be at least 4 characters")
-    .max(12, "Asset name must be less than 13 characters")
-    .regex(/^[a-zA-Z]+$/, "Asset name can only contain letters (a-z, A-Z)");
-
-const NewAssetSchema = z.object({
-    assetType: z.literal("new"),
-    assetName: AssetNameSchema,
-    assetImage: z.string().url().optional(),
-    assetImagePreview: z.string().optional(),
-});
-
-// Fix the CustomAssetSchema to use assetCode instead of assetName
-const CustomAssetSchema = z.object({
-    assetType: z.literal("custom"),
-    assetCode: AssetNameSchema,
-    issuer: z.string().length(56, "Issuer must be exactly 56 characters"),
-});
-
-const VanityUrlSchema = z.object({
-    vanityUrl: z.string().min(1, "Vanity URL is required"),
-});
-const AssetSchema = z.discriminatedUnion("assetType", [
-    NewAssetSchema,
-    CustomAssetSchema,
-]);
-
-// Fix the FormSchema to make fields required and fix the assetType type
-
+import { cn } from "~/lib/utils";
+import type { RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
+import { Dropzone } from "~/ui/upload/dropzone";
+import { uploadToIpfsUrl } from "~/ui/upload/ipfs";
+import { api } from "~/utils/api";
 
 type FormData = z.infer<typeof RequestBrandCreateFormSchema>;
-type FormErrors = {
-    [K in keyof FormData]?: string[];
-};
 
-/** Celebration sparks, randomised once when the module loads (not on every render). */
-const CONFETTI_COLORS = ["#FF5733", "#33FF57", "#3357FF", "#F3FF33", "#FF33F3"];
-const CONFETTI = Array.from({ length: 100 }, () => ({
-    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-    top: `${Math.random() * 100}%`,
-    left: `${Math.random() * 100}%`,
-    duration: 2 + Math.random() * 2,
-    delay: Math.random() * 0.5,
+const STEPS = [
+  { step: 1, title: "Welcome", desc: "Benefits of becoming an artist" },
+  { step: 2, title: "Media", desc: "Profile & cover images" },
+  { step: 3, title: "Details", desc: "Artist name & biography" },
+  { step: 4, title: "Page Asset", desc: "Brand membership token" },
+  { step: 5, title: "Vanity URL", desc: "Custom profile link" },
+  { step: 6, title: "Review", desc: "Confirm & complete" },
+] as const;
+
+const CONFETTI_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
+const CONFETTI = Array.from({ length: 60 }, (_, i) => ({
+  id: i,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  left: `${(i * 1.67) % 100}%`,
+  top: `${(i * 2.3) % 100}%`,
+  duration: 2 + (i % 3) * 0.5,
+  delay: (i % 5) * 0.1,
 }));
 
 export default function ArtistOnboarding() {
-    const [currentStep, setCurrentStep] = useState(1);
-    const [formData, setFormData] = useState<FormData>({
-        profileUrl: "",
-        profileUrlPreview: "",
-        coverUrl: "",
-        coverImagePreview: "",
-        displayName: "",
-        bio: "",
-        assetType: "new", // "new" or "custom"
-        assetName: "", //new asset name
-        assetImage: "", //new asset image
-        assetImagePreview: "", //new asset image preview
-        assetCode: "", //custom asset code
-        issuer: "", //custom asset issuer
-        vanityUrl: "",
-    });
-    const [formErrors, setFormErrors] = useState<FormErrors>({});
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [showConfetti, setShowConfetti] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    const [activeImageTab, setActiveImageTab] = useState("profile");
-    const router = useRouter();
-    // Add state for vanity URL availability
-    const [isVanityUrlAvailable, setIsVanityUrlAvailable] = useState<
-        boolean | null
-    >(null);
-    const [isCheckingVanityUrl, setIsCheckingVanityUrl] = useState(false);
+  const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [showConfetti, setShowConfetti] = useState(false);
 
-    // In the state declarations at the top of the component, add a new state for tracking trust status
-    const [isTrusted, setIsTrusted] = useState(false);
-    const [isTrusting, setIsTrusting] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
+    profileUrl: "",
+    profileUrlPreview: "",
+    coverUrl: "",
+    coverImagePreview: "",
+    displayName: "",
+    bio: "",
+    assetType: "new",
+    assetName: "",
+    assetImage: "",
+    assetImagePreview: "",
+    assetCode: "",
+    issuer: "",
+    vanityUrl: "",
+  });
 
-    const totalSteps = 6;
+  const [isVanityUrlAvailable, setIsVanityUrlAvailable] = useState<boolean | null>(null);
+  const [isCheckingVanityUrl, setIsCheckingVanityUrl] = useState(false);
+  const [isTrusted, setIsTrusted] = useState(false);
+  const [activeMediaTab, setActiveMediaTab] = useState<"profile" | "cover">("profile");
 
-    // Add this function to validate form fields
-    const validateField = (field: keyof FormData, value: string) => {
-        try {
-            if (field === "assetName" || field === "assetCode") {
-                AssetNameSchema.parse(value);
-                return { valid: true, errors: [] };
-            } else if (field === "issuer") {
-                z.string().length(56).parse(value);
-                return { valid: true, errors: [] };
-            } else if (field === "displayName") {
-                ProfileSchema.shape.displayName.parse(value);
-                return { valid: true, errors: [] };
-            }
-            return { valid: true, errors: [] };
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                return {
-                    valid: false,
-                    errors: error.errors.map((err) => err.message),
-                };
-            }
-            return { valid: false, errors: ["Invalid input"] };
-        }
-    };
+  // Debounced vanity URL check
+  const checkVanity = api.fan.creator.checkVanityURLAvailabilityMutation.useMutation({
+    onSuccess: (data) => {
+      setIsCheckingVanityUrl(false);
+      setIsVanityUrlAvailable(data.isAvailable);
+    },
+    onError: () => {
+      setIsCheckingVanityUrl(false);
+      setIsVanityUrlAvailable(false);
+    },
+  });
 
-    // Add these computed properties to replace the old validation states
-    const isAssetNameValid =
-        formData.assetName &&
-        formData.assetName.length > 0 &&
-        !formErrors.assetName?.length;
-    const isassetCodeValid =
-        formData.assetCode &&
-        formData.assetCode.length > 0 &&
-        !formErrors.assetCode?.length;
-    const isIssuerValid =
-        formData.issuer && formData.issuer.length > 0 && !formErrors.issuer?.length;
+  useEffect(() => {
+    const slug = formData.vanityUrl?.trim().toLowerCase();
+    if (!slug) return;
+    const timer = setTimeout(() => {
+      checkVanity.mutate({ vanityURL: slug });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [formData.vanityUrl, checkVanity]);
 
-    // Reset upload progress when an upload ends (adjusted during render, no extra pass).
-    const [wasUploading, setWasUploading] = useState(isUploading);
-    if (wasUploading !== isUploading) {
-        setWasUploading(isUploading);
-        if (!isUploading) setUploadProgress(0);
-    }
+  // Custom asset verification
+  const checkAsset = api.fan.creator.checkCustomAssetValidity.useMutation({
+    onSuccess: (valid) => {
+      if (valid) {
+        setIsTrusted(true);
+        toast.success("Custom asset verified on Stellar network");
+      } else {
+        setIsTrusted(false);
+        toast.error("Asset not found or issuer invalid");
+      }
+    },
+    onError: (err) => {
+      setIsTrusted(false);
+      toast.error(err.message ?? "Failed to verify asset");
+    },
+  });
 
-    // A changed asset code or issuer has to be checked again.
-    const assetKey = `${formData.assetCode}|${formData.issuer}`;
-    const [checkedAssetKey, setCheckedAssetKey] = useState(assetKey);
-    if (checkedAssetKey !== assetKey) {
-        setCheckedAssetKey(assetKey);
-        if (isTrusted) setIsTrusted(false);
-    }
+  // Final submission mutation
+  const requestBrand = api.fan.creator.requestForBrandCreation.useMutation({
+    onSuccess: () => {
+      toast.success("Brand application submitted successfully!");
+      setShowConfetti(true);
+      setTimeout(() => {
+        router.push("/pins");
+      }, 2000);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to submit brand application");
+    },
+  });
 
-    const RequestForBrandCreation =
-        api.fan.creator.requestForBrandCreation.useMutation({
-            onSuccess: (data) => {
-                console.log("Brand creation request submitted:", data);
-                toast.success("Brand creation request submitted successfully");
-                setShowConfetti(true);
-                setTimeout(() => {
-                    router.push("/pins");
-                }, 2000);
-            },
-            onError: (error) => {
-                console.error("Failed to submit brand creation request:", error);
-                toast.error(`${error.data?.code}`);
-            },
-        });
-    const checkAvailability =
-        api.fan.creator.checkVanityURLAvailabilityMutation.useMutation({
-            onSuccess: (data) => {
-                const isAvailable = data.isAvailable;
-                setIsVanityUrlAvailable(isAvailable);
-            },
-            onError: (error) => {
-                console.error("Error checking vanity URL availability:", error);
-                setIsVanityUrlAvailable(false);
-                toast.error("Failed to check URL availability");
-            },
-        });
-
-    // Add vanity URL availability check
-    useEffect(() => {
-        // Debounce the check to avoid too many API calls
-        const timer = setTimeout(() => {
-            if (formData.vanityUrl && formData.vanityUrl.length > 0) {
-                checkAvailability.mutate({
-                    vanityURL: formData.vanityUrl,
-                });
-            } else {
-                setIsVanityUrlAvailable(null);
-            }
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [formData.vanityUrl]);
-
-    const CheckCustomAssetValidity =
-        api.fan.creator.checkCustomAssetValidity.useMutation({
-            onSuccess: (data) => {
-                if (data) {
-                    setIsTrusted(true);
-                }
-            },
-            onError: (error) => {
-                console.error("Error checking custom asset validity:", error);
-                setIsTrusted(false);
-                toast.error("Failed to check asset validity");
-            },
-        });
-    const checkCustomAssetValidity = ({
-        assetCode,
-        issuer,
-    }: {
-        assetCode: string;
-        issuer: string;
-    }) => {
-        CheckCustomAssetValidity.mutate({
-            assetCode,
-            issuer,
-        });
-    };
-    // Update the handleFileChange function to properly handle upload states
-    const handleFileChange = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-        field: "assetImage",
-    ) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setIsUploading(true);
-            setUploadProgress(10); // Start with some progress
-            try {
-                const uploadFormData = new FormData();
-                uploadFormData.append("file", file, file.name);
-
-                // Simulate progress
-                const progressInterval = setInterval(() => {
-                    setUploadProgress((prev) => Math.min(prev + 10, 90));
-                }, 300);
-
-                const res = await fetch("/api/file", {
-                    method: "POST",
-                    body: uploadFormData,
-                });
-
-                clearInterval(progressInterval);
-                setUploadProgress(100);
-
-                const ipfsHash = await res.text();
-                const thumbnail = ipfsHashToPinataGatewayUrl(ipfsHash);
-                setFormData((prevFormData) => ({
-                    ...prevFormData,
-                    assetImage: thumbnail,
-                    assetImagePreview: thumbnail,
-                }));
-
-                // Short delay to show 100% before clearing
-                setTimeout(() => {
-                    setIsUploading(false);
-                }, 500);
-            } catch (error) {
-                console.error("Upload failed:", error);
-                toast.error("Upload failed. Please try again.");
-                setIsUploading(false);
-            }
-        }
-    };
-
-    const handleInputChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    ) => {
-        const { name, value } = e.target;
-        const fieldName = name as keyof FormData;
-
-        // Update form data
-        setFormData({
-            ...formData,
-            [fieldName]: value,
-        });
-
-        // Validate the field
-        const validation = validateField(fieldName, value);
-
-        // Update errors state
-        setFormErrors((prev) => ({
-            ...prev,
-            [fieldName]: validation.valid ? undefined : validation.errors,
-        }));
-
-        // Reset availability check when vanity URL changes
-        if (fieldName === "vanityUrl") {
-            setIsVanityUrlAvailable(null);
-        }
-    };
-
-    // Fix the handleRadioChange function to properly type the value
-    const handleRadioChange = (value: "new" | "custom") => {
-        setFormData({
-            ...formData,
-            assetType: value,
-        });
-
-        // Reset trust status when switching asset types
-        if (value === "new") {
-            setIsTrusted(false);
-        }
-    };
-
-    // Fix the handleNext function for step 4
-    const handleNext = () => {
-        if (currentStep < totalSteps) {
-            // Validate current step before proceeding
-            let isValid = false;
-
-            switch (currentStep) {
-                case 1:
-                    isValid = true; // No validation needed for step 1
-                    break;
-                case 2:
-                    // Only require profile image, cover image is optional
-                    isValid = !!formData.profileUrl && !isUploading;
-                    break;
-                case 3:
-                    try {
-                        ProfileSchema.parse({
-                            displayName: formData.displayName,
-                            bio: formData.bio,
-                        });
-                        isValid = true;
-                    } catch (error) {
-                        if (error instanceof z.ZodError) {
-                            const newErrors: FormErrors = {};
-                            error.errors.forEach((err) => {
-                                const path = err.path[0];
-                                if (typeof path === "string") {
-                                    if (!newErrors[path as keyof FormData]) {
-                                        newErrors[path as keyof FormData] = [];
-                                    }
-                                    newErrors[path as keyof FormData]?.push(err.message);
-                                }
-                            });
-                            setFormErrors((prev) => ({ ...prev, ...newErrors }));
-                        }
-                        isValid = false;
-                    }
-                    break;
-                case 4:
-                    if (formData.assetType === "new") {
-                        // For new asset, require valid name and image
-                        const validName =
-                            formData.assetName.length >= 4 &&
-                            formData.assetName.length <= 12 &&
-                            /^[a-zA-Z]+$/.test(formData.assetName);
-                        isValid = validName && !!formData.assetImage && !isUploading;
-                    } else {
-                        // For custom asset, require valid code, issuer, and trust operation
-                        const validCode =
-                            formData.assetCode.length >= 4 &&
-                            formData.assetCode.length <= 12 &&
-                            /^[a-zA-Z]+$/.test(formData.assetCode);
-                        const validIssuer = formData.issuer.length === 56;
-                        isValid = validCode && validIssuer && isTrusted;
-                    }
-                    break;
-                case 5:
-                    // Check if vanity URL is valid and available
-                    isValid =
-                        !!formData.vanityUrl &&
-                        formData.vanityUrl.length > 0 &&
-                        isVanityUrlAvailable === true;
-                    if (!isValid && formData.vanityUrl) {
-                        if (isVanityUrlAvailable === false) {
-                            toast.error(
-                                "This vanity URL is already taken. Please choose another one.",
-                            );
-                        } else if (isCheckingVanityUrl) {
-                            toast.error("Please wait while we check URL availability.");
-                        }
-                    }
-                    break;
-                default:
-                    isValid = true;
-            }
-
-            if (isValid) {
-                setCurrentStep(currentStep + 1);
-            } else {
-                // Show a toast message to inform the user what's missing
-                if (currentStep === 4) {
-                    if (formData.assetType === "new") {
-                        if (
-                            !formData.assetName ||
-                            formData.assetName.length < 4 ||
-                            formData.assetName.length > 12
-                        ) {
-                            toast.error("Please enter a valid asset name (4-12 letters)");
-                        } else if (!formData.assetImage) {
-                            toast.error("Please upload an asset image");
-                        }
-                    } else {
-                        if (
-                            !formData.assetCode ||
-                            formData.assetCode.length < 4 ||
-                            formData.assetCode.length > 12
-                        ) {
-                            toast.error("Please enter a valid asset code (4-12 letters)");
-                        } else if (formData.issuer?.length !== 56) {
-                            toast.error(
-                                "Please enter a valid issuer (exactly 56 characters)",
-                            );
-                        }
-                    }
-                }
-            }
+  // Step validation
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return true;
+      case 2:
+        return !!formData.profileUrl;
+      case 3:
+        return formData.displayName.trim().length >= 1 && formData.displayName.trim().length <= 99;
+      case 4:
+        if (formData.assetType === "new") {
+          const validName = /^[a-zA-Z]{4,12}$/.test(formData.assetName.trim());
+          return validName && !!formData.assetImage;
         } else {
-            // Validate entire form before submission
-            try {
-                // Prepare the data based on asset type
-                const submissionData = {
-                    ...formData,
-                    // Only include relevant fields based on asset type
-                    ...(formData.assetType === "new"
-                        ? { assetCode: undefined, issuer: undefined }
-                        : {
-                            assetName: undefined,
-                            assetImage: undefined,
-                            assetImagePreview: undefined,
-                        }),
-                };
-
-                RequestForBrandCreation.mutate(submissionData);
-            } catch (error) {
-                if (error instanceof z.ZodError) {
-                    const newErrors: FormErrors = {};
-                    error.errors.forEach((err) => {
-                        const path = err.path[0];
-                        if (typeof path === "string") {
-                            if (!newErrors[path as keyof FormData]) {
-                                newErrors[path as keyof FormData] = [];
-                            }
-                            newErrors[path as keyof FormData]?.push(err.message);
-                        }
-                    });
-                    setFormErrors((prev) => ({ ...prev, ...newErrors }));
-                    console.error("Form validation failed:", error);
-                }
-            }
+          const validCode = /^[a-zA-Z]{4,12}$/.test(formData.assetCode.trim());
+          const validIssuer = /^G[A-Z2-7]{55}$/.test(formData.issuer.trim());
+          return validCode && validIssuer && isTrusted;
         }
-    };
+      case 5:
+        return (
+          !!formData.vanityUrl &&
+          formData.vanityUrl.trim().length > 0 &&
+          isVanityUrlAvailable === true &&
+          !isCheckingVanityUrl
+        );
+      case 6:
+        return true;
+      default:
+        return false;
+    }
+  };
 
-    const handleBack = () => {
-        if (currentStep > 1) {
-            setCurrentStep(currentStep - 1);
-        }
-    };
+  const handleNext = () => {
+    if (currentStep < 6) {
+      setCurrentStep((prev) => prev + 1);
+    } else {
+      const payload: FormData = {
+        ...formData,
+        profileUrl: formData.profileUrl ?? undefined,
+        coverUrl: formData.coverUrl ?? undefined,
+        displayName: formData.displayName.trim(),
+        bio: formData.bio && formData.bio.trim().length > 0 ? formData.bio.trim() : undefined,
+        assetType: formData.assetType,
+        assetName: formData.assetType === "new" ? formData.assetName.trim().toUpperCase() : "",
+        assetImage: formData.assetType === "new" ? formData.assetImage : undefined,
+        assetCode: formData.assetType === "custom" ? formData.assetCode.trim().toUpperCase() : "",
+        issuer: formData.assetType === "custom" ? formData.issuer.trim() : "",
+        vanityUrl: formData.vanityUrl.trim().toLowerCase(),
+      };
+      requestBrand.mutate(payload);
+    }
+  };
 
-    // Fix the isNextDisabled function for step 4
-    const isNextDisabled = () => {
-        switch (currentStep) {
-            case 2:
-                // Only require profile image, cover image is optional
-                return !formData.profileUrl || isUploading;
-            case 3:
-                try {
-                    ProfileSchema.parse({
-                        displayName: formData.displayName,
-                        bio: formData.bio,
-                    });
-                    return false;
-                } catch (error) {
-                    return true;
-                }
-            case 4:
-                if (formData.assetType === "new") {
-                    // For new asset, require valid name and image
-                    const validName =
-                        formData.assetName.length >= 4 &&
-                        formData.assetName.length <= 12 &&
-                        /^[a-zA-Z]+$/.test(formData.assetName);
-                    return !validName || !formData.assetImage || isUploading;
-                } else {
-                    // For custom asset, require valid code, issuer, and trust operation
-                    const validCode =
-                        formData.assetCode.length >= 4 &&
-                        formData.assetCode.length <= 12 &&
-                        /^[a-zA-Z]+$/.test(formData.assetCode);
-                    const validIssuer = formData.issuer.length === 56;
-                    return !validCode || !validIssuer || !isTrusted;
-                }
-            case 5:
-                // Check if vanity URL is valid and available
-                return (
-                    !formData.vanityUrl ||
-                    formData.vanityUrl.length < 1 ||
-                    isVanityUrlAvailable !== true ||
-                    isCheckingVanityUrl
-                );
-            default:
-                return false;
-        }
-    };
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  };
 
-    // Animation variants
-    const pageVariants = {
-        initial: {
-            opacity: 0,
-            scale: 0.9,
-        },
-        animate: {
-            opacity: 1,
-            scale: 1,
-            transition: {
-                duration: 0.5,
-                ease: [0.22, 1, 0.36, 1],
-            },
-        },
-        exit: {
-            opacity: 0,
-            scale: 0.9,
-            transition: {
-                duration: 0.3,
-                ease: [0.22, 1, 0.36, 1],
-            },
-        },
-    };
-
-    const stepIndicatorVariants = {
-        inactive: { scale: 1, opacity: 0.5 },
-        active: {
-            scale: 1.1,
-            opacity: 1,
-            transition: { duration: 0.3 },
-        },
-        completed: {
-            scale: 1,
-            opacity: 1,
-            transition: { duration: 0.3 },
-        },
-    };
-
-    return (
-        <div className="h-screen  overflow-auto">
-            {showConfetti && (
-                <div className="pointer-events-none fixed inset-0 z-50">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1, opacity: [0, 1, 0] }}
-                            transition={{ duration: 2 }}
-                            className="text-4xl"
-                        >
-                            <div className="flex items-center justify-center gap-2 ">
-                                <Sparkles className="h-8 w-8" />
-                                <span className="font-bold">Artist Profile Created!</span>
-                                <Sparkles className="h-8 w-8" />
-                            </div>
-                        </motion.div>
-                    </div>
-                    {CONFETTI.map((c, i) => (
-                        <motion.div
-                            key={i}
-                            className="absolute h-2 w-2 rounded-full"
-                            initial={{ top: "50%", left: "50%", scale: 0, backgroundColor: c.color }}
-                            animate={{ top: c.top, left: c.left, scale: [0, 1, 0], opacity: [0, 1, 0] }}
-                            transition={{ duration: c.duration, delay: c.delay, ease: "easeOut" }}
-                        />
-                    ))}
-                </div>
-            )}
-
-            <div className="container mx-auto max-w-7xl px-4 py-8">
-                <div className="flex flex-col items-start gap-8 lg:flex-row lg:gap-12">
-                    {/* Left Sidebar - Steps */}
-                    <div className="w-full space-y-6 lg:sticky lg:top-8 lg:w-1/4">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-full bg-primary p-2">
-                                <ImageIcon className="h-6 w-6 " />
-                            </div>
-                            <h1 className="text-2xl font-bold">Artist Onboarding</h1>
-                        </div>
-
-                        <div className="space-y-2">
-                            {Array.from({ length: totalSteps }).map((_, index) => (
-                                <motion.div
-                                    key={index}
-                                    variants={stepIndicatorVariants}
-                                    initial="inactive"
-                                    animate={
-                                        currentStep > index + 1
-                                            ? "completed"
-                                            : currentStep === index + 1
-                                                ? "active"
-                                                : "inactive"
-                                    }
-                                    className={cn(
-                                        "flex items-center gap-3 rounded-lg p-3 transition-all duration-300",
-                                        currentStep === index + 1
-                                            ? "border-foregound border-2 bg-primary"
-                                            : currentStep > index + 1
-                                                ? "bg-primary"
-                                                : "bg-background",
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                                            currentStep > index + 1
-                                                ? "bg-primary "
-                                                : currentStep === index + 1
-                                                    ? "border-2 border-primary "
-                                                    : "border-2 border-muted-foreground text-muted-foreground",
-                                        )}
-                                    >
-                                        {currentStep > index + 1 ? (
-                                            <CheckCircle2 className="h-4 w-4" />
-                                        ) : (
-                                            <span className="text-sm">{index + 1}</span>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span
-                                            className={cn(
-                                                "text-sm font-medium",
-                                                currentStep >= index + 1
-                                                    ? "text-foreground"
-                                                    : "text-muted-foreground",
-                                            )}
-                                        >
-                                            {index === 0 && "Benefits"}
-                                            {index === 1 && "Profile Pictures"}
-                                            {index === 2 && "Artist Details"}
-                                            {index === 3 && "Asset Creation"}
-                                            {index === 4 && "Vanity URL"}
-                                            {index === 5 && "Overview"}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {index === 0 && "Why become an Artist"}
-                                            {index === 1 && "Upload your images"}
-                                            {index === 2 && "Name and bio"}
-                                            {index === 3 && "Create your assets"}
-                                            {index === 4 && "Choose your URL"}
-                                            {index === 5 && "Review and submit"}
-                                        </span>
-                                    </div>
-                                    {currentStep === index + 1 && (
-                                        <ChevronRight className="ml-auto h-5 w-5 " />
-                                    )}
-                                </motion.div>
-                            ))}
-                        </div>
-
-                        <div className="hidden rounded-lg border border-border bg-muted/50 p-4 lg:block">
-                            <h3 className="mb-2 text-sm font-medium">Need help?</h3>
-                            <p className="text-xs text-muted-foreground">
-                                If you have any questions about the onboarding process, please
-                                contact our support team.
-                            </p>
-                            <Link href="https://app.wadzzo.com/support" className="text-info hover:underline">
-                                Contact Support
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="w-full lg:w-3/4">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={currentStep}
-                                variants={pageVariants}
-                                initial="initial"
-                                animate="animate"
-                                exit="exit"
-                                className="w-full"
-                            >
-                                <Card className="overflow-hidden border-none bg-background/80 shadow-lg backdrop-blur-xs">
-                                    <CardContent className="p-0">
-                                        {/* Step 1: Benefits */}
-                                        {currentStep === 1 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Benefits of Becoming an Artist
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Join our platform and unlock these exclusive
-                                                            benefits for artists.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="grid gap-6 md:grid-cols-2">
-                                                        {[
-                                                            {
-                                                                icon: <ImageIcon className="h-5 w-5" />,
-                                                                title: "Showcase Your Work",
-                                                                description:
-                                                                    "Display your portfolio to a global audience of collectors and enthusiasts.",
-                                                            },
-                                                            {
-                                                                icon: <User className="h-5 w-5" />,
-                                                                title: "Build Your Brand",
-                                                                description:
-                                                                    "Establish your unique identity with a personalized Artist page.",
-                                                            },
-                                                            {
-                                                                icon: <LinkIcon className="h-5 w-5" />,
-                                                                title: "Custom URL",
-                                                                description:
-                                                                    "Get a memorable vanity URL to share with your audience.",
-                                                            },
-                                                            {
-                                                                icon: <FileText className="h-5 w-5" />,
-                                                                title: "Asset Management",
-                                                                description:
-                                                                    "Create and manage your digital assets with powerful tools.",
-                                                            },
-                                                        ].map((benefit, index) => (
-                                                            <motion.div
-                                                                key={index}
-                                                                initial={{ opacity: 0, y: 20 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: index * 0.1 }}
-                                                                className="group relative overflow-hidden rounded-xl border p-6 transition-all duration-300 hover:shadow-md"
-                                                                whileHover={{
-                                                                    scale: 1.02,
-                                                                    boxShadow:
-                                                                        "0 10px 30px -15px rgba(0, 0, 0, 0.2)",
-                                                                }}
-                                                            >
-                                                                <div className="absolute left-0 top-0 h-full w-1 origin-bottom scale-y-0 transform bg-primary transition-transform duration-300 group-hover:scale-y-100"></div>
-                                                                <div className="flex flex-col gap-3">
-                                                                    <div className="bg-primary0 w-fit rounded-full p-3 ">
-                                                                        {benefit.icon}
-                                                                    </div>
-                                                                    <div>
-                                                                        <h3 className="text-lg font-medium">
-                                                                            {benefit.title}
-                                                                        </h3>
-                                                                        <p className="mt-1 text-sm text-muted-foreground">
-                                                                            {benefit.description}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                            </motion.div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="rounded-lg border border-border bg-muted/30 p-4">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="mt-1 rounded-full bg-primary p-2">
-                                                                <Sparkles className="h-4 w-4 " />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-medium">
-                                                                    Ready to get started?
-                                                                </h3>
-                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                    Complete the onboarding process to start
-                                                                    showcasing your work to the world.
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 2: Profile & Cover Picture Upload */}
-                                        {currentStep === 2 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Upload Your Images
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Choose high-quality images that represent you and
-                                                            your art. Profile picture is required, cover image
-                                                            is optional.
-                                                        </p>
-                                                    </div>
-
-                                                    <Tabs
-                                                        value={activeImageTab}
-                                                        onValueChange={setActiveImageTab}
-                                                        className="w-full"
-                                                    >
-                                                        <TabsList className="mb-6 grid w-full grid-cols-2">
-                                                            <TabsTrigger
-                                                                value="profile"
-                                                                className="flex items-center gap-2"
-                                                            >
-                                                                <User className="h-4 w-4" />
-                                                                Profile Picture{" "}
-                                                                <span className="ml-1 text-destructive">*</span>
-                                                            </TabsTrigger>
-                                                            <TabsTrigger
-                                                                value="cover"
-                                                                className="flex items-center gap-2"
-                                                            >
-                                                                <PanelTop className="h-4 w-4" />
-                                                                Cover Image (Optional)
-                                                            </TabsTrigger>
-                                                        </TabsList>
-
-                                                        <TabsContent value="profile" className="mt-0">
-                                                            <div className="flex flex-col items-center gap-8 md:flex-row">
-                                                                <div className="flex w-full flex-col items-center justify-center space-y-4 md:w-1/2">
-                                                                    {formData.profileUrlPreview ? (
-                                                                        <motion.div
-                                                                            initial={{ scale: 0.8, opacity: 0 }}
-                                                                            animate={{ scale: 1, opacity: 1 }}
-                                                                            transition={{ duration: 0.5 }}
-                                                                            className="relative h-64 w-64 overflow-hidden rounded-2xl border-2 border-primary shadow-lg"
-                                                                        >
-                                                                            <img
-                                                                                src={
-                                                                                    formData.profileUrlPreview ||
-                                                                                    "/placeholder.svg"
-                                                                                }
-                                                                                alt="Profile preview"
-                                                                                className="absolute inset-0 size-full object-cover"
-                                                                            />
-                                                                            {isUploading &&
-                                                                                activeImageTab === "profile" && (
-                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs">
-                                                                                        <div className="h-2 w-3/4 overflow-hidden rounded-full bg-background">
-                                                                                            <motion.div
-                                                                                                className="h-full bg-primary"
-                                                                                                initial={{ width: "0%" }}
-                                                                                                animate={{
-                                                                                                    width: `${uploadProgress}%`,
-                                                                                                }}
-                                                                                                transition={{ duration: 0.1 }}
-                                                                                            />
-                                                                                        </div>
-                                                                                        <p className="absolute mt-8 text-sm font-medium text-white">
-                                                                                            {uploadProgress}%
-                                                                                        </p>
-                                                                                    </div>
-                                                                                )}
-                                                                        </motion.div>
-                                                                    ) : (
-                                                                        <motion.div
-                                                                            whileHover={{ scale: 1.05 }}
-                                                                            className="group relative flex h-64 w-64 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-muted-foreground bg-muted/50 transition-all duration-300 hover:border-primary hover:bg-primary"
-                                                                            onClick={() =>
-                                                                                document
-                                                                                    .getElementById("profile-upload")
-                                                                                    ?.click()
-                                                                            }
-                                                                        >
-                                                                            <motion.div
-                                                                                animate={{
-                                                                                    scale: [1, 1.1, 1],
-                                                                                    opacity: [0.7, 1, 0.7],
-                                                                                }}
-                                                                                transition={{
-                                                                                    repeat: Number.POSITIVE_INFINITY,
-                                                                                    duration: 2,
-                                                                                    ease: "easeInOut",
-                                                                                }}
-                                                                            >
-                                                                                <User className="group-hover: h-20 w-20 text-muted-foreground transition-colors duration-300" />
-                                                                            </motion.div>
-                                                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/80 px-4 py-1 text-sm font-medium text-foreground opacity-0 backdrop-blur-xs transition-opacity duration-300 group-hover:opacity-100">
-                                                                                Click to upload
-                                                                            </div>
-                                                                        </motion.div>
-                                                                    )}
-
-                                                                    <div className="w-full max-w-xs">
-                                                                        <UploadS3Button
-                                                                            id="profile-upload"
-                                                                            variant="button"
-                                                                            endpoint="imageUploader"
-                                                                            className="w-full"
-                                                                            label="Upload Profile Picture"
-                                                                            onClientUploadComplete={(res) => {
-                                                                                const data = res;
-                                                                                if (data?.url) {
-                                                                                    setFormData((prevFormData) => ({
-                                                                                        ...prevFormData,
-                                                                                        profileUrl: data.url,
-                                                                                        profileUrlPreview: data.url,
-                                                                                    }));
-                                                                                }
-                                                                            }}
-                                                                            onUploadError={(error: Error) => {
-                                                                                toast.error(`ERROR! ${error.message}`);
-                                                                                setIsUploading(false);
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="w-full space-y-4 md:w-1/2">
-                                                                    <div className="space-y-3 rounded-lg border p-4">
-                                                                        <h3 className="font-medium">
-                                                                            Profile Picture Tips
-                                                                        </h3>
-                                                                        <ul className="space-y-2 text-sm text-muted-foreground">
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Use a high-resolution image (at least
-                                                                                    500x500 pixels)
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Choose a well-lit photo with good
-                                                                                    contrast
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Select an image that represents your
-                                                                                    artistic style
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Avoid busy backgrounds that distract
-                                                                                    from you
-                                                                                </span>
-                                                                            </li>
-                                                                        </ul>
-                                                                    </div>
-
-                                                                    <div className="rounded-lg border border-primary bg-primary p-4">
-                                                                        <div className="flex items-start gap-3">
-                                                                            <div className="mt-1 rounded-full bg-primary p-2">
-                                                                                <Sparkles className="h-4 w-4 " />
-                                                                            </div>
-                                                                            <div>
-                                                                                <h3 className="font-medium">
-                                                                                    Make a great first impression
-                                                                                </h3>
-                                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                                    Your profile picture is required and
-                                                                                    is the first thing collectors will
-                                                                                    see. Choose an image that captures
-                                                                                    your unique artistic identity.
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </TabsContent>
-
-                                                        <TabsContent value="cover" className="mt-0">
-                                                            <div className="flex flex-col items-center gap-8 md:flex-row">
-                                                                <div className="flex w-full flex-col items-center justify-center space-y-4 md:w-1/2">
-                                                                    {formData.coverImagePreview ? (
-                                                                        <motion.div
-                                                                            initial={{ scale: 0.8, opacity: 0 }}
-                                                                            animate={{ scale: 1, opacity: 1 }}
-                                                                            transition={{ duration: 0.5 }}
-                                                                            className="relative h-48 w-full overflow-hidden rounded-xl border-2 border-primary shadow-lg"
-                                                                        >
-                                                                            <img
-                                                                                src={
-                                                                                    formData.coverImagePreview ||
-                                                                                    "/placeholder.svg"
-                                                                                }
-                                                                                alt="Cover preview"
-                                                                                className="absolute inset-0 size-full object-cover"
-                                                                            />
-                                                                            {isUploading &&
-                                                                                activeImageTab === "cover" && (
-                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs">
-                                                                                        <div className="h-2 w-3/4 overflow-hidden rounded-full bg-background">
-                                                                                            <motion.div
-                                                                                                className="h-full bg-primary"
-                                                                                                initial={{ width: "0%" }}
-                                                                                                animate={{
-                                                                                                    width: `${uploadProgress}%`,
-                                                                                                }}
-                                                                                                transition={{ duration: 0.1 }}
-                                                                                            />
-                                                                                        </div>
-                                                                                        <p className="absolute mt-8 text-sm font-medium text-white">
-                                                                                            {uploadProgress}%
-                                                                                        </p>
-                                                                                    </div>
-                                                                                )}
-                                                                        </motion.div>
-                                                                    ) : (
-                                                                        <motion.div
-                                                                            whileHover={{ scale: 1.02 }}
-                                                                            className="group relative flex h-48 w-full cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground bg-muted/50 transition-all duration-300 hover:border-primary hover:bg-primary"
-                                                                            onClick={() =>
-                                                                                document
-                                                                                    .getElementById("cover-upload")
-                                                                                    ?.click()
-                                                                            }
-                                                                        >
-                                                                            <motion.div
-                                                                                animate={{
-                                                                                    scale: [1, 1.1, 1],
-                                                                                    opacity: [0.7, 1, 0.7],
-                                                                                }}
-                                                                                transition={{
-                                                                                    repeat: Number.POSITIVE_INFINITY,
-                                                                                    duration: 2,
-                                                                                    ease: "easeInOut",
-                                                                                }}
-                                                                            >
-                                                                                <PanelTop className="group-hover: h-20 w-20 text-muted-foreground transition-colors duration-300" />
-                                                                            </motion.div>
-                                                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/80 px-4 py-1 text-sm font-medium text-foreground opacity-0 backdrop-blur-xs transition-opacity duration-300 group-hover:opacity-100">
-                                                                                Click to upload cover image
-                                                                            </div>
-                                                                        </motion.div>
-                                                                    )}
-
-                                                                    <div className="w-full max-w-xs">
-                                                                        <UploadS3Button
-                                                                            variant="button"
-                                                                            endpoint="imageUploader"
-                                                                            className="w-full"
-                                                                            onClientUploadComplete={(res) => {
-                                                                                const data = res;
-                                                                                if (data?.url) {
-                                                                                    setFormData((prevFormData) => ({
-                                                                                        ...prevFormData,
-                                                                                        coverUrl: data.url,
-                                                                                        coverImagePreview: data.url,
-                                                                                    }));
-                                                                                }
-                                                                            }}
-                                                                            onUploadError={(error: Error) => {
-                                                                                toast.error(`ERROR! ${error.message}`);
-                                                                                setIsUploading(false);
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="w-full space-y-4 md:w-1/2">
-                                                                    <div className="space-y-3 rounded-lg border p-4">
-                                                                        <h3 className="font-medium">
-                                                                            Cover Image Tips
-                                                                        </h3>
-                                                                        <ul className="space-y-2 text-sm text-muted-foreground">
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Use a high-resolution image (at least
-                                                                                    1500x500 pixels)
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Choose a landscape orientation for
-                                                                                    best display
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Showcase your artwork or creative
-                                                                                    process
-                                                                                </span>
-                                                                            </li>
-                                                                            <li className="flex items-start gap-2">
-                                                                                <CheckCircle2 className="mt-0.5 h-4  w-4" />
-                                                                                <span>
-                                                                                    Ensure important elements are centered
-                                                                                </span>
-                                                                            </li>
-                                                                        </ul>
-                                                                    </div>
-
-                                                                    <div className="rounded-lg border border-primary bg-primary p-4">
-                                                                        <div className="flex items-start gap-3">
-                                                                            <div className="mt-1 rounded-full bg-primary p-2">
-                                                                                <Sparkles className="h-4 w-4 " />
-                                                                            </div>
-                                                                            <div>
-                                                                                <h3 className="font-medium">
-                                                                                    Create an immersive experience
-                                                                                </h3>
-                                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                                    Your cover image sets the tone for
-                                                                                    your Artist page. Choose an image that
-                                                                                    showcases your artistic style and
-                                                                                    creates a compelling visual
-                                                                                    experience.
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </TabsContent>
-                                                    </Tabs>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 3: Organization Name and Bio */}
-                                        {currentStep === 3 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Artist Details
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Tell us more about yourself and your artistic
-                                                            journey.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="flex flex-col gap-8 md:flex-row">
-                                                        <div className="flex w-full flex-col items-center md:w-1/3">
-                                                            {formData.profileUrlPreview && (
-                                                                <motion.div
-                                                                    initial={{
-                                                                        scale: 0.8,
-                                                                        opacity: 0,
-                                                                        rotateY: 180,
-                                                                    }}
-                                                                    animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-                                                                    transition={{ duration: 0.5 }}
-                                                                    className="relative h-48 w-48 overflow-hidden rounded-2xl border-2 border-primary shadow-lg"
-                                                                >
-                                                                    <img
-                                                                        src={
-                                                                            formData.profileUrlPreview ||
-                                                                            "/placeholder.svg"
-                                                                        }
-                                                                        alt="Profile"
-                                                                        className="absolute inset-0 size-full object-cover"
-                                                                    />
-                                                                </motion.div>
-                                                            )}
-
-                                                            {formData.coverImagePreview && (
-                                                                <motion.div
-                                                                    initial={{ scale: 0.8, opacity: 0 }}
-                                                                    animate={{ scale: 1, opacity: 1 }}
-                                                                    transition={{ duration: 0.5, delay: 0.2 }}
-                                                                    className="relative mt-4 h-24 w-full overflow-hidden rounded-lg border border-border shadow-md"
-                                                                >
-                                                                    <img
-                                                                        src={
-                                                                            formData.coverImagePreview ||
-                                                                            "/placeholder.svg"
-                                                                        }
-                                                                        alt="Cover"
-                                                                        className="absolute inset-0 size-full object-cover"
-                                                                    />
-                                                                </motion.div>
-                                                            )}
-
-                                                            <div className="mt-4 text-center">
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    This is how collectors will see you
-                                                                </p>
-                                                                <Button
-                                                                    variant="link"
-                                                                    className="mt-1 h-auto p-0 text-xs"
-                                                                    onClick={() => setCurrentStep(2)}
-                                                                >
-                                                                    Change images
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="w-full space-y-6 md:w-2/3">
-                                                            <div className="space-y-4">
-                                                                <div>
-                                                                    <div className="flex justify-between">
-                                                                        <Label
-                                                                            htmlFor="displayName"
-                                                                            className="text-base font-medium"
-                                                                        >
-                                                                            Artist Name
-                                                                        </Label>
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            {formData.displayName.length}/99
-                                                                            characters
-                                                                        </span>
-                                                                    </div>
-                                                                    <Input
-                                                                        id="displayName"
-                                                                        name="displayName"
-                                                                        value={formData.displayName}
-                                                                        onChange={handleInputChange}
-                                                                        placeholder="Enter your artist name"
-                                                                        required
-                                                                        className="mt-1"
-                                                                        maxLength={99}
-                                                                    />
-                                                                    {formErrors.displayName &&
-                                                                        formErrors.displayName.length > 0 && (
-                                                                            <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                                                                                <AlertCircle className="h-3 w-3" />
-                                                                                {formErrors.displayName[0]}
-                                                                            </p>
-                                                                        )}
-                                                                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                                                        <motion.div
-                                                                            className="h-full bg-accent shadow-xs shadow-black"
-                                                                            initial={{ width: "0%" }}
-                                                                            animate={{
-                                                                                width: `${(formData.displayName.length / 99) * 100}%`,
-                                                                            }}
-                                                                            transition={{ duration: 0.2 }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div>
-                                                                    <Label
-                                                                        htmlFor="bio"
-                                                                        className="text-base font-medium"
-                                                                    >
-                                                                        Bio (Optional)
-                                                                    </Label>
-                                                                    <Textarea
-                                                                        id="bio"
-                                                                        name="bio"
-                                                                        value={formData.bio}
-                                                                        onChange={handleInputChange}
-                                                                        placeholder="Tell us about yourself and your art..."
-                                                                        rows={6}
-                                                                        className="mt-1"
-                                                                    />
-                                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                                        A brief description of your artistic style,
-                                                                        inspiration, and background.
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="rounded-lg border border-border bg-muted/30 p-4">
-                                                                <h3 className="font-medium">
-                                                                    Bio Writing Tips
-                                                                </h3>
-                                                                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                                                                    <li className="flex items-start gap-2">
-                                                                        <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                        <span>
-                                                                            Share your artistic journey and what
-                                                                            inspires you
-                                                                        </span>
-                                                                    </li>
-                                                                    <li className="flex items-start gap-2">
-                                                                        <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                        <span>
-                                                                            Mention your preferred mediums and
-                                                                            techniques
-                                                                        </span>
-                                                                    </li>
-                                                                    <li className="flex items-start gap-2">
-                                                                        <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                        <span>
-                                                                            Include any notable exhibitions or
-                                                                            achievements
-                                                                        </span>
-                                                                    </li>
-                                                                </ul>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 4: Asset Creation */}
-                                        {currentStep === 4 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Create Your Asset
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Choose between creating a new asset or using a
-                                                            custom one.
-                                                        </p>
-                                                    </div>
-
-                                                    <RadioGroup
-                                                        value={formData.assetType}
-                                                        onValueChange={handleRadioChange}
-                                                        className="grid gap-4 md:grid-cols-2"
-                                                    >
-                                                        <motion.div
-                                                            whileHover={{ scale: 1.02 }}
-                                                            transition={{ duration: 0.2 }}
-                                                            className={cn(
-                                                                "relative cursor-pointer overflow-hidden rounded-xl border p-6 transition-all duration-300",
-                                                                formData.assetType === "new"
-                                                                    ? "border-primary bg-primary shadow-md"
-                                                                    : "hover:border-primary hover:bg-primary",
-                                                            )}
-                                                            onClick={() => handleRadioChange("new")}
-                                                        >
-                                                            <div className="absolute right-4 top-4">
-                                                                <RadioGroupItem value="new" id="new-asset" />
-                                                            </div>
-                                                            <div className="flex flex-col gap-3">
-                                                                <div className="w-fit rounded-full bg-primary p-3 ">
-                                                                    <Plus className="h-5 w-5" />
-                                                                </div>
-                                                                <div>
-                                                                    <Label
-                                                                        htmlFor="new-asset"
-                                                                        className="cursor-pointer text-lg font-medium"
-                                                                    >
-                                                                        New Asset
-                                                                    </Label>
-                                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                                        Create a new asset with a name and image.
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </motion.div>
-
-                                                        <motion.div
-                                                            whileHover={{ scale: 1.02 }}
-                                                            transition={{ duration: 0.2 }}
-                                                            className={cn(
-                                                                "relative cursor-pointer overflow-hidden rounded-xl border p-6 transition-all duration-300",
-                                                                formData.assetType === "custom"
-                                                                    ? "border-primary bg-primary shadow-md"
-                                                                    : "hover:border-primary hover:bg-primary",
-                                                            )}
-                                                            onClick={() => handleRadioChange("custom")}
-                                                        >
-                                                            <div className="absolute right-4 top-4">
-                                                                <RadioGroupItem
-                                                                    value="custom"
-                                                                    id="custom-asset"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col gap-3">
-                                                                <div className="w-fit rounded-full bg-primary p-3 ">
-                                                                    <FileText className="h-5 w-5" />
-                                                                </div>
-                                                                <div>
-                                                                    <Label
-                                                                        htmlFor="custom-asset"
-                                                                        className="cursor-pointer text-lg font-medium"
-                                                                    >
-                                                                        Custom Asset
-                                                                    </Label>
-                                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                                        Use an existing asset code and asset issuer.
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </motion.div>
-                                                    </RadioGroup>
-
-                                                    <AnimatePresence mode="wait">
-                                                        {formData.assetType === "new" ? (
-                                                            <motion.div
-                                                                key="new-asset"
-                                                                initial={{ opacity: 0, y: 20 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                exit={{ opacity: 0, y: -20 }}
-                                                                transition={{ duration: 0.3 }}
-                                                                className="space-y-6 pt-4"
-                                                            >
-                                                                <div className="flex flex-col gap-6 md:flex-row">
-                                                                    <div className="w-full md:w-1/2">
-                                                                        <div className="flex justify-between">
-                                                                            <Label
-                                                                                htmlFor="assetName"
-                                                                                className="text-base font-medium"
-                                                                            >
-                                                                                Asset Name
-                                                                            </Label>
-                                                                            <span
-                                                                                className={cn(
-                                                                                    "text-xs",
-                                                                                    formData.assetName.length > 0 &&
-                                                                                        !isAssetNameValid
-                                                                                        ? "text-destructive"
-                                                                                        : "text-muted-foreground",
-                                                                                )}
-                                                                            >
-                                                                                {formData.assetName.length}/4-12
-                                                                                characters
-                                                                            </span>
-                                                                        </div>
-                                                                        <Input
-                                                                            id="assetName"
-                                                                            name="assetName"
-                                                                            value={formData.assetName}
-                                                                            onChange={handleInputChange}
-                                                                            placeholder="Enter asset name"
-                                                                            className={cn(
-                                                                                "mt-1",
-                                                                                formData.assetName.length > 0 &&
-                                                                                !isAssetNameValid &&
-                                                                                "border-destructive",
-                                                                            )}
-                                                                            maxLength={12}
-                                                                        />
-                                                                        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                                                            <motion.div
-                                                                                className={cn(
-                                                                                    "h-full",
-                                                                                    isAssetNameValid
-                                                                                        ? "bg-accent shadow-xs shadow-black"
-                                                                                        : formData.assetName.length > 0
-                                                                                            ? "bg-destructive"
-                                                                                            : "bg-accent shadow-xs shadow-black",
-                                                                                )}
-                                                                                initial={{ width: "0%" }}
-                                                                                animate={{
-                                                                                    width:
-                                                                                        formData.assetName.length < 4
-                                                                                            ? `${(formData.assetName.length / 4) * 33}%`
-                                                                                            : formData.assetName.length > 12
-                                                                                                ? "100%"
-                                                                                                : `${33 + ((formData.assetName.length - 4) / 8) * 67}%`,
-                                                                                }}
-                                                                                transition={{ duration: 0.2 }}
-                                                                            />
-                                                                        </div>
-                                                                        {formErrors.assetName &&
-                                                                            formErrors.assetName.length > 0 && (
-                                                                                <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                                                                                    <AlertCircle className="h-3 w-3" />
-                                                                                    {formErrors.assetName[0]}
-                                                                                </p>
-                                                                            )}
-                                                                        <p className="mt-1 text-xs text-muted-foreground">
-                                                                            Choose a descriptive name for your asset
-                                                                            (4-12 letters, a-z and A-Z only).
-                                                                        </p>
-                                                                    </div>
-
-                                                                    <div className="w-full md:w-1/2">
-                                                                        <Label
-                                                                            htmlFor="asset-upload"
-                                                                            className="mb-2 block text-base font-medium"
-                                                                        >
-                                                                            Asset Image
-                                                                        </Label>
-                                                                        <div className="flex flex-col gap-4">
-                                                                            {formData.assetImagePreview ? (
-                                                                                <motion.div
-                                                                                    initial={{ scale: 0.8, opacity: 0 }}
-                                                                                    animate={{ scale: 1, opacity: 1 }}
-                                                                                    transition={{ duration: 0.5 }}
-                                                                                    className="relative h-40 w-full overflow-hidden rounded-lg border-2 border-primary shadow-md"
-                                                                                >
-                                                                                    <img
-                                                                                        src={
-                                                                                            formData.assetImagePreview ||
-                                                                                            "/placeholder.svg"
-                                                                                        }
-                                                                                        alt="Asset preview"
-                                                                                        className="absolute inset-0 size-full object-cover"
-                                                                                    />
-                                                                                    {isUploading && (
-                                                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs">
-                                                                                            <div className="h-2 w-3/4 overflow-hidden rounded-full bg-background">
-                                                                                                <motion.div
-                                                                                                    className="h-full bg-primary"
-                                                                                                    initial={{ width: "0%" }}
-                                                                                                    animate={{
-                                                                                                        width: `${uploadProgress}%`,
-                                                                                                    }}
-                                                                                                    transition={{ duration: 0.1 }}
-                                                                                                />
-                                                                                            </div>
-                                                                                            <p className="absolute mt-8 text-sm font-medium text-white">
-                                                                                                {uploadProgress}%
-                                                                                            </p>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </motion.div>
-                                                                            ) : (
-                                                                                <motion.div
-                                                                                    whileHover={{ scale: 1.02 }}
-                                                                                    className="group relative flex h-40 w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground bg-muted/50 transition-all duration-300 hover:border-primary hover:bg-primary"
-                                                                                    onClick={() =>
-                                                                                        document
-                                                                                            .getElementById("asset-upload")
-                                                                                            ?.click()
-                                                                                    }
-                                                                                >
-                                                                                    <ImageIcon className="group-hover: h-16 w-16 text-muted-foreground transition-colors duration-300" />
-                                                                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/80 px-4 py-1 text-sm font-medium text-foreground opacity-0 backdrop-blur-xs transition-opacity duration-300 group-hover:opacity-100">
-                                                                                        Click to upload
-                                                                                    </div>
-                                                                                </motion.div>
-                                                                            )}
-
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Input
-                                                                                    id="asset-upload"
-                                                                                    type="file"
-                                                                                    accept="image/*"
-                                                                                    className="hidden"
-                                                                                    onChange={(e) =>
-                                                                                        handleFileChange(e, "assetImage")
-                                                                                    }
-                                                                                />
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    variant="outline"
-                                                                                    onClick={() =>
-                                                                                        document
-                                                                                            .getElementById("asset-upload")
-                                                                                            ?.click()
-                                                                                    }
-                                                                                    className="w-full"
-                                                                                    disabled={isUploading}
-                                                                                >
-                                                                                    <Upload className="mr-2 h-4 w-4" />
-                                                                                    {formData.assetImage
-                                                                                        ? "Change Image"
-                                                                                        : "Upload Image"}
-                                                                                </Button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="rounded-lg border border-border bg-muted/30 p-4">
-                                                                    <h3 className="font-medium">
-                                                                        Asset Guidelines
-                                                                    </h3>
-                                                                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                                                                        <li className="flex items-start gap-2">
-                                                                            <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                            <span>
-                                                                                Use high-quality images (at least
-                                                                                1000x1000 pixels)
-                                                                            </span>
-                                                                        </li>
-                                                                        <li className="flex items-start gap-2">
-                                                                            <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                            <span>
-                                                                                Ensure you have the rights to use the
-                                                                                image
-                                                                            </span>
-                                                                        </li>
-                                                                        <li className="flex items-start gap-2">
-                                                                            <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                            <span>
-                                                                                Choose descriptive names for better
-                                                                                discoverability
-                                                                            </span>
-                                                                        </li>
-                                                                    </ul>
-                                                                </div>
-                                                            </motion.div>
-                                                        ) : (
-                                                            <motion.div
-                                                                key="custom-asset"
-                                                                initial={{ opacity: 0, y: 20 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                exit={{ opacity: 0, y: -20 }}
-                                                                transition={{ duration: 0.3 }}
-                                                                className="space-y-6 pt-4"
-                                                            >
-                                                                <div className="flex flex-col gap-6 md:flex-row">
-                                                                    <div className="w-full md:w-1/2">
-                                                                        <div className="flex justify-between">
-                                                                            <Label
-                                                                                htmlFor="assetCode"
-                                                                                className="text-base font-medium"
-                                                                            >
-                                                                                Asset Name
-                                                                            </Label>
-                                                                            <span
-                                                                                className={cn(
-                                                                                    "text-xs",
-                                                                                    formData.assetCode.length > 0 &&
-                                                                                        !isassetCodeValid
-                                                                                        ? "text-destructive"
-                                                                                        : "text-muted-foreground",
-                                                                                )}
-                                                                            >
-                                                                                {formData.assetCode.length}/4-12
-                                                                                characters
-                                                                            </span>
-                                                                        </div>
-                                                                        <Input
-                                                                            id="assetCode"
-                                                                            name="assetCode"
-                                                                            value={formData.assetCode}
-                                                                            onChange={handleInputChange}
-                                                                            placeholder="Enter asset name"
-                                                                            className={cn(
-                                                                                "mt-1",
-                                                                                formData.assetCode.length > 0 &&
-                                                                                !isassetCodeValid &&
-                                                                                "border-destructive",
-                                                                            )}
-                                                                            maxLength={12}
-                                                                        />
-                                                                        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                                                            <motion.div
-                                                                                className={cn(
-                                                                                    "h-full",
-                                                                                    isassetCodeValid
-                                                                                        ? "bg-primary"
-                                                                                        : formData.assetCode.length > 0
-                                                                                            ? "bg-destructive"
-                                                                                            : "bg-primary",
-                                                                                )}
-                                                                                initial={{ width: "0%" }}
-                                                                                animate={{
-                                                                                    width:
-                                                                                        formData.assetCode.length < 4
-                                                                                            ? `${(formData.assetCode.length / 4) * 33}%`
-                                                                                            : formData.assetCode.length > 12
-                                                                                                ? "100%"
-                                                                                                : `${33 + ((formData.assetCode.length - 4) / 8) * 67}%`,
-                                                                                }}
-                                                                                transition={{ duration: 0.2 }}
-                                                                            />
-                                                                        </div>
-                                                                        {formErrors.assetCode &&
-                                                                            formErrors.assetCode.length > 0 && (
-                                                                                <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                                                                                    <AlertCircle className="h-3 w-3" />
-                                                                                    {formErrors.assetCode[0]}
-                                                                                </p>
-                                                                            )}
-                                                                        <p className="mt-1 text-xs text-muted-foreground">
-                                                                            Enter the asset name (4-12 letters, a-z
-                                                                            and A-Z only).
-                                                                        </p>
-                                                                    </div>
-
-                                                                    <div className="w-full md:w-1/2">
-                                                                        <div className="flex justify-between">
-                                                                            <Label
-                                                                                htmlFor="issuer"
-                                                                                className="text-base font-medium"
-                                                                            >
-                                                                                Issuer
-                                                                            </Label>
-                                                                            <span
-                                                                                className={cn(
-                                                                                    "text-xs",
-                                                                                    formData.issuer.length > 0 &&
-                                                                                        !isIssuerValid
-                                                                                        ? "text-destructive"
-                                                                                        : "text-muted-foreground",
-                                                                                )}
-                                                                            >
-                                                                                {formData.issuer.length}/56 characters
-                                                                            </span>
-                                                                        </div>
-                                                                        <Input
-                                                                            id="issuer"
-                                                                            name="issuer"
-                                                                            value={formData.issuer}
-                                                                            onChange={handleInputChange}
-                                                                            placeholder="Enter issuer"
-                                                                            className={cn(
-                                                                                "mt-1",
-                                                                                formData.issuer.length > 0 &&
-                                                                                !isIssuerValid &&
-                                                                                "border-destructive",
-                                                                            )}
-                                                                            maxLength={56}
-                                                                        />
-                                                                        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                                                            <motion.div
-                                                                                className={cn(
-                                                                                    "h-full",
-                                                                                    isIssuerValid
-                                                                                        ? "bg-success"
-                                                                                        : formData.issuer.length > 0
-                                                                                            ? "bg-primary"
-                                                                                            : "bg-primary",
-                                                                                )}
-                                                                                initial={{ width: "0%" }}
-                                                                                animate={{
-                                                                                    width: `${(formData.issuer.length / 56) * 100}%`,
-                                                                                }}
-                                                                                transition={{ duration: 0.2 }}
-                                                                            />
-                                                                        </div>
-                                                                        {formErrors.issuer &&
-                                                                            formErrors.issuer.length > 0 && (
-                                                                                <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                                                                                    <AlertCircle className="h-3 w-3" />
-                                                                                    {formErrors.issuer[0]}
-                                                                                </p>
-                                                                            )}
-                                                                        {isIssuerValid && (
-                                                                            <p className="mt-1 flex items-center gap-1 text-xs text-success">
-                                                                                <CheckCircle2 className="h-3 w-3" />
-                                                                                Valid issuer format
-                                                                            </p>
-                                                                        )}
-                                                                        <p className="mt-1 text-xs text-muted-foreground">
-                                                                            Enter the issuer information for your
-                                                                            asset (exactly 56 characters).
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Add Trust button after the issuer field */}
-                                                                <div className="mt-6 flex flex-col gap-3">
-                                                                    <div className="rounded-lg border border-border bg-muted/30 p-4">
-                                                                        <div className="flex items-start gap-3">
-                                                                            <div className="mt-1 rounded-full bg-warning/20 p-2">
-                                                                                <AlertCircle className="h-4 w-4 text-warning" />
-                                                                            </div>
-                                                                            <div>
-                                                                                <h3 className="font-medium">
-                                                                                    Trust Required
-                                                                                </h3>
-                                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                                    You must trust this asset before
-                                                                                    continuing. This verifies the asset
-                                                                                    exists and is valid.
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <Button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            checkCustomAssetValidity({
-                                                                                assetCode: formData.assetCode,
-                                                                                issuer: formData.issuer,
-                                                                            });
-                                                                        }}
-                                                                        disabled={
-                                                                            !isassetCodeValid ||
-                                                                            !isIssuerValid ||
-                                                                            isTrusting ||
-                                                                            isTrusted
-                                                                        }
-                                                                        className="w-full"
-                                                                    >
-                                                                        Check Validity
-                                                                    </Button>
-
-                                                                    {isTrusted && (
-                                                                        <div className="flex items-center gap-2 text-sm text-success">
-                                                                            <CheckCheck className="h-4 w-4" />
-                                                                            <span>
-                                                                                Asset trusted successfully! You can now
-                                                                                proceed.
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 5: Vanity URL */}
-                                        {currentStep === 5 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Choose Your Vanity URL
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Select a custom URL that represents your brand.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="rounded-lg border border-primary bg-primary p-6">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="mt-1 rounded-full bg-primary p-2">
-                                                                <Sparkles className="h-5 w-5 " />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-medium">
-                                                                    Pricing Information
-                                                                </h3>
-                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                    Your vanity URL is{" "}
-                                                                    <span className="font-medium ">
-                                                                        free for the first month
-                                                                    </span>
-                                                                    . After that, renewal costs{" "}
-                                                                    <span className="font-medium ">
-                                                                        500 {PLATFORM_ASSET.code}
-                                                                    </span>
-                                                                    .
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        <Label
-                                                            htmlFor="vanityUrl"
-                                                            className="text-base font-medium"
-                                                        >
-                                                            Vanity URL
-                                                        </Label>
-                                                        <div className="flex items-center">
-                                                            <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                                                                app.wadzzo.com/
-                                                            </span>
-                                                            <Input
-                                                                id="vanityUrl"
-                                                                name="vanityUrl"
-                                                                value={formData.vanityUrl}
-                                                                onChange={handleInputChange}
-                                                                className="rounded-l-none"
-                                                                placeholder="your-name"
-                                                            />
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Choose a unique, memorable URL for your artist
-                                                            page.
-                                                        </p>
-
-                                                        {formData.vanityUrl && (
-                                                            <div className="mt-2">
-                                                                {isCheckingVanityUrl ? (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0 }}
-                                                                        animate={{ opacity: 1 }}
-                                                                        className="flex items-center gap-1 text-sm text-muted-foreground"
-                                                                    >
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                        <span>Checking availability...</span>
-                                                                    </motion.div>
-                                                                ) : isVanityUrlAvailable === true ? (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, y: 10 }}
-                                                                        animate={{ opacity: 1, y: 0 }}
-                                                                        transition={{ delay: 0.3 }}
-                                                                        className="flex items-center gap-1 text-sm text-success"
-                                                                    >
-                                                                        <CheckCheck className="h-4 w-4" />
-                                                                        <span>This URL is available!</span>
-                                                                    </motion.div>
-                                                                ) : isVanityUrlAvailable === false ? (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, y: 10 }}
-                                                                        animate={{ opacity: 1, y: 0 }}
-                                                                        transition={{ delay: 0.3 }}
-                                                                        className="flex items-center gap-1 text-sm text-destructive"
-                                                                    >
-                                                                        <XCircle className="h-4 w-4" />
-                                                                        <span>
-                                                                            This URL is already taken. Please choose
-                                                                            another one.
-                                                                        </span>
-                                                                    </motion.div>
-                                                                ) : null}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="rounded-lg border border-primary bg-linear-to-r from-primary to-primary p-6">
-                                                        <h3 className="font-medium">Your Complete URL</h3>
-                                                        <div className="mt-3 rounded-md border border-border bg-background/80 p-3 backdrop-blur-xs">
-                                                            <p className="break-all font-mono text-sm">
-                                                                app.wadzzo.com/{formData.vanityUrl || "your-name"}
-                                                            </p>
-                                                        </div>
-
-                                                        <div className="mt-4 space-y-2">
-                                                            <h4 className="text-sm font-medium">
-                                                                Benefits of a Vanity URL:
-                                                            </h4>
-                                                            <ul className="space-y-1 text-sm text-muted-foreground">
-                                                                <li className="flex items-start gap-2">
-                                                                    <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                    <span>
-                                                                        Easier for fans to remember and share
-                                                                    </span>
-                                                                </li>
-                                                                <li className="flex items-start gap-2">
-                                                                    <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                    <span>Strengthens your personal brand</span>
-                                                                </li>
-                                                                <li className="flex items-start gap-2">
-                                                                    <CheckCircle2 className="mt-0.5 h-4  w-4 shrink-0" />
-                                                                    <span>
-                                                                        Looks more professional in marketing
-                                                                        materials
-                                                                    </span>
-                                                                </li>
-                                                            </ul>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 6: Overview */}
-                                        {currentStep === 6 && (
-                                            <div className="p-6 md:p-8">
-                                                <div className="space-y-6">
-                                                    <div className="space-y-2">
-                                                        <h2 className="text-3xl font-bold">
-                                                            Review Your Information
-                                                        </h2>
-                                                        <p className="text-muted-foreground">
-                                                            Please review all your information before
-                                                            completing the onboarding process.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="grid gap-6 md:grid-cols-2">
-                                                        {/* Organization Details Section */}
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 20 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: 0.1 }}
-                                                            className="space-y-4 rounded-xl border p-6"
-                                                        >
-                                                            <div className="flex items-center justify-between">
-                                                                <h3 className="flex items-center gap-2 text-lg font-medium">
-                                                                    <User className="h-5 w-5 " />
-                                                                    Artist Details
-                                                                </h3>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-xs"
-                                                                    onClick={() => setCurrentStep(3)}
-                                                                >
-                                                                    Edit
-                                                                </Button>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-4">
-                                                                {formData.profileUrlPreview ? (
-                                                                    <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-primary">
-                                                                        <img
-                                                                            src={
-                                                                                formData.profileUrlPreview ||
-                                                                                "/placeholder.svg"
-                                                                            }
-                                                                            alt="Profile"
-                                                                            className="absolute inset-0 size-full object-cover"
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                                                                        <User className="h-8 w-8 text-muted-foreground" />
-                                                                    </div>
-                                                                )}
-
-                                                                <div>
-                                                                    <h4 className="font-medium">
-                                                                        {formData.displayName || "Artist Name"}
-                                                                    </h4>
-                                                                    <Badge variant="outline" className="mt-1">
-                                                                        Artist
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-
-                                                            {formData.coverImagePreview && (
-                                                                <div className="mt-2">
-                                                                    <h4 className="mb-1 text-sm font-medium">
-                                                                        Cover Image
-                                                                    </h4>
-                                                                    <div className="relative h-16 w-full overflow-hidden rounded-md border border-border">
-                                                                        <img
-                                                                            src={
-                                                                                formData.coverImagePreview ||
-                                                                                "/placeholder.svg"
-                                                                            }
-                                                                            alt="Cover"
-                                                                            className="absolute inset-0 size-full object-cover"
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {formData.bio && (
-                                                                <div>
-                                                                    <h4 className="mb-1 text-sm font-medium">
-                                                                        Bio
-                                                                    </h4>
-                                                                    <p className="line-clamp-3 text-sm text-muted-foreground">
-                                                                        {formData.bio}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </motion.div>
-
-                                                        {/* Asset Details Section */}
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 20 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: 0.2 }}
-                                                            className="space-y-4 rounded-xl border p-6"
-                                                        >
-                                                            <div className="flex items-center justify-between">
-                                                                <h3 className="flex items-center gap-2 text-lg font-medium">
-                                                                    <FileText className="h-5 w-5 " />
-                                                                    Asset Details
-                                                                </h3>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-xs"
-                                                                    onClick={() => setCurrentStep(4)}
-                                                                >
-                                                                    Edit
-                                                                </Button>
-                                                            </div>
-
-                                                            <div>
-                                                                <Badge className="mb-2">
-                                                                    {formData.assetType === "new"
-                                                                        ? "New Asset"
-                                                                        : "Custom Asset"}
-                                                                </Badge>
-
-                                                                {formData.assetType === "new" ? (
-                                                                    <div className="space-y-3">
-                                                                        <div className="flex items-center gap-3">
-                                                                            {formData.assetImagePreview ? (
-                                                                                <div className="relative h-12 w-12 overflow-hidden rounded-md border border-border">
-                                                                                    <img
-                                                                                        src={
-                                                                                            formData.assetImagePreview ||
-                                                                                            "/placeholder.svg"
-                                                                                        }
-                                                                                        alt="Asset"
-                                                                                        className="absolute inset-0 size-full object-cover"
-                                                                                    />
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted">
-                                                                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                                                                </div>
-                                                                            )}
-                                                                            <div>
-                                                                                <h4 className="font-medium">
-                                                                                    {formData.assetName || "Asset Name"}
-                                                                                </h4>
-                                                                                <p className="text-xs text-muted-foreground">
-                                                                                    New asset
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="space-y-3">
-                                                                        <div>
-                                                                            <h4 className="text-sm font-medium">
-                                                                                Asset Name
-                                                                            </h4>
-                                                                            <p className="truncate text-sm text-muted-foreground">
-                                                                                {formData.assetCode || "Not provided"}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div>
-                                                                            <h4 className="text-sm font-medium">
-                                                                                Issuer
-                                                                            </h4>
-                                                                            <p className="truncate text-sm text-muted-foreground">
-                                                                                {formData.issuer || "Not provided"}
-                                                                            </p>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </motion.div>
-
-                                                        {/* Vanity URL Section */}
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 20 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: 0.3 }}
-                                                            className="space-y-4 rounded-xl border p-6 md:col-span-2"
-                                                        >
-                                                            <div className="flex items-center justify-between">
-                                                                <h3 className="flex items-center gap-2 text-lg font-medium">
-                                                                    <LinkIcon className="h-5 w-5 " />
-                                                                    Vanity URL
-                                                                </h3>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-xs"
-                                                                    onClick={() => setCurrentStep(5)}
-                                                                >
-                                                                    Edit
-                                                                </Button>
-                                                            </div>
-
-                                                            <div className="rounded-md bg-muted/50 p-3">
-                                                                <p className="font-mono text-sm">
-                                                                    app.wadzzo.com/
-                                                                    <span className="font-bold ">
-                                                                        {formData.vanityUrl || "your-name"}
-                                                                    </span>
-                                                                </p>
-                                                            </div>
-
-                                                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                                                                <Sparkles className="mt-0.5 h-4  w-4" />
-                                                                <span>
-                                                                    Free for the first month, then 500{" "}
-                                                                    {PLATFORM_ASSET.code} to renew
-                                                                </span>
-                                                            </div>
-                                                        </motion.div>
-                                                    </div>
-
-                                                    <div className="rounded-lg border border-primary bg-primary p-6">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="mt-1 rounded-full bg-primary p-2">
-                                                                <ClipboardCheck className="h-5 w-5 " />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-medium">
-                                                                    Ready to Complete
-                                                                </h3>
-                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                    By clicking Complete below, you{"'ll"}{" "}
-                                                                    finalize your artist profile creation. You can
-                                                                    always edit your profile details later from
-                                                                    your dashboard.
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Navigation Buttons */}
-                                        <div className="flex items-center justify-between border-t border-border p-6">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={handleBack}
-                                                disabled={
-                                                    currentStep === 1 || RequestForBrandCreation.isPending
-                                                }
-                                                className="gap-2"
-                                            >
-                                                <ArrowLeft className="h-4 w-4" />
-                                                Back
-                                            </Button>
-
-                                            <div className="text-sm text-muted-foreground">
-                                                Step {currentStep} of {totalSteps}
-                                            </div>
-
-                                            <Button
-                                                type="button"
-                                                onClick={handleNext}
-                                                disabled={
-                                                    isNextDisabled() || RequestForBrandCreation.isPending
-                                                }
-                                                className="gap-2"
-                                                variant={
-                                                    currentStep === totalSteps ? "default" : "default"
-                                                }
-                                            >
-                                                {currentStep === totalSteps ? "Complete" : "Next"}
-                                                {currentStep !== totalSteps && (
-                                                    <ArrowRight className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="relative min-h-[calc(100vh-4rem)] bg-background py-8 px-4 sm:px-6 lg:px-8">
+      {/* Confetti Celebration */}
+      {showConfetti && (
+        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+          {CONFETTI.map((c) => (
+            <motion.div
+              key={c.id}
+              className="absolute size-2.5 rounded-full"
+              style={{ backgroundColor: c.color, left: c.left, top: c.top }}
+              initial={{ opacity: 1, scale: 0, y: 0 }}
+              animate={{ opacity: [1, 1, 0], scale: [0, 1.5, 0.8], y: [0, 400] }}
+              transition={{ duration: c.duration, delay: c.delay, ease: "easeOut" }}
+            />
+          ))}
         </div>
-    );
+      )}
+
+      <div className="mx-auto max-w-5xl">
+        {/* Top Header */}
+        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Creator Portal</p>
+            <h1 className="font-hud text-3xl font-bold tracking-tight text-foreground">Set Up Your Brand</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Step {currentStep} of {STEPS.length}</span>
+            <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(currentStep / STEPS.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Main Grid: Left Steps Rail, Right Step Card */}
+        <div className="grid gap-8 lg:grid-cols-12">
+          {/* Steps Rail */}
+          <aside className="lg:col-span-4">
+            <nav className="space-y-1.5 rounded-2xl border border-border bg-card p-3 shadow-xs">
+              {STEPS.map((s) => {
+                const isActive = currentStep === s.step;
+                const isCompleted = currentStep > s.step;
+                return (
+                  <button
+                    key={s.step}
+                    type="button"
+                    onClick={() => {
+                      if (isCompleted || s.step < currentStep) setCurrentStep(s.step);
+                    }}
+                    disabled={!isCompleted && s.step !== currentStep}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all",
+                      isActive
+                        ? "bg-primary/10 border border-primary/40 font-semibold text-foreground"
+                        : isCompleted
+                          ? "hover:bg-muted/60 text-foreground cursor-pointer"
+                          : "text-muted-foreground opacity-60 cursor-not-allowed"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-colors",
+                        isCompleted
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : isActive
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {isCompleted ? <CheckCircle2 className="size-4" /> : s.step}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{s.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{s.desc}</p>
+                    </div>
+                    {isActive && <ChevronRight className="size-4 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Form Content */}
+          <main className="lg:col-span-8">
+            <div className="rounded-2xl border border-border bg-card shadow-xs">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-6 sm:p-8"
+                >
+                  {/* Step 1: Welcome & Benefits */}
+                  {currentStep === 1 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Benefits of Becoming an Artist</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Join the Wadzzo brand network to drop AR pins, launch collectibles, and monetize with custom page assets.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {[
+                          {
+                            icon: ImageIcon,
+                            title: "AR Pin Drops",
+                            desc: "Drop interactive pins and hotspots for fans to discover in physical locations.",
+                          },
+                          {
+                            icon: User,
+                            title: "Build Your Brand",
+                            desc: "Create an official brand profile with follower analytics and activity feed.",
+                          },
+                          {
+                            icon: LinkIcon,
+                            title: "Vanity URL",
+                            desc: "Get a custom, easy-to-share web address (web.wadzzo.com/your-name).",
+                          },
+                          {
+                            icon: Coins,
+                            title: "Custom Membership Token",
+                            desc: "Issue or connect your own token on Stellar to power memberships and access tiers.",
+                          },
+                        ].map((b, i) => (
+                          <div
+                            key={i}
+                            className="group relative rounded-xl border border-border bg-muted/20 p-5 transition-colors hover:border-primary/40 hover:bg-muted/40"
+                          >
+                            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <b.icon className="size-5" />
+                            </div>
+                            <h3 className="mt-3 font-semibold text-foreground">{b.title}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{b.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                        <div className="flex items-start gap-3">
+                          <Sparkles className="size-5 shrink-0 text-primary mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Ready to start?</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Complete the short setup below to submit your brand application. It only takes a couple of minutes.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2: Media Upload */}
+                  {currentStep === 2 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Brand Media</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Upload your brand identity artwork. Profile picture is required; cover banner is optional.
+                        </p>
+                      </div>
+
+                      {/* Tab toggles */}
+                      <div className="flex rounded-lg border border-border bg-muted/40 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveMediaTab("profile")}
+                          className={cn(
+                            "flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-colors",
+                            activeMediaTab === "profile"
+                              ? "bg-card text-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <User className="size-4" />
+                          Profile Avatar <span className="text-destructive">*</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveMediaTab("cover")}
+                          className={cn(
+                            "flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-colors",
+                            activeMediaTab === "cover"
+                              ? "bg-card text-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <PanelTop className="size-4" />
+                          Cover Banner (Optional)
+                        </button>
+                      </div>
+
+                      {activeMediaTab === "profile" ? (
+                        <div className="grid gap-6 sm:grid-cols-2 sm:items-center">
+                          <div className="flex flex-col items-center justify-center p-4">
+                            <Dropzone
+                              endpoint="profileUploader"
+                              shape="circle"
+                              value={formData.profileUrl}
+                              onChange={(url) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  profileUrl: url ?? "",
+                                  profileUrlPreview: url ?? "",
+                                }))
+                              }
+                            />
+                            <p className="mt-3 text-xs text-muted-foreground text-center">
+                              Square PNG or JPG, at least 400×400px.
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
+                            <h3 className="text-sm font-semibold text-foreground">Avatar Guidelines</h3>
+                            <ul className="space-y-2 text-xs text-muted-foreground">
+                              <li className="flex items-center gap-2">
+                                <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                                Clear logo or recognizable portrait
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                                Good contrast on light and dark backgrounds
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                                Centered composition for circular cropping
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <Dropzone
+                            endpoint="coverUploader"
+                            shape="wide"
+                            value={formData.coverUrl}
+                            onChange={(url) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                coverUrl: url ?? "",
+                                coverImagePreview: url ?? "",
+                              }))
+                            }
+                          />
+                          <p className="text-xs text-muted-foreground text-center">
+                            Landscape banner (recommended 1500×500px, max 5MB).
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 3: Details */}
+                  {currentStep === 3 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Artist Details</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Tell fans and collectors who you are and what you create.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-6 sm:grid-cols-12">
+                        <div className="space-y-4 sm:col-span-8">
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <Label htmlFor="displayName" className="text-sm font-semibold">
+                                Brand / Artist Name <span className="text-destructive">*</span>
+                              </Label>
+                              <span className="text-xs text-muted-foreground">{formData.displayName.length}/99</span>
+                            </div>
+                            <Input
+                              id="displayName"
+                              name="displayName"
+                              value={formData.displayName}
+                              onChange={(e) => setFormData((p) => ({ ...p, displayName: e.target.value }))}
+                              placeholder="e.g. Neon Horizon Studios"
+                              maxLength={99}
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <Label htmlFor="bio" className="text-sm font-semibold">
+                                Biography
+                              </Label>
+                              <span className="text-xs text-muted-foreground">{(formData.bio ?? "").length}/500</span>
+                            </div>
+                            <Textarea
+                              id="bio"
+                              name="bio"
+                              rows={4}
+                              value={formData.bio ?? ""}
+                              onChange={(e) => setFormData((p) => ({ ...p, bio: e.target.value }))}
+                              placeholder="Describe your art, projects, or vision..."
+                              maxLength={500}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Live mini preview */}
+                        <div className="sm:col-span-4">
+                          <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">Preview</p>
+                            <div className="relative mx-auto size-20 overflow-hidden rounded-full border border-border bg-card shadow-xs">
+                              {formData.profileUrl ? (
+                                <img
+                                  src={formData.profileUrl}
+                                  alt="Preview avatar"
+                                  className="size-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
+                                  <User className="size-8" />
+                                </div>
+                              )}
+                            </div>
+                            <h4 className="mt-3 truncate font-semibold text-foreground">
+                              {formData.displayName.trim().length > 0 ? formData.displayName : "Artist Name"}
+                            </h4>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {formData.bio && formData.bio.trim().length > 0 ? formData.bio : "Your bio will appear here."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 4: Page Asset */}
+                  {currentStep === 4 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Page Asset (Membership Token)</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Fans hold this token to unlock membership tiers and access rewards.
+                        </p>
+                      </div>
+
+                      {/* Mode selection */}
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData((p) => ({ ...p, assetType: "new" }))}
+                          className={cn(
+                            "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+                            formData.assetType === "new"
+                              ? "border-primary bg-primary/10 ring-1 ring-primary"
+                              : "border-border bg-card hover:border-primary/40"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                              formData.assetType === "new"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <Plus className="size-4" />
+                          </span>
+                          <div>
+                            <span className="block text-sm font-semibold text-foreground">Create a new token</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              Name your token and add an image. Wadzzo issues it on Stellar for you.
+                            </span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFormData((p) => ({ ...p, assetType: "custom" }))}
+                          className={cn(
+                            "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+                            formData.assetType === "custom"
+                              ? "border-primary bg-primary/10 ring-1 ring-primary"
+                              : "border-border bg-card hover:border-primary/40"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                              formData.assetType === "custom"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            <FileText className="size-4" />
+                          </span>
+                          <div>
+                            <span className="block text-sm font-semibold text-foreground">Use existing token</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              Connect an existing token code and Stellar issuer account.
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+
+                      {formData.assetType === "new" ? (
+                        <div className="grid gap-6 sm:grid-cols-2 sm:items-start pt-2">
+                          <div className="space-y-4">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="assetName" className="text-sm font-semibold">
+                                Token Code (4–12 Letters) <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                id="assetName"
+                                value={formData.assetName}
+                                onChange={(e) =>
+                                  setFormData((p) => ({
+                                    ...p,
+                                    assetName: e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 12).toUpperCase(),
+                                  }))
+                                }
+                                placeholder="e.g. HORIZON"
+                                maxLength={12}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Letters only (A-Z). Cannot be changed after creation.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">
+                              Token Artwork (IPFS) <span className="text-destructive">*</span>
+                            </Label>
+                            <Dropzone
+                              endpoint="imageUploader"
+                              uploader={uploadToIpfsUrl}
+                              shape="square"
+                              value={formData.assetImage}
+                              onChange={(url) =>
+                                setFormData((p) => ({
+                                  ...p,
+                                  assetImage: url ?? "",
+                                  assetImagePreview: url ?? "",
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-2">
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="assetCode" className="text-sm font-semibold">
+                                Asset Code <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                id="assetCode"
+                                value={formData.assetCode}
+                                onChange={(e) => {
+                                  setIsTrusted(false);
+                                  setFormData((p) => ({
+                                    ...p,
+                                    assetCode: e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 12).toUpperCase(),
+                                  }));
+                                }}
+                                placeholder="e.g. MYTOKEN"
+                                maxLength={12}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="issuer" className="text-sm font-semibold">
+                                Stellar Issuer Address <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                id="issuer"
+                                value={formData.issuer}
+                                onChange={(e) => {
+                                  setIsTrusted(false);
+                                  setFormData((p) => ({ ...p, issuer: e.target.value.trim() }));
+                                }}
+                                placeholder="G..."
+                                maxLength={56}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={
+                                checkAsset.isPending ||
+                                !formData.assetCode.trim() ||
+                                formData.issuer.trim().length !== 56
+                              }
+                              onClick={() =>
+                                checkAsset.mutate({
+                                  assetCode: formData.assetCode.trim(),
+                                  issuer: formData.issuer.trim(),
+                                })
+                              }
+                            >
+                              {checkAsset.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 size-3.5 animate-spin" />
+                                  Verifying on Stellar...
+                                </>
+                              ) : (
+                                "Verify Asset"
+                              )}
+                            </Button>
+                            {isTrusted && (
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                <CheckCheck className="size-4" />
+                                Asset Verified
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 5: Vanity URL */}
+                  {currentStep === 5 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Choose Your Vanity URL</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Your brand profile address on the Wadzzo fan portal.
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                        <div className="flex items-start gap-3">
+                          <Sparkles className="size-5 shrink-0 text-primary mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Launch Offer</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Your custom vanity URL is <strong className="text-foreground">free for the first month</strong>.
+                              Subsequent renewals are 500 {PLATFORM_ASSET.code}.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="vanityUrl" className="text-sm font-semibold">
+                          Custom Web Address <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="flex items-center">
+                          <span className="inline-flex h-10 items-center rounded-l-xl border border-r-0 border-border bg-muted/60 px-3 text-xs font-medium text-muted-foreground">
+                            web.wadzzo.com/
+                          </span>
+                          <Input
+                            id="vanityUrl"
+                            value={formData.vanityUrl}
+                            onChange={(e) => {
+                              const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "");
+                              setFormData((p) => ({
+                                ...p,
+                                vanityUrl: clean,
+                              }));
+                              if (!clean) {
+                                setIsVanityUrlAvailable(null);
+                                setIsCheckingVanityUrl(false);
+                              } else {
+                                setIsCheckingVanityUrl(true);
+                                setIsVanityUrlAvailable(null);
+                              }
+                            }}
+                            placeholder="your-brand-slug"
+                            className="rounded-l-none"
+                          />
+                        </div>
+
+                        {formData.vanityUrl && (
+                          <div className="mt-2 text-xs">
+                            {isCheckingVanityUrl ? (
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                <Loader2 className="size-3.5 animate-spin" />
+                                Checking availability...
+                              </span>
+                            ) : isVanityUrlAvailable === true ? (
+                              <span className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <CheckCheck className="size-4" />
+                                web.wadzzo.com/{formData.vanityUrl} is available!
+                              </span>
+                            ) : isVanityUrlAvailable === false ? (
+                              <span className="flex items-center gap-1.5 font-semibold text-destructive">
+                                <XCircle className="size-4" />
+                                This handle is already taken. Please choose another.
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 6: Review & Complete */}
+                  {currentStep === 6 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Review Application</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Check your details below before submitting your brand profile application.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {/* Profile review card */}
+                        <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <User className="size-4 text-primary" />
+                              Brand Identity
+                            </h3>
+                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)} className="h-7 text-xs">
+                              Edit
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="relative size-12 overflow-hidden rounded-full border border-border bg-card">
+                              {formData.profileUrl ? (
+                                <img src={formData.profileUrl} alt="Avatar" className="size-full object-cover" />
+                              ) : (
+                                <User className="size-full p-2 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm text-foreground">{formData.displayName}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {formData.bio && formData.bio.trim().length > 0 ? formData.bio : "No bio entered"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Page asset review card */}
+                        <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <Coins className="size-4 text-primary" />
+                              Page Asset
+                            </h3>
+                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="h-7 text-xs">
+                              Edit
+                            </Button>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {formData.assetType === "new" ? formData.assetName : formData.assetCode}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formData.assetType === "new" ? "New token issued by Wadzzo" : `Issuer: ${formData.issuer.slice(0, 8)}...`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Vanity URL card */}
+                        <div className="sm:col-span-2 rounded-xl border border-border bg-muted/20 p-5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <LinkIcon className="size-4 text-primary" />
+                              Public Vanity Link
+                            </h3>
+                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(5)} className="h-7 text-xs">
+                              Edit
+                            </Button>
+                          </div>
+                          <p className="font-mono text-sm text-primary">
+                            https://web.wadzzo.com/{formData.vanityUrl}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5 flex items-start gap-3">
+                        <ClipboardCheck className="size-5 shrink-0 text-primary mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Ready to Submit?</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Once submitted, your application will be reviewed by administrators. You will be redirected to your dashboard.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation Actions */}
+                  <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleBack}
+                      disabled={currentStep === 1 || requestBrand.isPending}
+                      className="gap-2"
+                    >
+                      <ArrowLeft className="size-4" />
+                      Back
+                    </Button>
+
+                    <Button
+                      type="button"
+                      onClick={handleNext}
+                      disabled={!isStepValid() || requestBrand.isPending}
+                      className="gap-2"
+                    >
+                      {requestBrand.isPending ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : currentStep === 6 ? (
+                        "Submit Application"
+                      ) : (
+                        <>
+                          Next
+                          <ArrowRight className="size-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
 }
