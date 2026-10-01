@@ -11,7 +11,7 @@ import { BaseMap, WORLD_VIEW } from "~/components/map-kit/base-map";
 import { DrawTool } from "~/components/map-kit/draw-tool";
 import { toMapboxFeature, type DrawShape, type StoredFeature } from "~/components/map-kit/geo";
 import { HotspotLayer } from "~/components/map-kit/hotspot-layer";
-import { PinMarker } from "~/components/map-kit/pin-marker";
+import { PinLegend, PinMarker } from "~/components/map-kit/pin-marker";
 import { PlaceSearch } from "~/components/map-kit/place-search";
 import { NearbyLocationsPanel } from "~/components/map/nearby-locations-panel";
 import CopyCutPinModal from "~/components/modals/copy-cut-pin-modal";
@@ -170,8 +170,9 @@ export default function AdminMapsPage() {
                 label={g?.title ?? "Pin"}
                 state={{
                   expired: g?.endDate ? new Date(g.endDate) < new Date() : false,
-                  empty: g?.remaining !== undefined && g.remaining <= 0,
+                  empty: g ? g.limit > 0 && g.remaining <= 0 : false, // limit 0 = no limit
                   approved: g?.approved === true,
+                  rejected: g?.approved === false,
                   hidden: pin.hidden === true,
                   autoCollect: pin.autoCollect === true,
                 }}
@@ -224,6 +225,7 @@ export default function AdminMapsPage() {
       )}
 
       {!drawing && <NearbyLocationsPanel className="absolute top-20 right-4 z-10" onSelectPlace={(c) => flyTo(c)} />}
+      {!drawing && <PinLegend className="absolute bottom-8 left-14 z-10 hidden sm:block" />}
 
       <PinDetailAndActionsModal />
       <CopyCutPinModal />
