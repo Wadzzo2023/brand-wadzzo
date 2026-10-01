@@ -8,8 +8,9 @@ import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/shadcn/ui/tooltip";
 import { cn } from "~/lib/utils";
 
+import { getPortalLandingRoute, getVisibleNavGroups } from "./access-rules";
 import { CreateMenu } from "./create-menu";
-import { ADMIN_NAV, BRAND_NAV, isActive, type NavGroup, type NavItem } from "./nav";
+import { isActive, type NavItem } from "./nav";
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
 
@@ -22,17 +23,18 @@ export function Sidebar({
   onToggle,
   isAdmin,
   navPermission,
+  isApprovedCreator = false,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin: boolean;
   navPermission: boolean;
+  isApprovedCreator?: boolean;
 }) {
   const pathname = usePathname() ?? "";
-  const groups: NavGroup[] = [
-    ...BRAND_NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.gated || navPermission) })).filter((g) => g.items.length),
-    ...(isAdmin ? [ADMIN_NAV] : []),
-  ];
+  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission });
+  const homeHref = getPortalLandingRoute({ isAdmin, isApprovedCreator });
+  const isPureAdmin = isAdmin && !isApprovedCreator;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -46,14 +48,14 @@ export function Sidebar({
         {/* Brand and Toggle */}
         <div className={cn("flex items-center border-b", collapsed ? "h-16 justify-center px-0" : "h-16 justify-between px-4")}>
           {!collapsed && (
-            <Link href="/pins" className="flex items-center gap-2.5" aria-label="Wadzzo brand portal home">
+            <Link href={homeHref} className="flex items-center gap-2.5" aria-label="Wadzzo portal home">
               <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
                 <Image src="/images/loading.png" alt="" width={22} height={22} className="object-contain" />
               </span>
               <span className="leading-tight">
                 <span className="block font-hud text-base font-bold tracking-tight">Wadzzo</span>
                 <span className="block font-hud text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Brand portal
+                  {isPureAdmin ? "Admin portal" : "Brand portal"}
                 </span>
               </span>
             </Link>
@@ -70,7 +72,7 @@ export function Sidebar({
 
         {/* Create + balance */}
         <div className={cn("space-y-2 p-3", collapsed && "px-2")}>
-          <CreateMenu navPermission={navPermission} collapsed={collapsed} />
+          {!isPureAdmin && <CreateMenu navPermission={navPermission} collapsed={collapsed} />}
           <WalletBalance collapsed={collapsed} />
         </div>
 
