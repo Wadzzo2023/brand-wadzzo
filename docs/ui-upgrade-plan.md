@@ -192,3 +192,14 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
   `startDate: now` even when `hotspotStartDate` is in the future.
 - **Hotspot drops skip review:** location groups are created `approved: true`, unlike normal pins.
 - Fixed in the portal: empty link sent as `""` made every link-less hotspot fail (Express rejects it).
+
+---
+
+## Progress (2026-10-01)
+
+- Commits on `ui-upgrade`: `5c6a2d3` (upgrade work so far), `3bc88da` (dead code: 136 unused files and 26 packages removed via knip; seeds, script.ts, public/widget-script.js and submodules kept).
+- Shared UI kit in `src/ui/`: DataTable, StatusPill, Person/Avatar, Toolbar (SearchInput, FilterChips), StatCard, tone-* utilities in globals.css. New pages use these, not hard-coded colours.
+- Admin done: Creators, Users, Admins, creator/user detail, Pin review (grouped by brand, filters for submitted/live dates, area, locations, type, brand; sort; bulk approve/reject/delete; preview drawer; keyboard; undo; per-location edit/delete).
+- Reports done: one shared report for brands (/reports) and admins (/admin/reports, any brand or all), per-pin report at /reports/[id] and /admin/reports/[id]; counted in SQL (`maps.report.*`).
+- Next: All maps, admin new pin/hotspot review, global token sweep, Reports analytics leftovers, onboarding, step 2 (41 TS errors, 118 lint errors, ignoreBuildErrors, zod 4), step 8, security items, click-through.
+- Open question: `maps.pin.getPin` is public and returns collectors; unused in the portal now — restrict or remove (check other apps first).
