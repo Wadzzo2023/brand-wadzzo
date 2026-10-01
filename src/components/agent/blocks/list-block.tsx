@@ -34,9 +34,9 @@ const ACTION_LABEL: Record<string, string> = {
 
 const ACTION_STYLE: Record<string, string> = {
     edit: "bg-primary text-primary-foreground hover:bg-primary/90",
-    delete: "bg-red-500 text-white hover:bg-red-600",
-    pause: "bg-amber-500 text-white hover:bg-amber-600",
-    resume: "bg-emerald-500 text-white hover:bg-emerald-600",
+    delete: "bg-destructive text-white hover:bg-destructive",
+    pause: "bg-warning text-white hover:bg-warning",
+    resume: "bg-success text-white hover:bg-success",
 };
 
 const ACTION_ICON: Record<string, React.ReactNode> = {
@@ -153,7 +153,7 @@ export function ListBlock({ message, items, action, onConfirm, onDismiss }: List
                                     <span className="text-[10px] text-muted-foreground">{item.sublabel}</span>
                                 )}
                                 {item.hotspotId && (
-                                    <span className="text-[10px] text-blue-400">🔁 hotspot-linked</span>
+                                    <span className="text-[10px] text-info">🔁 hotspot-linked</span>
                                 )}
                             </div>
                         </button>

@@ -31,7 +31,7 @@ export function PinDeleteDialog({
             <DialogContent className="max-w-sm">
                 <DialogHeader>
                     <DialogTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <span className="text-red-400">⚠️</span>
+                        <span className="text-destructive">⚠️</span>
                         Delete {targets.length > 1 ? `${targets.length} Pins` : "Pin"}
                     </DialogTitle>
                     <DialogDescription className="text-[12px] text-muted-foreground">
@@ -44,9 +44,9 @@ export function PinDeleteDialog({
                     {targets.map((t) => (
                         <div
                             key={t.id}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/5 border border-red-500/20"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/5 border border-destructive/20"
                         >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-destructive shrink-0" />
                             <div className="flex flex-col min-w-0">
                                 <span className="text-[12px] font-semibold text-foreground truncate">
                                     {t.title}

@@ -1,4 +1,5 @@
 "use client"
+import { Loader2 } from "lucide-react";
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
@@ -176,7 +177,7 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {pageAssetBalance.isLoading && (
                     <div className="rounded-lg bg-base-200 p-4 text-center">
-                        <span className="loading loading-spinner mr-2"></span>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
                         Loading your asset balance...
                     </div>
                 )}
@@ -187,15 +188,15 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                     {/* 
                     <div className="space-y-2">
                         <Label htmlFor="title">
-                            Title <span className="text-red-600">*</span>
+                            Title <span className="text-destructive">*</span>
                         </Label>
                         <Input
                             id="title"
                             {...register("title")}
                             placeholder="Enter asset title"
-                            className={errors.title ? "border-red-500" : ""}
+                            className={errors.title ? "border-destructive" : ""}
                         />
-                        {errors.title && <p className="text-red-500 text-sm">{errors.title.message}</p>}
+                        {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
                     </div> */}
 
                     <div className="space-y-2">
@@ -206,12 +207,12 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                             placeholder="Enter asset description (optional)"
                             rows={3}
                         />
-                        {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
+                        {errors.description && <p className="text-destructive text-sm">{errors.description.message}</p>}
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="amountToSell">
-                            Amount to Sell <span className="text-red-600">*</span>
+                            Amount to Sell <span className="text-destructive">*</span>
                         </Label>
                         <div className="relative">
                             <Input
@@ -225,7 +226,7 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                                     validate: validateAmountToSell,
                                 })}
                                 placeholder="Enter quantity to sell"
-                                className={errors.amountToSell ? "border-red-500" : ""}
+                                className={errors.amountToSell ? "border-destructive" : ""}
                             />
                         </div>
 
@@ -237,14 +238,14 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                             {watchedAmountToSell > 0 && (
                                 <span className="text-muted-foreground">
                                     Remaining:{" "}
-                                    <span className={`font-medium ${calculateRemaining() === 0 ? "text-orange-500" : "text-green-600"}`}>
+                                    <span className={`font-medium ${calculateRemaining() === 0 ? "text-warning" : "text-success"}`}>
                                         {calculateRemaining()}
                                     </span>
                                 </span>
                             )}
                         </div>
 
-                        {errors.amountToSell && <p className="text-red-500 text-sm">{errors.amountToSell.message}</p>}
+                        {errors.amountToSell && <p className="text-destructive text-sm">{errors.amountToSell.message}</p>}
 
                         {/* Quick select buttons */}
                         {totalAvailableBalance > 0 && (
@@ -301,7 +302,7 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="price">
-                                Platform Price <span className="text-red-600">*</span>
+                                Platform Price <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="price"
@@ -312,14 +313,14 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                                     onChange: (e: React.ChangeEvent<HTMLInputElement>) => handlePriceChange(Number(e.target.value)),
                                 })}
                                 placeholder="0.00"
-                                className={errors.price ? "border-red-500" : ""}
+                                className={errors.price ? "border-destructive" : ""}
                             />
-                            {errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
+                            {errors.price && <p className="text-destructive text-sm">{errors.price.message}</p>}
                         </div>
 
                         {/* <div className="space-y-2">
                             <Label htmlFor="priceUSD">
-                                Price in USD <span className="text-red-600">*</span>
+                                Price in USD <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="priceUSD"
@@ -327,9 +328,9 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                                 step="0.01"
                                 {...register("priceUSD", { valueAsNumber: true })}
                                 placeholder="1.00"
-                                className={errors.priceUSD ? "border-red-500" : ""}
+                                className={errors.priceUSD ? "border-destructive" : ""}
                             />
-                            {errors.priceUSD && <p className="text-red-500 text-sm">{errors.priceUSD.message}</p>}
+                            {errors.priceUSD && <p className="text-destructive text-sm">{errors.priceUSD.message}</p>}
                         </div> */}
 
                         <div className="space-y-2">
@@ -340,9 +341,9 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                                 step="0.0000001"
                                 {...register("priceXLM", { valueAsNumber: true })}
                                 placeholder="0.00"
-                                className={errors.priceXLM ? "border-red-500" : ""}
+                                className={errors.priceXLM ? "border-destructive" : ""}
                             />
-                            {errors.priceXLM && <p className="text-red-500 text-sm">{errors.priceXLM.message}</p>}
+                            {errors.priceXLM && <p className="text-destructive text-sm">{errors.priceXLM.message}</p>}
                         </div>
                     </div>
                 </div>
@@ -359,7 +360,7 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                         Cancel
                     </Button>
                     <Button type="submit" disabled={!isValid || submitLoading} className="flex-1">
-                        {submitLoading && <span className="loading loading-spinner mr-2"></span>}
+                        {submitLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                         Update Asset
                     </Button>
                 </div>
@@ -378,7 +379,7 @@ export default function SellPageAssetUpdate({ asset, onClose }: SellPageAssetUpd
                                 <p>
                                     <strong>Amount to Sell:</strong> {watchedAmountToSell ?? 0} units
                                 </p>
-                                <p className={`${calculateRemaining() === 0 ? "text-orange-500" : "text-green-600"}`}>
+                                <p className={`${calculateRemaining() === 0 ? "text-warning" : "text-success"}`}>
                                     <strong>Remaining After Sale:</strong> {calculateRemaining()} units
                                 </p>
                             </div>

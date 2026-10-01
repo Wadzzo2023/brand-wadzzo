@@ -337,7 +337,7 @@ function Settings({ draft, set }: { draft: EmbedDraft; set: <K extends keyof Emb
                         set("allowedDomains", e.target.value.split(/[\n,\s]+/).filter(Boolean))
                     }}
                 />
-                <p className={cn("text-xs", draft.allowedDomains.length ? "text-muted-foreground" : "text-amber-600")}>
+                <p className={cn("text-xs", draft.allowedDomains.length ? "text-muted-foreground" : "text-warning")}>
                     {draft.allowedDomains.length
                         ? "One per line. Subdomains (www., maps.) are included. Other sites that copy your snippet get a blocked frame."
                         : "Empty = any website can show this map. Add your domain to stop others copying it."}

@@ -30,7 +30,7 @@ export default function ViewReplyBountyComment({
           <div className="flex flex-col items-start">
             <div className="font-bold">{comment.user.name}</div>
             <CommentFormatter content={comment.content} />
-            <p className="text-gray-400">{formatPostCreatedAt(comment.createdAt)}</p>
+            <p className="text-muted-foreground">{formatPostCreatedAt(comment.createdAt)}</p>
           </div>
         </div>
         <div className="flex gap-2">

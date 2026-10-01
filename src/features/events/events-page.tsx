@@ -275,7 +275,7 @@ function EventTile({
                     <span className="text-lg font-bold leading-none">{format(e.startDate, "d")}</span>
                 </div>
                 <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                    {live && <Badge className="bg-green-600 hover:bg-green-600">Live now</Badge>}
+                    {live && <Badge className="bg-success hover:bg-success">Live now</Badge>}
                     {past && <Badge variant="secondary">Ended</Badge>}
                     <TileMenu>
                         <DropdownMenuItem onClick={onEdit}>
@@ -312,7 +312,7 @@ function EventTile({
                 ) : null}
 
                 <div className="mt-auto flex items-center gap-4 border-t pt-3 text-xs">
-                    <button onClick={() => onEngagement("attendees")} className={cn("flex items-center gap-1 hover:text-primary", full && "text-amber-600")}>
+                    <button onClick={() => onEngagement("attendees")} className={cn("flex items-center gap-1 hover:text-primary", full && "text-warning")}>
                         <Users className="h-3.5 w-3.5" />
                         {e._count.rsvps}
                         {e.capacity != null && ` / ${e.capacity}`} going

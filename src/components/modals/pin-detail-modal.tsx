@@ -276,8 +276,8 @@ const MapOptionModal = () => {
                                             >
                                                 {isPinCopied ? (
                                                     <div className="flex items-center gap-2">
-                                                        <div className="rounded-full bg-green-100 p-2">
-                                                            <Check size={18} className="text-green-600" />
+                                                        <div className="rounded-full bg-success/10 p-2">
+                                                            <Check size={18} className="text-success" />
                                                         </div>
                                                         <div className="text-left">
                                                             <div className="font-medium">Copied!</div>
@@ -304,8 +304,8 @@ const MapOptionModal = () => {
                                             >
                                                 {isPinCut ? (
                                                     <div className="flex items-center gap-2">
-                                                        <div className="rounded-full bg-green-100 p-2">
-                                                            <Check size={18} className="text-green-600" />
+                                                        <div className="rounded-full bg-success/10 p-2">
+                                                            <Check size={18} className="text-success" />
                                                         </div>
                                                         <div className="text-left">
                                                             <div className="font-medium">Cut!</div>
@@ -424,43 +424,43 @@ function PinInfo({
     if (isLoading) {
         return (
             <div className="space-y-4">
-                <div className="relative h-48 w-full animate-pulse overflow-hidden rounded-lg bg-gray-200"></div>
+                <div className="relative h-48 w-full overflow-hidden rounded-lg skeleton"></div>
                 <Card>
                     <CardHeader className="pb-2">
-                        <div className="h-6 w-24 animate-pulse rounded bg-gray-200"></div>
+                        <div className="h-6 w-24 rounded skeleton"></div>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2">
-                        <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
-                        <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
+                        <div className="h-4 w-full rounded skeleton"></div>
+                        <div className="h-4 w-full rounded skeleton"></div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
-                        <div className="h-6 w-24 animate-pulse rounded bg-gray-200"></div>
+                        <div className="h-6 w-24 rounded skeleton"></div>
                     </CardHeader>
                     <CardContent>
-                        <div className="mb-2 h-4 w-full animate-pulse rounded bg-gray-200"></div>
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200"></div>
+                        <div className="mb-2 h-4 w-full rounded skeleton"></div>
+                        <div className="h-4 w-3/4 rounded skeleton"></div>
                     </CardContent>
                 </Card>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <Card>
                         <CardHeader className="pb-2">
-                            <div className="h-6 w-24 animate-pulse rounded bg-gray-200"></div>
+                            <div className="h-6 w-24 rounded skeleton"></div>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
-                            <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
+                            <div className="h-4 w-full rounded skeleton"></div>
+                            <div className="h-4 w-full rounded skeleton"></div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="pb-2">
-                            <div className="h-6 w-24 animate-pulse rounded bg-gray-200"></div>
+                            <div className="h-6 w-24 rounded skeleton"></div>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
-                            <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
-                            <div className="h-4 w-full animate-pulse rounded bg-gray-200"></div>
+                            <div className="h-4 w-full rounded skeleton"></div>
+                            <div className="h-4 w-full rounded skeleton"></div>
+                            <div className="h-4 w-full rounded skeleton"></div>
                         </CardContent>
                     </Card>
                 </div>

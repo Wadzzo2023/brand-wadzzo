@@ -109,7 +109,7 @@ export function CollectorReportBlock({
                                         className={cn(
                                             "text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0",
                                             c.isRedeemed
-                                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                                ? "bg-success/15 text-success border-success/25"
                                                 : "bg-muted text-muted-foreground border-border",
                                         )}
                                     >
@@ -192,7 +192,7 @@ export function CollectorReportBlock({
                                     className={cn(
                                         "text-[10px] px-1.5 py-0.5 rounded border font-semibold",
                                         c.redeemed > 0
-                                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                            ? "bg-success/15 text-success border-success/25"
                                             : "bg-muted text-muted-foreground border-border",
                                     )}
                                 >

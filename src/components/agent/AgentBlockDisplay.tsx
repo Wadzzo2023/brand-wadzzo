@@ -83,8 +83,8 @@ function ModeBadge({ mode }: { mode?: AgentMode }) {
             className={cn(
                 "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mb-1",
                 mode === "management"
-                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+                    ? "bg-info/10 text-info border border-info/20"
+                    : "bg-success/10 text-success border border-success/20",
             )}
         >
             {mode === "management" ? "📋 Managing pins" : "🌍 Searching locations"}
@@ -264,12 +264,12 @@ function JobProgressBar({ jobId, onComplete }: {
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
-                    className={cn("h-full rounded-full transition-all duration-500", isError ? "bg-red-500" : "bg-emerald-500")}
+                    className={cn("h-full rounded-full transition-all duration-500", isError ? "bg-destructive" : "bg-success")}
                     style={{ width: `${pct}%` }}
                 />
             </div>
             {isError && data?.error && (
-                <p className="text-[11px] text-red-400">{data.error}</p>
+                <p className="text-[11px] text-destructive">{data.error}</p>
             )}
             {(isDone || isError) && data?.log && data.log.length > 0 && (
                 <details className="mt-1">
@@ -279,12 +279,12 @@ function JobProgressBar({ jobId, onComplete }: {
                     <div className="mt-1.5 space-y-0.5 max-h-32 overflow-y-auto">
                         {data.log.map((entry, i) => (
                             <div key={i} className="flex items-center gap-1.5 text-[11px]">
-                                <span className={entry.status === "ok" ? "text-emerald-500" : "text-red-400"}>
+                                <span className={entry.status === "ok" ? "text-success" : "text-destructive"}>
                                     {entry.status === "ok" ? "✓" : "✗"}
                                 </span>
                                 <span className="text-foreground truncate">{entry.title}</span>
                                 {entry.error && (
-                                    <span className="text-red-400 truncate">— {entry.error}</span>
+                                    <span className="text-destructive truncate">— {entry.error}</span>
                                 )}
                             </div>
                         ))}
@@ -508,7 +508,7 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                     <span className={cn(
                         "text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0",
                         pin.type === "EVENT"
-                            ? "bg-amber-500/20 text-amber-400"
+                            ? "bg-warning/20 text-warning"
                             : "bg-primary/20 text-primary",
                     )}>
                         {pin.type ?? "LANDMARK"}
@@ -524,7 +524,7 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                     </p>
                 )}
                 {pin.type === "EVENT" && pin.startDate && (
-                    <p className="text-amber-500/60 text-[11px] mt-0.5">
+                    <p className="text-warning/60 text-[11px] mt-0.5">
                         {formatDate(pin.startDate)}{pin.endDate ? ` → ${formatDate(pin.endDate)}` : ""}
                     </p>
                 )}
@@ -572,9 +572,9 @@ function ResultsBlock({
             {jobId ? (
                 <JobProgressBar jobId={jobId} onComplete={onJobComplete} />
             ) : confirmed ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-xs text-emerald-400 font-semibold">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/25">
+                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                    <span className="text-xs text-success font-semibold">
                         Queued {count} pins for drop
                     </span>
                 </div>
@@ -625,7 +625,7 @@ function PinDropConfirmBlock({
                             <span className={cn(
                                 "text-[10px] px-2 py-0.5 rounded-full font-bold",
                                 value === "EVENT"
-                                    ? "bg-amber-500/15 text-amber-400"
+                                    ? "bg-warning/15 text-warning"
                                     : "bg-primary/15 text-primary",
                             )}>
                                 {value}
@@ -645,7 +645,7 @@ function PinDropConfirmBlock({
                 <button
                     onClick={() => onConfirm(pins)}
                     disabled={isDropping}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-success hover:bg-success disabled:opacity-60 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20"
                 >
                     {isDropping
                         ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Dropping…</>
@@ -678,10 +678,10 @@ function ManagementConfirmBlock({
         edit: "Edit", delete: "Hide", pause: "Pause", resume: "Resume",
     };
     const actionColor: Record<string, string> = {
-        edit: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/20",
-        delete: "bg-red-500 hover:bg-red-400 shadow-red-500/20",
-        pause: "bg-amber-500 hover:bg-amber-400 shadow-amber-500/20",
-        resume: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20",
+        edit: "bg-info hover:bg-info shadow-blue-500/20",
+        delete: "bg-destructive hover:bg-destructive shadow-red-500/20",
+        pause: "bg-warning hover:bg-warning shadow-amber-500/20",
+        resume: "bg-success hover:bg-success shadow-emerald-500/20",
     };
     return (
         <div className="space-y-3">

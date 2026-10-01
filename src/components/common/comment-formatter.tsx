@@ -22,7 +22,7 @@ function formatLinks(text: string) {
                     href={match}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-info hover:underline"
                 >
                     {match}
                 </a>

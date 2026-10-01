@@ -161,7 +161,7 @@ function StatusBadge({ active, ended }: { active: boolean; ended: boolean }) {
     ? ["Ended", "bg-muted text-muted-foreground"]
     : active
       ? ["Active", "bg-primary/10 text-primary"]
-      : ["Paused", "bg-amber-500/10 text-amber-600 dark:text-amber-400"];
+      : ["Paused", "bg-warning/10 text-warning"];
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 font-hud text-[11px] font-semibold uppercase tracking-wide", tone)}>
       <span className={cn("size-1.5 rounded-full bg-current", active && !ended && "animate-pulse")} />

@@ -58,7 +58,7 @@ export function SinglePostCommentSection({ postId, initialCommentCount }: Commen
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-4 text-gray-500">
+                        <div className="text-center py-4 text-muted-foreground">
                             No comments yet. Be the first to comment!
                         </div>
                     )}
@@ -122,7 +122,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                         <Link href={`/fans/creator/${comment.userId}`} className="font-bold hover:underline">
                             {comment.user.name}
                         </Link>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                             {formatPostCreatedAt(comment.createdAt)}
                         </span>
                     </div>
@@ -144,7 +144,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                                 onClick={toggleReplies}
                                 variant="ghost"
                                 size="sm"
-                                className="h-auto px-2 py-1 text-xs text-gray-500"
+                                className="h-auto px-2 py-1 text-xs text-muted-foreground"
                             >
                                 {showReplies ? "Hide replies" : `Show replies (${childrenComments.length})`}
                             </Button>
@@ -171,7 +171,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                     <AnimatePresence>
                         {showReplies && childrenComments.length > 0 && (
                             <motion.div
-                                className="mt-2 w-full pl-2 border-l-2 border-gray-100 dark:border-gray-800"
+                                className="mt-2 w-full pl-2 border-l-2 border-border"
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -243,7 +243,7 @@ function formatLinks(text: string) {
                     href={match}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-info hover:underline"
                 >
                     {match}
                 </a>

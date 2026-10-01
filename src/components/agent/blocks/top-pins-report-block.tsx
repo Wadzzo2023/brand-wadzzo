@@ -14,9 +14,9 @@ interface Props {
 
 // Rank medal colours
 const MEDAL: Record<number, string> = {
-    1: "text-amber-400",
-    2: "text-slate-400",
-    3: "text-amber-700",
+    1: "text-warning",
+    2: "text-muted-foreground",
+    3: "text-warning",
 };
 
 export function TopPinsReportBlock({ data }: Props) {
@@ -151,7 +151,7 @@ export function TopPinsReportBlock({ data }: Props) {
                                                 <span className={cn(
                                                     "text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0",
                                                     c.isRedeemed
-                                                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                                        ? "bg-success/15 text-success border-success/25"
                                                         : "bg-muted text-muted-foreground border-border",
                                                 )}>
                                                     {c.isRedeemed ? "Redeemed" : "Claimed"}

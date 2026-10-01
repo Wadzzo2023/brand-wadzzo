@@ -186,8 +186,8 @@ export function PinEditForm({ pin, onSubmit, onCancel, isSubmitting }: PinEditFo
 
             {/* Hotspot scope banner */}
             {isHotspotLinked && (
-                <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-3 flex flex-col gap-2">
-                    <p className="text-[11px] font-semibold text-blue-400">
+                <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-3 flex flex-col gap-2">
+                    <p className="text-[11px] font-semibold text-info">
                         This pin is hotspot-linked. Apply changes to:
                     </p>
                     <RadioGroup
@@ -206,14 +206,14 @@ export function PinEditForm({ pin, onSubmit, onCancel, isSubmitting }: PinEditFo
                                 className={cn(
                                     "flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-all",
                                     scope === opt.value
-                                        ? "border-blue-500/50 bg-blue-500/10"
+                                        ? "border-info/50 bg-info/10"
                                         : "border-border bg-muted/30 hover:bg-muted/50"
                                 )}
                             >
                                 <RadioGroupItem id={`scope-${opt.value}`} value={opt.value} />
                                 <span className={cn(
                                     "text-[12px] font-medium",
-                                    scope === opt.value ? "text-blue-400" : "text-foreground"
+                                    scope === opt.value ? "text-info" : "text-foreground"
                                 )}>
                                     {opt.label}
                                 </span>
@@ -347,7 +347,7 @@ export function PinEditForm({ pin, onSubmit, onCancel, isSubmitting }: PinEditFo
                     description="Hide from the map"
                     checked={hidden}
                     onCheckedChange={setHidden}
-                    activeColor="border-red-500/40 bg-red-500/5"
+                    activeColor="border-destructive/40 bg-destructive/5"
                 />
             </div>
 
@@ -419,7 +419,7 @@ export function PinEditForm({ pin, onSubmit, onCancel, isSubmitting }: PinEditFo
                                             </div>
                                             <div className={cn(
                                                 "flex items-center justify-between flex-1 px-2.5 py-2 rounded-lg border transition-colors",
-                                                locHidden ? "border-red-500/40 bg-red-500/5" : "border-border bg-muted/30"
+                                                locHidden ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/30"
                                             )}>
                                                 <Label htmlFor={`lhidden-${loc.id}`} className="text-[11px] font-medium text-foreground cursor-pointer">
                                                     Hidden

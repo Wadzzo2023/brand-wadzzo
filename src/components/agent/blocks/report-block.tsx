@@ -56,9 +56,9 @@ export function ReportBlock({
     // ── Status breakdown bar ──────────────────────────────────────────────────
     const { summary } = data;
     const statusBreakdown = [
-        { label: "Active", count: summary.activePins, color: "bg-emerald-500" },
+        { label: "Active", count: summary.activePins, color: "bg-success" },
         { label: "Expired", count: summary.expiredPins, color: "bg-muted-foreground" },
-        { label: "Fully Claimed", count: summary.fullyClaimedPins, color: "bg-amber-500" },
+        { label: "Fully Claimed", count: summary.fullyClaimedPins, color: "bg-warning" },
         {
             label: "Other",
             count:
@@ -66,7 +66,7 @@ export function ReportBlock({
                 summary.activePins -
                 summary.expiredPins -
                 summary.fullyClaimedPins,
-            color: "bg-red-400",
+            color: "bg-destructive",
         },
     ].filter((s) => s.count > 0);
 
@@ -145,11 +145,11 @@ export function ReportBlock({
                                             className={cn(
                                                 "text-[11px] font-black w-5 shrink-0 tabular-nums",
                                                 i === 0
-                                                    ? "text-amber-400"
+                                                    ? "text-warning"
                                                     : i === 1
-                                                        ? "text-slate-400"
+                                                        ? "text-muted-foreground"
                                                         : i === 2
-                                                            ? "text-amber-700"
+                                                            ? "text-warning"
                                                             : "text-muted-foreground",
                                             )}
                                         >
@@ -239,7 +239,7 @@ export function ReportBlock({
                                     <span
                                         className={cn(
                                             "text-[11px] tabular-nums w-10 text-right",
-                                            p.remaining === 0 ? "text-amber-400" : "text-foreground",
+                                            p.remaining === 0 ? "text-warning" : "text-foreground",
                                         )}
                                     >
                                         {p.remaining}

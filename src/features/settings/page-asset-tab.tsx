@@ -208,8 +208,8 @@ function AssetDetails({ asset, onMembership }: { asset: PageAsset; onMembership?
         </div>
 
         {asset.pending ? (
-          <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-            <Clock className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="mt-4 flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+            <Clock className="mt-0.5 size-4 shrink-0 text-warning" />
             <p>
               <b>Waiting to be issued.</b> An admin issues new tokens on Stellar — usually within a day. You can already set up membership tiers.
             </p>

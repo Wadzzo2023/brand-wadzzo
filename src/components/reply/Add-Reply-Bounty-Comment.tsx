@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
 import { api } from "~/utils/api";
@@ -53,7 +53,7 @@ export function AddBountyReplyComment({
               type="submit"
             >
               {ReplyMutation.isPending && (
-                <span className="loading loading-spinner" />
+                <Loader2 className="size-4 animate-spin" />
               )}
               <Send size={14} /> Reply
             </Button>

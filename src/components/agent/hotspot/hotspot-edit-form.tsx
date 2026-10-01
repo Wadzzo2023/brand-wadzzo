@@ -129,11 +129,11 @@ export function HotspotEditForm({ hotspot, onSubmit, onCancel, isSubmitting }: H
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2">
-                <p className="text-[11px] font-semibold text-blue-400">
+            <div className="rounded-xl border border-info/30 bg-info/10 px-3 py-2">
+                <p className="text-[11px] font-semibold text-info">
                     🔁 Editing hotspot: {hotspot.displayName}
                 </p>
-                <p className="text-[10px] text-blue-400/70 mt-0.5">
+                <p className="text-[10px] text-info/70 mt-0.5">
                     Changes cascade to all linked drops where specified.
                 </p>
             </div>
@@ -192,7 +192,7 @@ export function HotspotEditForm({ hotspot, onSubmit, onCancel, isSubmitting }: H
                     description="Controls future drop scheduling"
                     checked={isActive}
                     onCheckedChange={setIsActive}
-                    activeColor="border-emerald-500/40 bg-emerald-500/5"
+                    activeColor="border-success/40 bg-success/5"
                 />
             </div>
 

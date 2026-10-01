@@ -706,7 +706,7 @@ export default function ArtistOnboarding() {
                                 If you have any questions about the onboarding process, please
                                 contact our support team.
                             </p>
-                            <Link href="https://app.wadzzo.com/support" className="text-blue-500 hover:underline">
+                            <Link href="https://app.wadzzo.com/support" className="text-info hover:underline">
                                 Contact Support
                             </Link>
                         </div>
@@ -1737,7 +1737,7 @@ export default function ArtistOnboarding() {
                                                                                 className={cn(
                                                                                     "h-full",
                                                                                     isIssuerValid
-                                                                                        ? "bg-green-500"
+                                                                                        ? "bg-success"
                                                                                         : formData.issuer.length > 0
                                                                                             ? "bg-primary"
                                                                                             : "bg-primary",
@@ -1757,7 +1757,7 @@ export default function ArtistOnboarding() {
                                                                                 </p>
                                                                             )}
                                                                         {isIssuerValid && (
-                                                                            <p className="mt-1 flex items-center gap-1 text-xs text-green-500">
+                                                                            <p className="mt-1 flex items-center gap-1 text-xs text-success">
                                                                                 <CheckCircle2 className="h-3 w-3" />
                                                                                 Valid issuer format
                                                                             </p>
@@ -1773,8 +1773,8 @@ export default function ArtistOnboarding() {
                                                                 <div className="mt-6 flex flex-col gap-3">
                                                                     <div className="rounded-lg border border-border bg-muted/30 p-4">
                                                                         <div className="flex items-start gap-3">
-                                                                            <div className="mt-1 rounded-full bg-yellow-500/20 p-2">
-                                                                                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                                                            <div className="mt-1 rounded-full bg-warning/20 p-2">
+                                                                                <AlertCircle className="h-4 w-4 text-warning" />
                                                                             </div>
                                                                             <div>
                                                                                 <h3 className="font-medium">
@@ -1809,7 +1809,7 @@ export default function ArtistOnboarding() {
                                                                     </Button>
 
                                                                     {isTrusted && (
-                                                                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                                                                        <div className="flex items-center gap-2 text-sm text-success">
                                                                             <CheckCheck className="h-4 w-4" />
                                                                             <span>
                                                                                 Asset trusted successfully! You can now
@@ -1903,7 +1903,7 @@ export default function ArtistOnboarding() {
                                                                         initial={{ opacity: 0, y: 10 }}
                                                                         animate={{ opacity: 1, y: 0 }}
                                                                         transition={{ delay: 0.3 }}
-                                                                        className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400"
+                                                                        className="flex items-center gap-1 text-sm text-success"
                                                                     >
                                                                         <CheckCheck className="h-4 w-4" />
                                                                         <span>This URL is available!</span>

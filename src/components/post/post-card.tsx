@@ -122,7 +122,7 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
 
             className=""
         >
-            <Card className={cn("overflow-hidden   border-gray-200 dark:border-gray-800 shadow-xs hover:shadow-md transition-shadow", deletePostId === post.id && "animate-pulse border-red-300")}>
+            <Card className={cn("overflow-hidden   border-border shadow-xs hover:shadow-md transition-shadow", deletePostId === post.id && "animate-pulse border-destructive/30")}>
                 <CardHeader className="p-4 pb-0">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -166,13 +166,13 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
                                     {post.content && post.content.length > 400 && !expanded ? (
                                         <>
                                             <Link href={postUrl} >
-                                                <p className="text-gray-800 dark:text-gray-200 cursor-pointer"><Preview value={post.content.substring(0, 400)} /></p></Link>
+                                                <p className="text-foreground cursor-pointer"><Preview value={post.content.substring(0, 400)} /></p></Link>
                                             <Button variant="link" size="sm" className="px-0 h-auto" onClick={toggleExpand}>
                                                 See more
                                             </Button>
                                         </>
                                     ) : (
-                                        <Link href={postUrl}> <p className="text-gray-800 dark:text-gray-200 cursor-pointer"><Preview value={post.content} /></p>  </Link>
+                                        <Link href={postUrl}> <p className="text-foreground cursor-pointer"><Preview value={post.content} /></p>  </Link>
                                     )}
 
                                     {expanded && post.content && post.content.length > 150 && (
@@ -198,16 +198,16 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
                 </CardContent>
 
                 <CardFooter className="p-4 pt-0 flex flex-col">
-                    <div className="flex items-center justify-between w-full text-gray-500 dark:text-gray-400 text-sm mb-2">
+                    <div className="flex items-center justify-between w-full text-muted-foreground text-sm mb-2">
                         <div>{likeCount} likes</div>
                         <div>{commentCount} comments</div>
                     </div>
 
-                    <div className="flex items-center justify-between w-full border-t border-gray-100 dark:border-gray-800 py-1">
+                    <div className="flex items-center justify-between w-full border-t border-border py-1">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className={cn("flex-1 gap-2", liked && "text-red-500 dark:text-red-400 font-medium")}
+                            className={cn("flex-1 gap-2", liked && "text-destructive font-medium")}
                             onClick={toggleLike}
                             disabled={deleteLike.isPending ?? likeMutation.isPending}
                         >
@@ -272,14 +272,14 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
 // Component to display when content is locked
 function LockedContent({ price, assetCode }: { price: number; assetCode: string }) {
     return (
-        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-6">
+        <div className="rounded-lg border border-border bg-muted/50 p-6">
             <div className="flex flex-col items-center text-center space-y-4">
-                <div className="rounded-full bg-amber-100 dark:bg-amber-900/30 p-3">
-                    <Lock className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+                <div className="rounded-full bg-warning/10 p-3">
+                    <Lock className="h-6 w-6 text-warning" />
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-lg font-semibold">Locked Content</h3>
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <p className="text-muted-foreground">
                         This content requires {price} {assetCode} to view.
                     </p>
                 </div>

@@ -156,8 +156,8 @@ export function PinListBlock({
                 )}
 
                 {selectedIds.size > 1 && (
-                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25">
-                        <span className="text-[12px] font-semibold text-red-400">
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-destructive/10 border border-destructive/25">
+                        <span className="text-[12px] font-semibold text-destructive">
                             {selectedIds.size} pins selected
                         </span>
                         <button
@@ -165,7 +165,7 @@ export function PinListBlock({
                                 setDeleteTargets(standalone.filter(p => selectedIds.has(p.id)));
                                 setShowDeleteDialog(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-[11px] font-bold"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-white text-[11px] font-bold"
                         >
                             Delete Selected ({selectedIds.size})
                         </button>

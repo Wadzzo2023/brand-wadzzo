@@ -152,7 +152,7 @@ function Profile({ data }: { data: Overview }) {
             <p className="font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Page asset</p>
             {data.pageAsset?.pending ? (
               <p className="truncate text-sm">
-                <b className="font-mono">{data.pageAsset.code}</b> <span className="text-xs text-amber-600 dark:text-amber-400">waiting to be issued</span>
+                <b className="font-mono">{data.pageAsset.code}</b> <span className="text-xs text-warning">waiting to be issued</span>
               </p>
             ) : data.pageAsset ? (
               <p className="truncate text-sm">

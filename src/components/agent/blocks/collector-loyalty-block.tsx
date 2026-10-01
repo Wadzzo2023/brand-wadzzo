@@ -18,10 +18,10 @@ const SEGMENT_CONFIG: Record<Segment, {
     label: string; icon: string;
     color: string; bg: string; border: string;
 }> = {
-    champions: { label: "Champions", icon: "🏆", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/25" },
-    collectorsOnly: { label: "Collectors Only", icon: "📦", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/25" },
-    atRisk: { label: "At Risk", icon: "⚠️", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/25" },
-    newThisWeek: { label: "New This Week", icon: "✨", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+    champions: { label: "Champions", icon: "🏆", color: "text-warning", bg: "bg-warning/10", border: "border-warning/25" },
+    collectorsOnly: { label: "Collectors Only", icon: "📦", color: "text-info", bg: "bg-info/10", border: "border-info/25" },
+    atRisk: { label: "At Risk", icon: "⚠️", color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/25" },
+    newThisWeek: { label: "New This Week", icon: "✨", color: "text-success", bg: "bg-success/10", border: "border-success/25" },
 };
 
 function CollectorCard({ c }: { c: CollectorLoyalty }) {

@@ -131,12 +131,12 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                             transition={{ duration: 0.3 }}
                             className="overflow-hidden rounded-xl"
                         >
-                            <DialogHeader className="border-b border-gray-100 bg-linear-to-r from-indigo-50 to-purple-50 px-6 py-4">
-                                <DialogTitle className="text-center text-xl font-bold text-gray-800">Share on Social Media</DialogTitle>
+                            <DialogHeader className="border-b border-border bg-linear-to-r from-indigo-50 to-purple-50 px-6 py-4">
+                                <DialogTitle className="text-center text-xl font-bold text-foreground">Share on Social Media</DialogTitle>
                             </DialogHeader>
 
                             <div className="px-6 py-5">
-                                <p className="mb-4 text-sm font-medium text-gray-600">Share this link via</p>
+                                <p className="mb-4 text-sm font-medium text-muted-foreground">Share this link via</p>
 
                                 <motion.div
                                     className="mb-6 flex justify-around"
@@ -156,7 +156,7 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                                                 <Component {...props}>
                                                     <div
                                                         className={cn(
-                                                            "flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-gray-100",
+                                                            "flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-border",
                                                             fill,
                                                             "shadow-lg transition-all duration-300",
                                                             bgHover,
@@ -172,20 +172,20 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                                     })}
                                 </motion.div>
 
-                                <p className="mb-3 text-sm font-medium text-gray-600">Or copy link</p>
+                                <p className="mb-3 text-sm font-medium text-muted-foreground">Or copy link</p>
 
                                 <motion.div
-                                    className="flex items-center overflow-hidden rounded-lg border-2 border-gray-100 bg-gray-50"
+                                    className="flex items-center overflow-hidden rounded-lg border-2 border-border bg-muted/50"
                                     initial={{ y: 10, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.3 }}
                                 >
-                                    <div className="flex h-full items-center px-3 text-gray-400">
+                                    <div className="flex h-full items-center px-3 text-muted-foreground">
                                         <Link className="h-4 w-4" />
                                     </div>
 
                                     <input
-                                        className="w-full bg-transparent py-3 px-2 text-sm text-gray-700 outline-hidden"
+                                        className="w-full bg-transparent py-3 px-2 text-sm text-foreground outline-hidden"
                                         type="text"
                                         readOnly
                                         value={fullUrl}
@@ -195,7 +195,7 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                                     <motion.button
                                         className={cn(
                                             "flex h-full items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-white transition-all",
-                                            copied ? "bg-green-500" : "bg-indigo-500 hover:bg-indigo-600",
+                                            copied ? "bg-success" : "bg-info hover:bg-info",
                                         )}
                                         onClick={handleCopy}
                                         whileTap={{ scale: 0.95 }}

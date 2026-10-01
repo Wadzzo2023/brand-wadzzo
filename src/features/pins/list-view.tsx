@@ -37,7 +37,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString
 
 /** Where a drop is in time: not started, live, or over. */
 function timing(start: Date | string, end: Date | string, now: number) {
-  if (now < new Date(start).getTime()) return { label: "Scheduled", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+  if (now < new Date(start).getTime()) return { label: "Scheduled", tone: "bg-warning/10 text-warning" };
   if (now > new Date(end).getTime()) return { label: "Ended", tone: "bg-muted text-muted-foreground" };
   return { label: "Live", tone: "bg-primary/10 text-primary" };
 }
@@ -120,7 +120,7 @@ export default function PinManagementPage() {
               <k.icon className="size-3.5" /> {k.label}
             </span>
             <span className="mt-1 block font-hud text-2xl font-semibold tabular-nums">
-              {summary.data ? summary.data[k.id].toLocaleString() : <span className="inline-block h-7 w-10 animate-pulse rounded-md bg-muted align-middle" />}
+              {summary.data ? summary.data[k.id].toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
             </span>
             <span className="text-[11px] text-faint">{k.hint}</span>
           </button>
@@ -257,7 +257,7 @@ function GroupRow({
   const removePins = api.maps.pin.bulkDeleteLocations.useMutation();
 
   const t = timing(g.startDate, g.endDate, now);
-  const review = g.approved === false ? { label: "Rejected", tone: "bg-destructive/10 text-destructive" } : g.approved == null ? { label: "In review", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" } : null;
+  const review = g.approved === false ? { label: "Rejected", tone: "bg-destructive/10 text-destructive" } : g.approved == null ? { label: "In review", tone: "bg-warning/10 text-warning" } : null;
   const collected = g.locations.reduce((n, l) => n + l._count.consumers, 0);
   const editHref = g.locations[0] ? `/pins/${g.locations[0].id}/edit` : null;
 
@@ -481,9 +481,9 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
   const state = ended
     ? { label: "Ended", tone: "bg-muted text-muted-foreground" }
     : !h.isActive
-      ? { label: "Paused", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" }
+      ? { label: "Paused", tone: "bg-warning/10 text-warning" }
       : notStarted
-        ? { label: "Starts " + fmt(h.hotspotStartDate), tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" }
+        ? { label: "Starts " + fmt(h.hotspotStartDate), tone: "bg-warning/10 text-warning" }
         : { label: "Active", tone: "bg-primary/10 text-primary" };
   const collected = h.locationGroups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l._count.consumers, 0), 0);
 
@@ -582,7 +582,7 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
           ) : (
             <ul className="space-y-1">
               {h.locationGroups.map((g) => {
-                const t = g.hidden ? { label: "Scheduled", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" } : timing(g.startDate, g.endDate, now);
+                const t = g.hidden ? { label: "Scheduled", tone: "bg-warning/10 text-warning" } : timing(g.startDate, g.endDate, now);
                 const got = g.locations.reduce((n, l) => n + l._count.consumers, 0);
                 return (
                   <li key={g.id} className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-sm">

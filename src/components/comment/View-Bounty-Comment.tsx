@@ -47,7 +47,7 @@ export default function ViewBountyComment({
             <h2 className="font-bold">{comment.user.name}</h2>
             <CommentFormatter content={comment.content} />
 
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               {formatPostCreatedAt(comment.createdAt)}
             </p>
 

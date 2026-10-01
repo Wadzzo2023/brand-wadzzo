@@ -274,7 +274,7 @@ export function PinTypeToggles() {
             <div className="space-y-3">
 
 
-                <Card className="border border-border hover:border-blue-300 transition-colors duration-200">
+                <Card className="border border-border hover:border-info/30 transition-colors duration-200">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div className="flex-1">

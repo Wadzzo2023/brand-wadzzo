@@ -37,7 +37,7 @@ export default function ReplyCommentView({
                         {comment.user.name}
                     </Link>
                     <CommentFormatter content={comment.content} maxLength={150} />
-                    <p className="text-gray-400 text-xs">{formatPostCreatedAt(comment.createdAt)}</p>
+                    <p className="text-muted-foreground text-xs">{formatPostCreatedAt(comment.createdAt)}</p>
                 </div>
             </div>
             <div className="flex gap-2">

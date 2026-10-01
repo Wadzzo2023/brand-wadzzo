@@ -35,7 +35,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                             <span className="text-[10px] text-muted-foreground">{pin.radius}m radius</span>
                         )}
                         {pin.isHotspotPin && (
-                            <span className="text-[10px] text-blue-400">🔁 hotspot-linked</span>
+                            <span className="text-[10px] text-info">🔁 hotspot-linked</span>
                         )}
                     </div>
                 </div>
@@ -57,9 +57,9 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                     </p>
                     <div className="flex items-center gap-2">
                         {[
-                            { label: "Viewed", value: stats.totalViewed, color: "bg-blue-400" },
+                            { label: "Viewed", value: stats.totalViewed, color: "bg-info" },
                             { label: "Claimed", value: stats.claimed, color: "bg-primary" },
-                            { label: "Redeemed", value: stats.redeemed, color: "bg-emerald-500" },
+                            { label: "Redeemed", value: stats.redeemed, color: "bg-success" },
                         ].map((step, i, arr) => (
                             <div key={step.label} className="flex items-center gap-2 flex-1">
                                 <div className="flex flex-col items-center gap-1 flex-1">
@@ -161,7 +161,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                                 <span className={cn(
                                     "text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0",
                                     c.isRedeemed
-                                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                        ? "bg-success/15 text-success border-success/25"
                                         : "bg-muted text-muted-foreground border-border",
                                 )}>
                                     {c.isRedeemed ? "Redeemed" : "Claimed"}

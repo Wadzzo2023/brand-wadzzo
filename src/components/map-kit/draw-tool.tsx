@@ -266,21 +266,21 @@ export function DrawTool({
         >
           <div className="group relative flex cursor-pointer items-center justify-center">
             {/* Animated glowing beacon */}
-            <span className="absolute -inset-2.5 animate-ping rounded-full bg-emerald-500/40" />
+            <span className="absolute -inset-2.5 animate-ping rounded-full bg-success/40" />
 
             {/* Target button */}
             <button
               type="button"
-              className="relative flex size-7 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-xl transition-transform hover:scale-125 focus:outline-hidden"
+              className="relative flex size-7 items-center justify-center rounded-full border-2 border-white bg-success text-white shadow-xl transition-transform hover:scale-125 focus:outline-hidden"
               title="Click here to complete area"
             >
               <Check className="size-4 stroke-[3]" />
             </button>
 
             {/* Floating prompt badge */}
-            <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-700 px-2 py-0.5 font-hud text-[11px] font-semibold text-white shadow-lg animate-bounce">
+            <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-success px-2 py-0.5 font-hud text-[11px] font-semibold text-white shadow-lg animate-bounce">
               Click to finish
-              <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-emerald-700" />
+              <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-success" />
             </div>
           </div>
         </Marker>
@@ -320,9 +320,9 @@ export function DrawTool({
         )}
 
         {tooFar ? (
-          <div className="mt-3 flex items-center justify-between gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+          <div className="mt-3 flex items-center justify-between gap-2.5 rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-xs text-warning">
             <div className="flex items-center gap-2">
-              <ZoomIn className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <ZoomIn className="size-4 shrink-0 text-warning" />
               <span>
                 Map is zoomed out. Click anywhere on the map or click <strong>Zoom In</strong> to start drawing.
               </span>
@@ -331,7 +331,7 @@ export function DrawTool({
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 shrink-0 border-amber-500/30 bg-card text-xs hover:bg-amber-500/15"
+              className="h-7 shrink-0 border-warning/30 bg-card text-xs hover:bg-warning/15"
               onClick={() => {
                 const target = points[0] ?? map?.getCenter();
                 if (target) {
@@ -344,7 +344,7 @@ export function DrawTool({
             </Button>
           </div>
         ) : (
-          <p className={cn("mt-2 text-xs", tooSmall ? "text-destructive" : large ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+          <p className={cn("mt-2 text-xs", tooSmall ? "text-destructive" : large ? "text-warning" : "text-muted-foreground")}>
             {tooSmall
               ? `That's under ${MIN_SPAN_M} m across — make the area bigger.`
               : large
@@ -369,7 +369,7 @@ export function DrawTool({
             size="sm"
             className={cn(
               "ml-auto transition-all",
-              complete && "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md ring-2 ring-emerald-500/50"
+              complete && "bg-success hover:bg-success text-white shadow-md ring-2 ring-success/50"
             )}
             disabled={!complete}
             onClick={finish}
@@ -381,8 +381,8 @@ export function DrawTool({
 
       {/* Floating zoom hint pill when zoomed too far out */}
       {tooFar && (
-        <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 rounded-full border border-amber-500/30 bg-card/95 px-4 py-2 text-xs font-medium text-amber-800 shadow-xl backdrop-blur-md animate-pulse dark:text-amber-200">
-          <ZoomIn className="size-4 text-amber-600 dark:text-amber-400" />
+        <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 rounded-full border border-warning/30 bg-card/95 px-4 py-2 text-xs font-medium text-warning shadow-xl backdrop-blur-md animate-pulse">
+          <ZoomIn className="size-4 text-warning" />
           <span>Click anywhere on the map to zoom in &amp; start drawing</span>
         </div>
       )}

@@ -99,11 +99,11 @@ export default function CreatorStoredAssetModal({
                                                 {data.asset.name}
                                             </h2>
 
-                                            <p className="max-h-[100px] min-h-[100px]  overflow-y-auto text-sm text-gray-400">
+                                            <p className="max-h-[100px] min-h-[100px]  overflow-y-auto text-sm text-muted-foreground">
                                                 {data.asset.description}
                                             </p>
 
-                                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <span className="h-auto p-0 text-xs text-[#00a8fc]">
                                                     {addrShort(data.asset.issuer, 5)}
                                                 </span>
@@ -121,7 +121,7 @@ export default function CreatorStoredAssetModal({
                                                             ? `${copy.data} copies`
                                                             : "..."}
                                             </p>
-                                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <span className="h-auto p-0 text-xs text-[#00a8fc]">
                                                     Media Type:
                                                 </span>
@@ -146,7 +146,7 @@ export default function CreatorStoredAssetModal({
                                 </Card>
 
                                 {/* Right Column - Bundle Info */}
-                                <div className=" rounded-sm bg-gray-300 p-1   md:col-span-4">
+                                <div className=" rounded-sm bg-muted p-1   md:col-span-4">
                                     {data.asset.mediaType === "IMAGE" ? (
                                         <img
                                             src={data.asset.mediaUrl}
@@ -265,9 +265,9 @@ export function EditForm({
 
 
 
-                    <h2 className="text-center text-2xl font-bold text-gray-800 dark:text-gray-100">Edit Asset</h2>
+                    <h2 className="text-center text-2xl font-bold text-foreground">Edit Asset</h2>
                 </div>
-                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-center text-sm text-muted-foreground">
                     Update the pricing information for this asset
                 </p>
             </CardHeader>
@@ -284,7 +284,7 @@ export function EditForm({
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                 {PLATFORM_ASSET.code.toLocaleLowerCase() === "wadzzo" ?
 
-                                    (<CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />) : PLATFORM_ASSET.code.toLocaleLowerCase() === "bandcoin" ? (
+                                    (<CreditCard className="h-4 w-4 text-info" />) : PLATFORM_ASSET.code.toLocaleLowerCase() === "bandcoin" ? (
                                         <img
                                             src={"https://bandcoin.io/images/logo.png"}
                                             alt={PLATFORM_ASSET.code}
@@ -294,7 +294,7 @@ export function EditForm({
                                         />
 
                                     ) : (
-                                        <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <CreditCard className="h-4 w-4 text-info" />
                                     )
 
                                 }
@@ -305,10 +305,10 @@ export function EditForm({
                                 step="0.01"
                                 placeholder={`Enter amount in ${PLATFORM_ASSET.code}`}
                                 {...register("price", { valueAsNumber: true })}
-                                className={`pl-10 ${errors.price ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                                className={`pl-10 ${errors.price ? "border-destructive focus-visible:ring-destructive" : ""}`}
                             />
                         </div>
-                        {errors.price && <p className="text-sm font-medium text-red-500">{errors.price.message}</p>}
+                        {errors.price && <p className="text-sm font-medium text-destructive">{errors.price.message}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -325,10 +325,10 @@ export function EditForm({
                                 step="0.01"
                                 placeholder="Enter amount in USD"
                                 {...register("priceUSD", { valueAsNumber: true })}
-                                className={`pl-10 ${errors.priceUSD ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                                className={`pl-10 ${errors.priceUSD ? "border-destructive focus-visible:ring-destructive" : ""}`}
                             />
                         </div>
-                        {errors.priceUSD && <p className="text-sm font-medium text-red-500">{errors.priceUSD.message}</p>}
+                        {errors.priceUSD && <p className="text-sm font-medium text-destructive">{errors.priceUSD.message}</p>}
                     </div>
 
                 </form>

@@ -8,11 +8,11 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-    EVENT: "bg-amber-500",
+    EVENT: "bg-warning",
     LANDMARK: "bg-primary",
     BOUNTY: "bg-purple-500",
-    EXPERIENCE: "bg-cyan-500",
-    LAUNCH: "bg-emerald-500",
+    EXPERIENCE: "bg-info",
+    LAUNCH: "bg-success",
     OTHER: "bg-muted-foreground",
 };
 

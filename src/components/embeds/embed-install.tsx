@@ -22,7 +22,7 @@ export function EmbedInstall({ id, draft }: { id: string; draft: EmbedDraft }) {
             </div>
 
             {!draft.enabled && (
-                <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
                     This map is turned off — websites will show &quot;Map unavailable&quot; until you turn it on in Settings.
                 </p>
             )}
@@ -116,7 +116,7 @@ function Code({ text }: { text: string }) {
     const [copied, setCopied] = useState(false)
     return (
         <div className="relative">
-            <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 pr-24 text-[12.5px] leading-relaxed text-emerald-200">{text}</pre>
+            <pre className="overflow-x-auto rounded-xl bg-zinc-950 p-4 pr-24 text-[12.5px] leading-relaxed text-emerald-300">{text}</pre>
             <Button
                 size="sm"
                 variant="secondary"

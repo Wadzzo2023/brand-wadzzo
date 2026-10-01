@@ -50,7 +50,7 @@ export default function RedeemView() {
             </div>
             <div>
               <p className="font-hud text-2xl font-bold tracking-tight">
-                {summary.data ? summary.data.rewards.toLocaleString() : <span className="inline-block h-7 w-10 animate-pulse rounded-md bg-muted align-middle" />}
+                {summary.data ? summary.data.rewards.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
               </p>
               <p className="text-xs font-medium text-muted-foreground">Total rewards</p>
             </div>
@@ -58,12 +58,12 @@ export default function RedeemView() {
         </div>
         <div className="rounded-xl border bg-card p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-              <Users className="size-5 text-amber-600 dark:text-amber-400" />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+              <Users className="size-5 text-warning" />
             </div>
             <div>
-              <p className="font-hud text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
-                {summary.data ? summary.data.waiting.toLocaleString() : <span className="inline-block h-7 w-10 animate-pulse rounded-md bg-muted align-middle" />}
+              <p className="font-hud text-2xl font-bold tracking-tight text-warning">
+                {summary.data ? summary.data.waiting.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
               </p>
               <p className="text-xs font-medium text-muted-foreground">Waiting to redeem</p>
             </div>
@@ -76,7 +76,7 @@ export default function RedeemView() {
             </div>
             <div>
               <p className="font-hud text-2xl font-bold tracking-tight">
-                {summary.data ? summary.data.redeemed.toLocaleString() : <span className="inline-block h-7 w-10 animate-pulse rounded-md bg-muted align-middle" />}
+                {summary.data ? summary.data.redeemed.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
               </p>
               <p className="text-xs font-medium text-muted-foreground">Total redeemed</p>
             </div>
@@ -253,7 +253,7 @@ function ResultShell({
   onReset: () => void;
   resetLabel: string;
 }) {
-  const color = tone === "success" ? "text-primary" : tone === "warning" ? "text-amber-600 dark:text-amber-400" : "text-destructive";
+  const color = tone === "success" ? "text-primary" : tone === "warning" ? "text-warning" : "text-destructive";
   return (
     <div>
       <p className={cn("flex items-center gap-2 font-semibold", color)}>
@@ -461,7 +461,7 @@ function RewardRow({ group: g }: { group: Group }) {
                       <CheckCircle2 className="size-3" /> Redeemed
                     </span>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">Waiting</span>
+                    <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">Waiting</span>
                   )}
                 </li>
               ))}
@@ -476,7 +476,7 @@ function RewardRow({ group: g }: { group: Group }) {
 function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div>
-      <p className={cn("font-hud text-lg font-semibold tabular-nums", highlight && "text-amber-600 dark:text-amber-400")}>{value.toLocaleString()}</p>
+      <p className={cn("font-hud text-lg font-semibold tabular-nums", highlight && "text-warning")}>{value.toLocaleString()}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
