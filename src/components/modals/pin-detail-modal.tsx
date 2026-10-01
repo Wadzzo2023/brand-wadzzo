@@ -1,14 +1,13 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { BarChart3, CalendarDays, Copy, CopyPlus, ExternalLink, Link2, Loader2, MapPin, MoreHorizontal, Navigation, Pencil, Scissors, Trash2, Users, Zap } from "lucide-react";
+import { BarChart3, CalendarDays, Copy, CopyPlus, ExternalLink, Link2, Loader2, type MapPin, Navigation, Pencil, Scissors, Trash2, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { cn } from "~/lib/utils";
@@ -102,12 +101,12 @@ export default function PinDetailPanel() {
     <>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent
-          className="flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-md flex-col gap-0 overflow-hidden p-0 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/40 [&>button:last-child]:p-1 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
+          className="flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/40 [&>button:last-child]:p-1 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
             {/* Cover: the pin's image (else the brand's cover), its state on top. */}
-            <div className="relative h-44 bg-gradient-to-br from-primary/40 via-primary/15 to-muted">
+            <div className="relative h-52 bg-gradient-to-br from-primary/40 via-primary/15 to-muted">
               {(g?.image ?? g?.creator.coverUrl) && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={g?.image ?? g?.creator.coverUrl ?? ""} alt="" className="size-full object-cover" />
@@ -215,40 +214,26 @@ export default function PinDetailPanel() {
             </div>
           </div>
 
-          {/* Actions: the two common ones as buttons, the rest in the menu. */}
-          <div className="flex items-center gap-2 border-t bg-card px-5 py-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="More actions">
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="min-w-52">
-                <DropdownMenuItem onSelect={() => duplicate.mutate(pin.id)} disabled={duplicate.isPending}>
-                  <CopyPlus /> Duplicate as new pin
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={copyForPaste}>
-                  <Copy /> Copy to another spot
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={cutForMove}>
-                  <Scissors /> Move on the map
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirmDelete(true)} disabled={pin.hidden}>
-                  <Trash2 /> Delete pin
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" className="flex-1" asChild>
-              <Link href={reportHref} onClick={close}>
-                {pin._count.consumers > 0 ? <Users /> : <BarChart3 />} Collectors
-              </Link>
-            </Button>
-            <Button className="flex-1" asChild>
-              <Link href={`/pins/${pin.id}/edit`} onClick={close}>
-                <Pencil /> Edit
-              </Link>
-            </Button>
+          {/* Actions, all on view: quick tools on top, the two main ones below. */}
+          <div className="space-y-2.5 border-t bg-card px-5 py-3.5">
+            <div className="grid grid-cols-4 gap-2">
+              <ToolButton icon={CopyPlus} label="Duplicate" hint="New pin from this one" busy={duplicate.isPending} onClick={() => duplicate.mutate(pin.id)} />
+              <ToolButton icon={Copy} label="Copy" hint="Paste it somewhere else" onClick={copyForPaste} />
+              <ToolButton icon={Scissors} label="Move" hint="Click a new spot" onClick={cutForMove} />
+              <ToolButton icon={Trash2} label="Delete" hint="Take it off the map" destructive disabled={pin.hidden} onClick={() => setConfirmDelete(true)} />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" asChild>
+                <Link href={reportHref} onClick={close}>
+                  {pin._count.consumers > 0 ? <Users /> : <BarChart3 />} Collectors
+                </Link>
+              </Button>
+              <Button className="flex-1" asChild>
+                <Link href={`/pins/${pin.id}/edit`} onClick={close}>
+                  <Pencil /> Edit pin
+                </Link>
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -263,6 +248,40 @@ export default function PinDetailPanel() {
         onConfirm={() => remove.mutate({ id: pin.id })}
       />
     </>
+  );
+}
+
+function ToolButton({
+  icon: Icon,
+  label,
+  hint,
+  onClick,
+  busy,
+  disabled,
+  destructive,
+}: {
+  icon: typeof MapPin;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={Boolean(disabled) || Boolean(busy)}
+      title={hint}
+      className={cn(
+        "flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+        destructive ? "text-destructive hover:border-destructive/40 hover:bg-destructive/10" : "hover:border-primary/40 hover:bg-primary/5",
+      )}
+    >
+      {busy ? <Loader2 className="size-4 animate-spin" /> : <Icon className="size-4" />}
+      {label}
+    </button>
   );
 }
 

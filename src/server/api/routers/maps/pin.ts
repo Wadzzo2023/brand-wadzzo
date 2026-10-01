@@ -291,6 +291,104 @@ export const pinRouter = createTRPCRouter({
       return { ...hotspot, ...scheduleState };
     }),
 
+  /** Everything the hotspot edit page needs: settings, the drop template (latest drop) and numbers. */
+  hotspotForEdit: protectedProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const h = await ctx.db.hotspot.findFirst({
+      where: { id: input, hidden: false },
+      select: {
+        id: true, creatorId: true, isActive: true, shape: true, geoJson: true,
+        dropEveryDays: true, pinDurationDays: true, hotspotStartDate: true, hotspotEndDate: true,
+        autoCollect: true, multiPin: true, createdAt: true,
+        creator: { select: { name: true, profileUrl: true } },
+      },
+    });
+    if (!h) throw new TRPCError({ code: "NOT_FOUND", message: "Hotspot not found" });
+    await assertOwnerOrAdmin(ctx, h.creatorId);
+
+    const now = new Date();
+    const [template, drops, live, collected, pendingGroups] = await Promise.all([
+      // Every new drop copies the latest one, so that's what "pin details" edits.
+      ctx.db.locationGroup.findFirst({
+        where: { hotspotId: h.id },
+        orderBy: { startDate: "desc" },
+        select: { id: true, title: true, description: true, image: true, link: true, type: true, limit: true },
+      }),
+      ctx.db.locationGroup.count({ where: { hotspotId: h.id, hidden: false } }),
+      ctx.db.locationGroup.count({ where: { hotspotId: h.id, hidden: false, startDate: { lte: now }, endDate: { gte: now } } }),
+      ctx.db.locationConsumer.count({ where: { location: { locationGroup: { hotspotId: h.id } } } }),
+      ctx.db.locationGroup.findMany({ where: { hotspotId: h.id, hidden: true }, select: { startDate: true, createdAt: true } }),
+    ]);
+    // A first drop waiting for a future start (same rule as the task server).
+    const started = !pendingGroups.some((g) => g.startDate.getTime() - g.createdAt.getTime() > 60_000) && h.hotspotStartDate <= now;
+    return { ...h, template, stats: { drops, live, collected }, started };
+  }),
+
+  /** Change a hotspot: schedule and collection go through the task server (it reschedules); pin details edit the drops. */
+  updateHotspot: protectedProcedure
+    .input(
+      z.object({
+        hotspotId: z.string(),
+        scope: z.enum(["future_drops", "all_drops"]).default("future_drops"),
+        hotspotStartDate: z.date().optional(),
+        hotspotEndDate: z.date().optional(),
+        dropEveryDays: z.number().int().min(1).optional(),
+        pinDurationDays: z.number().int().min(1).optional(),
+        autoCollect: z.boolean().optional(),
+        multiPin: z.boolean().optional(),
+        details: z
+          .object({
+            title: z.string().trim().min(3).max(120),
+            description: z.string().max(2000).nullable(),
+            image: z.string().url().nullable(),
+            link: z.string().url().nullable(),
+            type: z.nativeEnum(PinType),
+            limit: z.number().int().min(0),
+          })
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const h = await manageableHotspot(ctx, input.hotspotId);
+      const { hotspotId, scope, details, ...settings } = input;
+
+      const hasSettings = Object.values(settings).some((v) => v !== undefined);
+      if (hasSettings) {
+        try {
+          await hotspotClient.update(h.creatorId, hotspotId, {
+            ...settings,
+            hotspotStartDate: settings.hotspotStartDate?.toISOString(),
+            hotspotEndDate: settings.hotspotEndDate?.toISOString(),
+            scope,
+          });
+        } catch (err) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err instanceof Error ? err.message : "The task server couldn't update the hotspot" });
+        }
+      }
+
+      if (details) {
+        const template = await ctx.db.locationGroup.findFirst({ where: { hotspotId }, orderBy: { startDate: "desc" }, select: { id: true, image: true } });
+        if (template) {
+          const optimizedImage = details.image && details.image !== template.image ? await createOptimizedImage(details.image).catch(() => null) : undefined;
+          const content = {
+            title: details.title,
+            description: details.description,
+            image: details.image,
+            link: details.link,
+            type: details.type,
+            ...(optimizedImage !== undefined && { optimizedImage }),
+          };
+          // Content follows the scope; the collection limit only applies to drops yet to come.
+          const now = new Date();
+          await ctx.db.locationGroup.updateMany({
+            where: { hotspotId, ...(scope === "future_drops" ? { OR: [{ id: template.id }, { startDate: { gte: now } }] } : {}) },
+            data: content,
+          });
+          await ctx.db.locationGroup.update({ where: { id: template.id }, data: { limit: details.limit } });
+        }
+      }
+      return { ok: true };
+    }),
+
   pauseHotspotSchedule: protectedProcedure
     .input(z.object({ hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
