@@ -218,5 +218,9 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
   - Clean top bar with Wadzzo logo and `UserMenu` (theme switcher, wallet address, sign out).
   - `OnboardingGate` verified: redirects already-approved creators to `/pins` (or `/admin/creators`).
   - Added `vitest.config.ts` excluding submodules; created `tests/onboarding.test.ts` validating payload schemas and edge cases (all 17 unit tests passing).
-- Next: Dead code cleanup approval; final click-through & bundle size measurement (Step 10).
+- Step 9 (Cleanup & Dead Code) completed:
+  - Audited all dependencies across `src/` and `package/connect_wallet`.
+  - Removed unused `pino` logger dependency and orphaned import in `src/lib/stellar/fan/redeem.ts`.
+  - Confirmed 0 unreferenced files in `src/` (all 34 routes and shared UI primitives actively used).
+- Next: Final click-through & bundle size measurement (Step 10).
 
