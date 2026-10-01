@@ -5,7 +5,6 @@ import { PinType } from "@prisma/client";
 import { CalendarClock, Hexagon, Loader2, Repeat, Tag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import type { z } from "zod";
@@ -29,12 +28,12 @@ import { api, type RouterOutputs } from "~/utils/api";
 import { AreaPreview, AreaSize, DROP_EVERY, LIFETIME, toInput } from "./hotspot-parts";
 
 type UpdateForm = z.infer<typeof updateHotspotFormSchema>;
-type Hotspot = NonNullable<RouterOutputs["maps"]["pin"]["getHotspot"]>;
+type Hotspot = NonNullable<RouterOutputs["maps"]["pin"]["hotspotForEdit"]>;
 
 const typeLabel = (t: string) => t.charAt(0) + t.slice(1).toLowerCase();
 
 export default function EditHotspotPage({ hotspotId }: { hotspotId: string }) {
-  const hotspotQuery = api.maps.pin.getHotspot.useQuery({ hotspotId });
+  const hotspotQuery = api.maps.pin.hotspotForEdit.useQuery(hotspotId);
 
   if (hotspotQuery.isLoading) return <CenteredSpinner />;
 
@@ -74,7 +73,7 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
   const router = useRouter();
   const utils = api.useUtils();
 
-  const template = h.locationGroups[0];
+  const template = h.template;
 
   const defaultValues: UpdateForm = {
     title: template?.title ?? "Untitled hotspot",
@@ -104,6 +103,7 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
   const update = api.maps.pin.updateHotspot.useMutation({
     onSuccess: () => {
       toast.success("Hotspot updated");
+      void utils.maps.pin.hotspotForEdit.invalidate(h.id);
       void utils.maps.pin.getHotspot.invalidate({ hotspotId: h.id });
       void utils.maps.pin.myHotspots.invalidate();
       router.push(`/pins?hotspot=${h.id}`);
@@ -130,9 +130,9 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
       multiPin: data.multiPin,
       details: {
         title: data.title,
-        description: data.description ?? null,
-        image: data.image ?? null,
-        link: data.url ?? null,
+        description: data.description ? data.description : null,
+        image: data.image ? data.image : null,
+        link: data.url ? data.url : null,
         type: data.type,
         limit: data.limit,
       },
@@ -140,13 +140,7 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
   };
 
   const feature = h.geoJson as unknown as StoredFeature | null;
-  const stats = useMemo(() => {
-    const groups = h.locationGroups ?? [];
-    const collected = groups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l.consumers.length, 0), 0);
-    const now = Date.now();
-    const live = groups.filter((g) => new Date(g.startDate).getTime() <= now && new Date(g.endDate).getTime() >= now).length;
-    return { drops: groups.length, live, collected };
-  }, [h]);
+  const stats = h.stats;
 
   const actions = (
     <>
@@ -202,18 +196,27 @@ function EditHotspotForm({ hotspot: h }: { hotspot: Hotspot }) {
       {/* Drop schedule */}
       <FormSection title="Drop schedule" icon={CalendarClock} description="When the hotspot runs and how often it drops a new pin.">
         <div className="grid gap-4 sm:grid-cols-2">
-          {(["hotspotStartDate", "hotspotEndDate"] as const).map((name) => (
-            <Field key={name} label={name === "hotspotStartDate" ? "Starts" : "Ends"} required error={errors[name]?.message}>
-              <Input
-                type="datetime-local"
-                value={toInput(values[name])}
-                onChange={(e) => {
-                  const d = e.target.value ? new Date(e.target.value) : undefined;
-                  if (d) setValue(name, d, { shouldValidate: true });
-                }}
-              />
-            </Field>
-          ))}
+          <Field label="Starts" required error={errors.hotspotStartDate?.message}>
+            <Input
+              type="datetime-local"
+              value={toInput(values.hotspotStartDate)}
+              onChange={(e) => {
+                const d = e.target.value ? new Date(e.target.value) : undefined;
+                if (d) setValue("hotspotStartDate", d, { shouldValidate: true });
+              }}
+            />
+          </Field>
+
+          <Field label="Ends" required error={errors.hotspotEndDate?.message}>
+            <Input
+              type="datetime-local"
+              value={toInput(values.hotspotEndDate)}
+              onChange={(e) => {
+                const d = e.target.value ? new Date(e.target.value) : undefined;
+                if (d) setValue("hotspotEndDate", d, { shouldValidate: true });
+              }}
+            />
+          </Field>
 
           <Field label="Drop frequency" required error={errors.dropEveryDays?.message}>
             <Select value={String(values.dropEveryDays)} onValueChange={(v) => setValue("dropEveryDays", Number(v), { shouldValidate: true })}>
