@@ -1,593 +1,261 @@
-"use client"
-import { updateMapFormSchema } from "~/types/pin-edit"
+"use client";
 
-import {
-    Copy,
-    Edit3,
-    Loader2,
-    MapPin,
-    Scissors,
-    ShieldBan,
-    ShieldCheck,
-    Trash2,
-    Calendar,
-    LinkIcon,
-    ImageIcon,
-    Users,
-    ChevronLeft,
-    ChevronRight,
-    ExternalLink,
-    Check,
-    Info,
-} from "lucide-react"
-import { useSession } from "next-auth/react"
-import Image from "next/image"
-import React, { useEffect, useState } from "react"
-import toast from "react-hot-toast"
-import { Button } from "~/components/shadcn/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog"
-import { api } from "~/utils/api"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation" // Changed from next/router to next/navigation
-import { Controller, useForm } from "react-hook-form"
-import * as z from "zod"
-import { Input } from "~/components/shadcn/ui/input"
-import type { ItemPrivacy } from "@prisma/client" // Added PinType
-import { Label } from "~/components/shadcn/ui/label"
-import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
-import { BADWORDS } from "~/utils/banned-word"
-import { motion, AnimatePresence } from "framer-motion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs"
-import { Textarea } from "~/components/shadcn/ui/textarea"
-import { Badge } from "~/components/shadcn/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/shadcn/ui/card"
-import { Separator } from "~/components/shadcn/ui/separator"
-import { useMapInteractionStore } from "~/store/map-stores" // Changed to useMapInteractionStore
+import { format, formatDistanceToNow } from "date-fns";
+import { BarChart3, CalendarDays, Copy, CopyPlus, ExternalLink, Link2, Loader2, MapPin, MoreHorizontal, Navigation, Pencil, Scissors, Trash2, Users, Zap } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import toast from "react-hot-toast";
 
-// Re-using the Pin type from map-stores.ts for consistency
-import type { Location, LocationGroup } from "@prisma/client"
-import { PinType as PinTypeEnum } from "@prisma/client" // Declare PinType
-import { UploadS3Button } from "../common/upload-button"
-import { useCopyCutModalStore } from "~/store/copy-cut-modal-store"
+import { Button } from "~/components/shadcn/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "~/components/shadcn/ui/sheet";
+import { Switch } from "~/components/shadcn/ui/switch";
+import { cn } from "~/lib/utils";
+import { useMapInteractionStore } from "~/store/map-stores";
+import { ConfirmDialog } from "~/ui/confirm-dialog";
+import { StatusPill } from "~/ui/status-pill";
+import { api } from "~/utils/api";
 
-type Pin = {
-    locationGroup:
-    | (LocationGroup & {
-        creator: { profileUrl: string | null };
-    })
-    | null;
-    _count: {
-        consumers: number;
-    };
-} & Location;
+const TYPE_LABEL: Record<string, string> = { OTHER: "General", LANDMARK: "Landmark", EVENT: "Event", BOUNTY: "Bounty", EXPERIENCE: "Experience", LAUNCH: "Launch" };
 
-// Define types for assets and pins
-type AssetType = {
-    id: number
-    code: string
-    issuer: string
-    thumbnail: string
-}
+/**
+ * A pin on the map, opened from its marker: a side panel with what it is,
+ * how it's doing, and what you can do with it. Same panel on the brand's Map
+ * and on Admin › All maps.
+ */
+export default function PinDetailPanel() {
+  const { selectedPinForDetail: pin, closePinDetailModal: close, isPinCut, isPinCopied, setPinCopied, setPinCut, setManual, setDuplicate, setPrevData, openPinDetailModal } =
+    useMapInteractionStore();
+  const router = useRouter();
+  const admin = (usePathname() ?? "").startsWith("/admin");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [now] = useState(() => Date.now());
 
-export const PAGE_ASSET_NUM = -10
-export const NO_ASSET = -99
+  const utils = api.useUtils();
+  const refreshPins = () => {
+    void utils.maps.pin.getMyPins.invalidate();
+    void utils.maps.pin.getCreatorPins.invalidate();
+  };
 
-const MapOptionModal = () => {
-    const {
-        selectedPinForDetail: data, // Use selectedPinForDetail from the store as 'data'
-        closePinDetailModal: handleClose, // Use closePinDetailModal from the store
-        isPinCut,
-        isPinCopied,
-        setPinCopied,
-        setPinCut,
-        setIsAutoCollect, // This is for the copiedPinData, not the current pin's autoCollect
-        setManual,
-        setDuplicate,
-        setPrevData,
-    } = useMapInteractionStore()
+  const duplicate = api.maps.pin.getPinM.useMutation({
+    onSuccess: (data) => {
+      setPrevData(data);
+      close();
+      setManual(true);
+      setDuplicate(true);
+      router.push("/pins/new?duplicate=1"); // the new-pin page pre-fills from prevData
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const autoCollect = api.maps.pin.toggleAutoCollect.useMutation({
+    onSuccess: (_d, vars) => {
+      if (pin) openPinDetailModal({ ...pin, autoCollect: vars.isAutoCollect });
+      refreshPins();
+      toast.success(vars.isAutoCollect ? "Auto-collect on — fans collect it by walking in range" : "Auto-collect off — fans tap to collect");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const remove = api.maps.pin.deletePin.useMutation({
+    onSuccess: () => {
+      toast.success("Pin deleted");
+      setConfirmDelete(false);
+      refreshPins();
+      close();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
-    const session = useSession()
-    const router = useRouter()
-    const [activeTab, setActiveTab] = useState<string>("details")
-    const utils = api.useUtils()
-    const pinM = api.maps.pin.getPinM.useMutation({
-        onSuccess: (data) => {
-            setPrevData(data)
-            handleClose()
-            setManual(true)
-            setDuplicate(true)
-            // The new-pin page reads prevData from the store to pre-fill.
-            router.push("/pins/new?duplicate=1")
-        },
-    })
+  if (!pin) return null;
+  const g = pin.locationGroup;
+  const open = !isPinCopied && !isPinCut;
 
-    const ToggleAutoCollectMutation = api.maps.pin.toggleAutoCollect.useMutation({
-        onSuccess: () => {
-            toast.success(`Auto collect ${data?.autoCollect ? "disabled" : "enabled"} successfully`)
-            handleClose() // Close the modal after action
-        },
-        onError: (error) => {
-            toast.error(error.message)
-        },
-    })
+  const start = g ? new Date(g.startDate).getTime() : 0;
+  const end = g ? new Date(g.endDate).getTime() : 0;
+  const status =
+    g?.approved === null
+      ? { label: "In review", tone: "warning" as const }
+      : g?.approved === false
+        ? { label: "Rejected", tone: "danger" as const }
+        : start > now
+          ? { label: "Scheduled", tone: "info" as const }
+          : end < now
+            ? { label: "Ended", tone: "neutral" as const }
+            : { label: "Live", tone: "success" as const };
+  const left = g && g.limit > 0 ? g.remaining : null;
+  const coords = `${pin.latitude.toFixed(6)}, ${pin.longitude.toFixed(6)}`;
+  const reportHref = `${admin ? "/admin/reports" : "/reports"}/${pin.id}`;
 
-    const handleToggleAutoCollect = async (pinId: string | undefined) => {
-        if (pinId && data?.locationGroup) {
-            ToggleAutoCollectMutation.mutate({
-                id: pinId,
-                isAutoCollect: !data.autoCollect, // Toggle based on current state
-            })
-        } else {
-            toast.error("Pin Id not found or data is incomplete.")
-        }
-    }
+  const copyForPaste = () => {
+    void navigator.clipboard.writeText(pin.id);
+    setPinCopied(true, pin);
+    toast.success("Copied — click the map where the copy should go");
+  };
+  const cutForMove = () => {
+    setPinCut(true, pin);
+    toast.success("Click the map where the pin should move");
+  };
 
-    const handleCopyPin = () => {
-        if (data) {
-            navigator.clipboard.writeText(data.id) // Copy pin ID
-            setPinCopied(true, data) // Set copied state and store pin data
-            toast.success("Pin ID copied to clipboard")
+  return (
+    <>
+      <Sheet open={open} onOpenChange={(o) => !o && close()}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {/* Header: the pin's image with its state on top. */}
+            <div className="relative aspect-[16/10] bg-muted">
+              {g?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={g.image} alt="" className="size-full object-cover" />
+              ) : (
+                <div className="flex size-full items-center justify-center text-muted-foreground">
+                  <MapPin className="size-10" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" aria-hidden />
+              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                <StatusPill tone={status.tone} className="bg-card/95 backdrop-blur">
+                  {status.label}
+                </StatusPill>
+                {pin.autoCollect && (
+                  <StatusPill tone="primary" icon={Zap} className="bg-card/95 backdrop-blur">
+                    Auto-collect
+                  </StatusPill>
+                )}
+                {pin.hidden && (
+                  <StatusPill tone="danger" className="bg-card/95 backdrop-blur">
+                    Hidden
+                  </StatusPill>
+                )}
+              </div>
+              <div className="absolute inset-x-4 bottom-3 text-white">
+                <p className="text-[11px] font-semibold tracking-wider text-white/75 uppercase">{TYPE_LABEL[g?.type ?? "OTHER"] ?? g?.type}</p>
+                <SheetTitle className="mt-0.5 line-clamp-2 font-hud text-xl font-bold text-white">{g?.title ?? "Pin"}</SheetTitle>
+              </div>
+            </div>
 
-        } else {
-            toast.error("No pin selected to copy.")
-        }
-    }
+            <div className="space-y-5 p-4 sm:p-5">
+              {/* Numbers first: that's what people open a pin for. */}
+              <dl className="grid grid-cols-3 gap-2">
+                <Stat label="Collected" value={pin._count.consumers.toLocaleString()} />
+                <Stat label="Left" value={left === null ? "∞" : left.toLocaleString()} hint={g && g.limit > 0 ? `of ${g.limit.toLocaleString()}` : "no limit"} />
+                <Stat label={start > now ? "Starts in" : end < now ? "Ended" : "Ends in"} value={g ? formatDistanceToNow(start > now ? start : end) : "—"} />
+              </dl>
 
-    const DeletePin = api.maps.pin.deletePin.useMutation({
-        onSuccess: async (data) => {
-            if (data.item) {
-                await utils.maps.pin.getCreatorPins.refetch()
-
-                toast.success("Pin deleted successfully")
-                handleClose()
-            } else {
-                toast.error("Pin not found or You are not authorized to delete this pin")
-            }
-        },
-        onError: (error) => {
-            toast.error(error.message)
-            console.error(error)
-        },
-    })
-
-    const handleDelete = () => {
-        if (data?.id) {
-            DeletePin.mutate({ id: data.id })
-        } else {
-            toast.error("No pin selected to delete.")
-        }
-    }
-
-    const handleCutPin = () => {
-        if (data) {
-            setPinCut(true, data) // Set cut state and store pin data
-
-            toast.success("Pin ready to move")
-
-        } else {
-            toast.error("No pin selected to cut.")
-        }
-    }
-
-    // If no pin is selected, don't render the modal
-    if (!data) {
-        return null
-    }
-
-    // Check for user session before rendering actions that require it
-    if (!session?.data?.user?.id) {
-        // If no session, only show details, or a message
-        // For now, we'll just return null if no data, as the parent handles open/close
-        // and this component only renders if data is present.
-        // If you want to show a "login to edit" message, you'd put it here.
-    }
-
-    return (
-        <AnimatePresence>
-            <Dialog open={!!data && !isPinCopied && !isPinCut} onOpenChange={handleClose}>
-                <DialogContent className="m-auto flex max-h-[90vh] w-full max-w-2xl flex-col p-0 overflow-hidden">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex flex-col h-full"
+              <SheetDescription asChild>
+                <div className="space-y-3 text-sm">
+                  {g?.description && <p className="whitespace-pre-line text-foreground">{g.description}</p>}
+                  <Row icon={CalendarDays}>{g ? `${format(start, "MMM d, yyyy · p")} → ${format(end, "MMM d, yyyy · p")}` : "—"}</Row>
+                  <Row icon={Navigation}>
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard.writeText(coords).then(() => toast.success("Coordinates copied"))}
+                      className="inline-flex items-center gap-1 font-mono text-xs hover:text-foreground"
                     >
-                        <DialogHeader className="bg-linear-to-r from-primary/10 to-primary/5 px-6 py-4">
-                            <DialogTitle className="flex items-center gap-2 text-xl">
-                                <MapPin className="h-5 w-5 " />
-                                {data?.locationGroup?.title ?? "Pin Details"}
-                            </DialogTitle>
-                        </DialogHeader>
-                            <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
-                                <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2 mb-4">
-                                        <TabsTrigger
-                                            value="details"
-                                            className="data-[state=active]:bg-primary data-[state=active]:shadow-xs data-[state=active]:shadow-foreground"
-                                        >
-                                            Pin Details
-                                        </TabsTrigger>
-                                        <TabsTrigger
-                                            value="actions"
-                                            className="data-[state=active]:bg-primary data-[state=active]:shadow-xs data-[state=active]:shadow-foreground"
-                                        >
-                                            Actions
-                                        </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="details" className="mt-0">
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-                                            <PinInfo data={data} isLoading={pinM.isPending} />
-                                        </motion.div>
-                                    </TabsContent>
-                                    <TabsContent value="actions" className="mt-0">
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ duration: 0.3 }}
-                                            className="grid grid-cols-1 md:grid-cols-2 gap-2"
-                                        >
-                                            <Button
-                                                variant="outline"
-                                                className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
-                                                onClick={() => {
-                                                    handleClose()
-                                                    router.push(`/pins/${data.id}/edit`)
-                                                }}
-                                            >
-                                                                                                    <>
-                                                        <div className="rounded-full bg-primary/10 p-2">
-                                                            <Edit3 size={18} className="" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Edit Pin</div>
-                                                            <div className="text-xs text-muted-foreground">Modify pin details</div>
-                                                        </div>
-                                                    </>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                type="button"
-                                                className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
-                                                onClick={() => {
-                                                    if (data.id) pinM.mutate(data.id)
-                                                }}
-                                                disabled={pinM.isPending}
-                                            >
-                                                {pinM.isPending ? (
-                                                    <Loader2 className="h-5 w-5 " />
-                                                ) : (
-                                                    <>
-                                                        <div className="rounded-full bg-primary/10 p-2">
-                                                            <Copy size={18} className="" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Duplicate Pin</div>
-                                                            <div className="text-xs text-muted-foreground">Create a copy of this pin</div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
-                                                onClick={handleCopyPin}
-                                                disabled={isPinCopied}
-                                            >
-                                                {isPinCopied ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="rounded-full bg-success/10 p-2">
-                                                            <Check size={18} className="text-success" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Copied!</div>
-                                                            <div className="text-xs text-muted-foreground">Pin ID copied to clipboard</div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="rounded-full bg-primary/10 p-2">
-                                                            <Copy size={18} className="" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Copy Pin ID</div>
-                                                            <div className="text-xs text-muted-foreground">Copy pin identifier</div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
-                                                onClick={handleCutPin}
-                                                disabled={isPinCut}
-                                            >
-                                                {isPinCut ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="rounded-full bg-success/10 p-2">
-                                                            <Check size={18} className="text-success" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Cut!</div>
-                                                            <div className="text-xs text-muted-foreground">Pin ready to move</div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="rounded-full bg-primary/10 p-2">
-                                                            <Scissors size={18} className="" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Cut Pin</div>
-                                                            <div className="text-xs text-muted-foreground">Move pin to new location</div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
-                                                onClick={() => {
-                                                    handleClose()
-                                                    router.push(`/reports/${data.id}`)
+                      {coords} <Copy className="size-3" />
+                    </button>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${pin.latitude},${pin.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      Directions <ExternalLink className="size-3" />
+                    </a>
+                  </Row>
+                  {g?.link && (
+                    <Row icon={Link2}>
+                      <a href={g.link} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">
+                        {g.link}
+                      </a>
+                    </Row>
+                  )}
+                </div>
+              </SheetDescription>
 
-                                                }}
-                                            >
-                                                <div className="rounded-full bg-primary/10 p-2">
-                                                    <Users size={18} className="" />
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="font-medium">Show Collectors</div>
-                                                    <div className="text-xs text-muted-foreground">View who collected this pin</div>
-                                                </div>
-                                            </Button>
-                                            <Button
-                                                variant={data?.autoCollect ? "destructive" : "outline"}
-                                                className="flex h-auto items-center justify-start gap-2 py-3"
-                                                onClick={() => handleToggleAutoCollect(data.id)}
-                                                disabled={ToggleAutoCollectMutation.isPending}
-                                            >
-                                                {ToggleAutoCollectMutation.isPending ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Updating...</div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div
-                                                            className={`${data.autoCollect ? "bg-destructive/20" : "bg-primary/10"} rounded-full p-2`}
-                                                        >
-                                                            {data.autoCollect ? (
-                                                                <ShieldBan size={18} className="text-destructive-foreground" />
-                                                            ) : (
-                                                                <ShieldCheck size={18} className="" />
-                                                            )}
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">
-                                                                {data?.autoCollect ? "Disable" : "Enable"} Auto Collect
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {data?.autoCollect ? "Turn off" : "Turn on"} automatic collection
-                                                            </div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
-                                                className="col-span-1 flex h-auto items-center justify-start gap-2 py-3 md:col-span-2"
-                                                onClick={handleDelete}
-                                                disabled={DeletePin.isPending || data.hidden}
-                                            >
-                                                {DeletePin.isPending ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-5 w-5 animate-spin text-destructive-foreground" />
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Deleting...</div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="rounded-full bg-destructive/20 p-2">
-                                                            <Trash2 size={18} className="text-destructive-foreground" />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium">Delete Pin</div>
-                                                            <div className="text-xs text-destructive-foreground/80">Permanently remove this pin</div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </motion.div>
-                                    </TabsContent>
-                                </Tabs>
-                            </div>
-                    </motion.div>
-                </DialogContent>
-            </Dialog>
-        </AnimatePresence>
-    )
+              {/* How fans collect it — the one setting worth flipping from here. */}
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3.5">
+                <Zap className={cn("mt-0.5 size-4 shrink-0", pin.autoCollect ? "text-primary" : "text-muted-foreground")} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">Auto-collect</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {pin.autoCollect ? "Fans collect it just by walking into range." : "Fans tap to collect when they're in range."}
+                  </span>
+                </span>
+                {autoCollect.isPending ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Switch checked={pin.autoCollect} onCheckedChange={(on) => autoCollect.mutate({ id: pin.id, isAutoCollect: on })} aria-label="Auto-collect" />
+                )}
+              </label>
+            </div>
+          </div>
+
+          {/* Actions: the two common ones as buttons, the rest in the menu. */}
+          <div className="flex items-center gap-2 border-t bg-card px-4 py-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="min-w-52">
+                <DropdownMenuItem onSelect={() => duplicate.mutate(pin.id)} disabled={duplicate.isPending}>
+                  <CopyPlus /> Duplicate as new pin
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={copyForPaste}>
+                  <Copy /> Copy to another spot
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={cutForMove}>
+                  <Scissors /> Move on the map
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirmDelete(true)} disabled={pin.hidden}>
+                  <Trash2 /> Delete pin
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" className="flex-1" asChild>
+              <Link href={reportHref} onClick={close}>
+                {pin._count.consumers > 0 ? <Users /> : <BarChart3 />} Collectors
+              </Link>
+            </Button>
+            <Button className="flex-1" asChild>
+              <Link href={`/pins/${pin.id}/edit`} onClick={close}>
+                <Pencil /> Edit
+              </Link>
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => !remove.isPending && setConfirmDelete(o)}
+        title={`Delete “${g?.title ?? "this pin"}”?`}
+        description="It comes off the map for fans. Collections already made stay in their history."
+        confirmLabel="Delete"
+        busy={remove.isPending}
+        onConfirm={() => remove.mutate({ id: pin.id })}
+      />
+    </>
+  );
 }
 
-export default MapOptionModal
-
-function PinInfo({
-    data,
-    isLoading = false,
-}: {
-    data: Pin // Use the consistent Pin type
-    isLoading?: boolean
-}) {
-    if (isLoading) {
-        return (
-            <div className="space-y-4">
-                <div className="relative h-48 w-full overflow-hidden rounded-lg skeleton"></div>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <div className="h-6 w-24 rounded skeleton"></div>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2">
-                        <div className="h-4 w-full rounded skeleton"></div>
-                        <div className="h-4 w-full rounded skeleton"></div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <div className="h-6 w-24 rounded skeleton"></div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="mb-2 h-4 w-full rounded skeleton"></div>
-                        <div className="h-4 w-3/4 rounded skeleton"></div>
-                    </CardContent>
-                </Card>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <div className="h-6 w-24 rounded skeleton"></div>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="h-4 w-full rounded skeleton"></div>
-                            <div className="h-4 w-full rounded skeleton"></div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <div className="h-6 w-24 rounded skeleton"></div>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="h-4 w-full rounded skeleton"></div>
-                            <div className="h-4 w-full rounded skeleton"></div>
-                            <div className="h-4 w-full rounded skeleton"></div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        )
-    }
-    const { locationGroup } = data
-    if (!locationGroup) return null // Should not happen if data is properly loaded
-
-    return (
-        <div className="space-y-4">
-            {locationGroup.image && (
-                <div className="relative h-48 w-full overflow-hidden rounded-lg">
-                    <img
-                        src={locationGroup.image ?? "/placeholder.svg"}
-                        alt={locationGroup.title ?? "Pin image"}
-                        className="absolute inset-0 size-full object-cover"
-                    />
-                </div>
-            )}
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Location</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                        <span className="text-muted-foreground">Latitude:</span>
-                        <Badge variant="outline" className="ml-2 font-mono">
-                            {data.latitude?.toFixed(6)}
-                        </Badge>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Longitude:</span>
-                        <Badge variant="outline" className="ml-2 font-mono">
-                            {data.longitude?.toFixed(6)}
-                        </Badge>
-                    </div>
-                </CardContent>
-            </Card>
-            {locationGroup.description && (
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Description</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm">{locationGroup.description}</p>
-                    </CardContent>
-                </Card>
-            )}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <Calendar className="h-4 w-4 " />
-                            Dates
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                        <div>
-                            <span className="text-muted-foreground">Start:</span>{" "}
-                            {locationGroup.startDate ? new Date(locationGroup.startDate).toLocaleDateString() : "Not set"}
-                        </div>
-                        <div>
-                            <span className="text-muted-foreground">End:</span>{" "}
-                            {locationGroup.endDate ? new Date(locationGroup.endDate).toLocaleDateString() : "Not set"}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <Users className="h-4 w-4 " />
-                            Collection
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                        <div>
-                            <span className="text-muted-foreground">Limit:</span> {data.locationGroup?.limit ?? "Unlimited"}
-                        </div>
-                        <div>
-                            <span className="text-muted-foreground">Remaining:</span> {locationGroup.remaining ?? "Unlimited"}
-                        </div>
-                        <div>
-                            <span className="text-muted-foreground">Auto Collect:</span>{" "}
-                            <Badge variant={data.autoCollect ? "default" : "outline"}>
-                                {data.autoCollect ? "Enabled" : "Disabled"}
-                            </Badge>
-                        </div>
-                        <div>
-                            <span className="text-muted-foreground">Multi Pin:</span>{" "}
-                            <Badge variant={locationGroup.multiPin ? "default" : "outline"}>
-                                {locationGroup.multiPin ? "Enabled" : "Disabled"}
-                            </Badge>
-                        </div>
-                        <div>
-                            <span className="text-muted-foreground">Type:</span>{" "}
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                                <Info className="w-3 h-3" />
-                                {locationGroup.type.charAt(0).toUpperCase() + locationGroup.type.slice(1).toLowerCase()}
-                            </Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-            {locationGroup.link && (
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <LinkIcon className="h-4 w-4 " />
-                            Link
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <a
-                            href={locationGroup.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-sm hover:underline"
-                        >
-                            {locationGroup.link}
-                            <ExternalLink className="h-3 w-3" />
-                        </a>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
-    )
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border bg-card px-3 py-2.5">
+      <dt className="label-caps">{label}</dt>
+      <dd className="mt-0.5 truncate font-hud text-lg font-bold tabular-nums">{value}</dd>
+      {hint && <dd className="text-[11px] text-muted-foreground">{hint}</dd>}
+    </div>
+  );
 }
 
-export { updateMapFormSchema }
+function Row({ icon: Icon, children }: { icon: typeof MapPin; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 text-muted-foreground">
+      <Icon className="size-4 shrink-0" />
+      <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+    </div>
+  );
+}
