@@ -42,10 +42,7 @@ export function PlaceSearch({
   const coords = parseCoordinates(q);
 
   useEffect(() => {
-    if (coords || q.trim().length < 3) {
-      setResults([]);
-      return;
-    }
+    if (coords || q.trim().length < 3) return; // nothing to look up (results are hidden below)
     const ctrl = new AbortController();
     const t = setTimeout(() => {
       setLoading(true);
@@ -83,7 +80,7 @@ export function PlaceSearch({
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const options: Place[] = coords ? [{ ...coords, name: `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`, address: "Coordinates" }] : results;
+  const options: Place[] = coords ? [{ ...coords, name: `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`, address: "Coordinates" }] : q.trim().length < 3 ? [] : results;
   const choose = (p: Place) => {
     onSelect(p);
     setQ(p.name);
@@ -103,9 +100,18 @@ export function PlaceSearch({
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => {
             if (!options.length) return;
-            if (e.key === "ArrowDown") (e.preventDefault(), setActive((a) => (a + 1) % options.length));
-            else if (e.key === "ArrowUp") (e.preventDefault(), setActive((a) => (a - 1 + options.length) % options.length));
-            else if (e.key === "Enter") (e.preventDefault(), choose(options[active]!));
+            if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((a) => (a + 1) % options.length);
+    }
+            else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((a) => (a - 1 + options.length) % options.length);
+    }
+            else if (e.key === "Enter") {
+      e.preventDefault();
+      choose(options[active]!);
+    }
             else if (e.key === "Escape") setOpen(false);
           }}
           placeholder={placeholder}

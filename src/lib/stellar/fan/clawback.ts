@@ -6,7 +6,7 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { env } from "~/env";
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import {
   PLATFORM_ASSET,
   PLATFORM_FEE,
@@ -16,7 +16,7 @@ import {
   networkPassphrase,
 } from "../constant";
 import { getplatformAssetNumberForXLM } from "./get_token_price";
-import { AccountType } from "./utils";
+import { type AccountType } from "./utils";
 
 // transaction variables
 

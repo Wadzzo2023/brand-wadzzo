@@ -5,7 +5,7 @@ import { PinType } from "@prisma/client";
 import { CalendarClock, Hexagon, Loader2, Settings, Sparkles, Tag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Layer, Source, type MapRef } from "react-map-gl/mapbox";
@@ -68,11 +68,13 @@ const LIFETIME = [
  * Pins › New hotspot. The area drawn on the map, then one page: how fans
  * collect, the drop schedule, what each pin is, and the collection rules.
  */
+/** Nothing to subscribe to: only used to tell the server render from the client one. */
+const noSubscribe = () => () => undefined;
+
 export default function NewHotspotPage() {
   const { feature, shape } = useHotspotDraft();
   // The draft lives in sessionStorage: wait for the client before deciding.
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  const ready = useSyncExternalStore(noSubscribe, () => true, () => false);
 
   if (!ready) return <CenteredSpinner />;
   if (!feature)

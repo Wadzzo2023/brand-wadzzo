@@ -345,8 +345,7 @@ export const membershipRouter = createTRPCRouter({
           },
         },
       });
-      if (isFollower) return true;
-      else false;
+      return Boolean(isFollower);
     }),
 
   followCreator: protectedProcedure

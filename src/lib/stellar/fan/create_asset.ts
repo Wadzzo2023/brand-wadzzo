@@ -12,8 +12,8 @@ import {
   networkPassphrase,
 } from "../constant";
 import { env } from "~/env";
-import { AccountSchema, AccountType } from "./utils";
-import { SignUserType, WithSing } from "../utils";
+import { AccountSchema, type AccountType } from "./utils";
+import { type SignUserType, WithSing } from "../utils";
 
 const log = console;
 

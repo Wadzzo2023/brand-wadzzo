@@ -169,7 +169,7 @@ export function Dropzone({
       accept={acceptStr || undefined}
       className="sr-only"
       tabIndex={-1}
-      disabled={disabled ?? busy}
+      disabled={Boolean(disabled) || busy}
       onChange={(e) => {
         void start(e.target.files?.[0]);
         e.target.value = "";
@@ -190,7 +190,7 @@ export function Dropzone({
         <button
           type="button"
           onClick={open}
-          disabled={disabled ?? busy}
+          disabled={Boolean(disabled) || busy}
           className={cn(
             "relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-lg border bg-card px-4 font-hud text-sm font-semibold transition-colors hover:bg-accent disabled:opacity-60",
             dragging && "border-primary bg-primary/5",

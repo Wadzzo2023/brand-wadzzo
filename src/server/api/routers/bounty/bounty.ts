@@ -3,7 +3,7 @@ import {
   BountyStatus,
   MediaType,
   NotificationType,
-  Prisma,
+  type Prisma,
   SubmissionViewType,
   UserRole,
 } from "@prisma/client"; // Assuming you are using Prisma

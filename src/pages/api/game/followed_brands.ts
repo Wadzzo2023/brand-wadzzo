@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "next-auth/react";
 import internal from "stream";
 import { db } from "~/server/db";
-import { Brand } from "~/types/game/brand";
+import { type Brand } from "~/types/game/brand";
 import { avaterIconUrl } from "./brands";
 import { EnableCors } from "~/server/api-cors";
 

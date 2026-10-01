@@ -8,8 +8,8 @@ import {
 } from "@stellar/stellar-sdk";
 import { env } from "~/env";
 import { PLATFORM_ASSET, STELLAR_URL, TrxBaseFee, TrxBaseFeeInPlatformAsset, networkPassphrase } from "../constant";
-import { MyAssetType } from "./utils";
-import { SignUserType, WithSing } from "../utils";
+import { type MyAssetType } from "./utils";
+import { type SignUserType, WithSing } from "../utils";
 import { StellarAccount } from "../marketplace/test/Account";
 import { getplatformAssetNumberForXLM } from "./get_token_price";
 

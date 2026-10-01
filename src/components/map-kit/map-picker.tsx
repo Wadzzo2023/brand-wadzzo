@@ -39,7 +39,13 @@ export function MapPicker({
   const [locating, setLocating] = useState(false);
   const [draft, setDraft] = useState({ lat: value?.lat.toString() ?? "", lng: value?.lng.toString() ?? "" });
 
-  useEffect(() => setDraft({ lat: value?.lat.toFixed(6) ?? "", lng: value?.lng.toFixed(6) ?? "" }), [value?.lat, value?.lng]);
+  // When the point moves (map click, search), show its coordinates in the inputs — adjusted during render.
+  const pointKey = value ? `${value.lat},${value.lng}` : "";
+  const [shownKey, setShownKey] = useState(pointKey);
+  if (shownKey !== pointKey) {
+    setShownKey(pointKey);
+    setDraft({ lat: value?.lat.toFixed(6) ?? "", lng: value?.lng.toFixed(6) ?? "" });
+  }
 
   const fly = (v: LatLng, zoom = 15) => map.current?.flyTo({ center: [v.lng, v.lat], zoom: Math.max(zoom, map.current.getZoom()), duration: 700 });
   const set = (v: LatLng, flyTo = false) => {

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { EnableCors } from "~/server/api-cors";
 import { db } from "~/server/db";
-import { Brand } from "~/types/game/brand";
+import { type Brand } from "~/types/game/brand";
 
 export default async function handler(
   req: NextApiRequest,

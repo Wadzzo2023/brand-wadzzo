@@ -19,7 +19,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function readUsage(extraFields: unknown): Usage {
   const u = (extraFields as { aiUsage?: Partial<Usage> } | null)?.aiUsage;
-  if (!u || u.day !== today()) return { day: today(), text: 0, image: 0 };
+  if (u?.day !== today()) return { day: today(), text: 0, image: 0 };
   return { day: u.day, text: u.text ?? 0, image: u.image ?? 0 };
 }
 
@@ -75,7 +75,7 @@ export async function withAiQuota<T>(userId: string, kind: AiKind, work: () => P
   return result;
 }
 
-function friendlyOpenAiError(e: InstanceType<typeof OpenAI.APIError>) {
+function friendlyOpenAiError(e: { status?: number; message: string }) {
   if (e.status === 400 && /safety|moderation|policy/i.test(e.message)) return "That was blocked by the AI's safety filter. Try wording it differently.";
   if (e.status === 429) return "The AI is busy right now. Try again in a moment.";
   return "The AI couldn't finish that. Try again.";

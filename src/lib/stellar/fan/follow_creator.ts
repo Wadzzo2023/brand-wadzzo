@@ -7,8 +7,8 @@ import {
 } from "@stellar/stellar-sdk";
 import { env } from "~/env";
 import { STELLAR_URL, TrxBaseFee, networkPassphrase } from "../constant";
-import { SignUserType, WithSing } from "../utils";
-import { MyAssetType } from "./utils";
+import { type SignUserType, WithSing } from "../utils";
+import { type MyAssetType } from "./utils";
 
 /**
  * Following a creator don't need fee from user.

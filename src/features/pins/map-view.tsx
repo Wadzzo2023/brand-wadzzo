@@ -39,13 +39,19 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
   const [drawing, setDrawing] = useState(false);
   const [drawShape, setDrawShape] = useState<DrawShape>("polygon");
 
-  // /pins?draw=1[&shape=circle] opens straight into drawing (from "Redraw").
+  // /pins?draw=1[&shape=circle] opens straight into drawing (from "Redraw"):
+  // switch modes during render, then drop the flag from the URL.
+  const drawParam = search?.get("draw") === "1" ? (search.get("shape") ?? "") : null;
+  const [seenDraw, setSeenDraw] = useState<string | null>(null);
+  if (drawParam !== seenDraw) {
+    setSeenDraw(drawParam);
+    if (drawParam !== null) {
+      if (drawParam === "polygon" || drawParam === "rectangle" || drawParam === "circle") setDrawShape(drawParam);
+      setDrawing(true);
+    }
+  }
   useEffect(() => {
-    if (search?.get("draw") !== "1") return;
-    const shape = search.get("shape");
-    if (shape === "polygon" || shape === "rectangle" || shape === "circle") setDrawShape(shape);
-    setDrawing(true);
-    router.replace("/pins", { scroll: false });
+    if (search?.get("draw") === "1") router.replace("/pins", { scroll: false });
   }, [search, router]);
   const [hotspotId, setHotspotId] = useState<string | null>(null);
 
@@ -74,8 +80,13 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
         { padding: 120, maxZoom: 17, duration: 0 },
       );
     }
-    if (h) setHotspotId(h.id);
   }, [linkedHotspot, hotspots.data]);
+  // …and opens its details once the hotspots have loaded.
+  const [seenLink, setSeenLink] = useState<string | null>(null);
+  if (linkedHotspot && hotspots.data && seenLink !== linkedHotspot) {
+    setSeenLink(linkedHotspot);
+    if (hotspots.data.some((x) => x.id === linkedHotspot)) setHotspotId(linkedHotspot);
+  }
   useEffect(() => {
     if (pins.data) setMyPins(pins.data);
   }, [pins.data, setMyPins]);

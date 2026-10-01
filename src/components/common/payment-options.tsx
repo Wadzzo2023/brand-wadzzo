@@ -16,7 +16,7 @@ import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 
 import { create } from "zustand";
 import { env } from "~/env";
-import { PaymentMethod, PaymentMethodEnum } from "../payment/payment-process";
+import { type PaymentMethod, PaymentMethodEnum } from "../payment/payment-process";
 import Image from "next/image";
 
 interface PaymentMethodStore {

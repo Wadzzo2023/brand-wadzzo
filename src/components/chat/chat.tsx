@@ -230,11 +230,12 @@ const ChatItem = ({ item }: { item: BountyDoubtListItem }) => {
         }
     }
 
-    useEffect(() => {
-        if (oldMessage && oldMessageSucess) {
-            setMessages(oldMessage)
-        }
-    }, [oldMessage, oldMessageSucess])
+    // Load the saved conversation once it arrives (adjusted during render, no extra pass).
+    const [loadedHistory, setLoadedHistory] = useState<typeof oldMessage>(undefined)
+    if (oldMessage && oldMessageSucess && loadedHistory !== oldMessage) {
+        setLoadedHistory(oldMessage)
+        setMessages(oldMessage)
+    }
 
     const scrollToBottom = () => {
         if (messagesEndRef.current) {

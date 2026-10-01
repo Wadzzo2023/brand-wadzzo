@@ -9,9 +9,6 @@ import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 // calling the squire backedapi
 const url = "https://next-actionverse.vercel.app/api/square";
-process.env.NODE_ENV === "production"
-  ? "https://next-actionverse.vercel.app/api/square"
-  : "http://localhost:3000/api/square";
 
 export const payRouter = createTRPCRouter({
   getRechargeXDR: protectedProcedure

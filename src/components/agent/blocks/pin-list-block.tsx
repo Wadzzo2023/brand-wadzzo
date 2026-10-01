@@ -128,7 +128,7 @@ export function PinListBlock({
                         </button>
                     </div>
                     <PinEditForm
-                        pin={editingPin as PinData}
+                        pin={editingPin}
                         onSubmit={handleEditSubmit}
                         onCancel={() => setEditingPin(null)}
                         isSubmitting={isSubmitting}

@@ -15,8 +15,8 @@ import {
   networkPassphrase,
 } from "./constant";
 import { getplatformAssetNumberForXLM } from "./fan/get_token_price";
-import { AccountType } from "./fan/utils";
-import { SignUserType, WithSing } from "./utils";
+import { type AccountType } from "./fan/utils";
+import { type SignUserType, WithSing } from "./utils";
 
 const log = console;
 

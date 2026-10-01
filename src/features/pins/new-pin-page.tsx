@@ -346,7 +346,7 @@ function Summary({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={values.image} alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" />
       )}
-      <p className="font-hud text-sm font-semibold">{values.title || "Untitled pin"}</p>
+      <p className="font-hud text-sm font-semibold">{values.title?.trim() ? values.title : "Untitled pin"}</p>
       <div className="mt-2 divide-y">
         {row("Collection", mode === "auto" ? "Auto" : "Manual")}
         {row("Type", values.type ? typeLabel(values.type) : "—")}

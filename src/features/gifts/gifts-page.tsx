@@ -55,7 +55,7 @@ export default function GiftsPage() {
     list.push({ code: PLATFORM_ASSET.code, issuer: PLATFORM_ASSET.issuer, balance: platformAssetBalance, kind: "PLATFORMASSET" });
     for (const b of shop.data ?? []) {
       if (b.asset_type !== "credit_alphanum4" && b.asset_type !== "credit_alphanum12") continue;
-      const isPage = pageAsset.data && b.asset_code === pageAsset.data.assetCode && b.asset_issuer === pageAsset.data.assetIssuer;
+      const isPage = b.asset_code === pageAsset.data?.assetCode && b.asset_issuer === pageAsset.data?.assetIssuer;
       const isPlatform = b.asset_code === PLATFORM_ASSET.code && b.asset_issuer === PLATFORM_ASSET.issuer;
       if (!isPage && !isPlatform) list.push({ code: b.asset_code, issuer: b.asset_issuer, balance: Number(b.balance), kind: "SHOPASSET" });
     }

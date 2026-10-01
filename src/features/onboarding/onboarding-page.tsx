@@ -1,6 +1,6 @@
 "use client";
 
-import { RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
+import { type RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
 
 import type React from "react";
 
@@ -95,6 +95,16 @@ type FormErrors = {
     [K in keyof FormData]?: string[];
 };
 
+/** Celebration sparks, randomised once when the module loads (not on every render). */
+const CONFETTI_COLORS = ["#FF5733", "#33FF57", "#3357FF", "#F3FF33", "#FF33F3"];
+const CONFETTI = Array.from({ length: 100 }, () => ({
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    top: `${Math.random() * 100}%`,
+    left: `${Math.random() * 100}%`,
+    duration: 2 + Math.random() * 2,
+    delay: Math.random() * 0.5,
+}));
+
 export default function ArtistOnboarding() {
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<FormData>({
@@ -168,35 +178,20 @@ export default function ArtistOnboarding() {
     const isIssuerValid =
         formData.issuer && formData.issuer.length > 0 && !formErrors.issuer?.length;
 
-    useEffect(() => {
-        // Reset upload progress when not uploading
-        if (!isUploading) {
-            setUploadProgress(0);
-        }
-    }, [isUploading]);
+    // Reset upload progress when an upload ends (adjusted during render, no extra pass).
+    const [wasUploading, setWasUploading] = useState(isUploading);
+    if (wasUploading !== isUploading) {
+        setWasUploading(isUploading);
+        if (!isUploading) setUploadProgress(0);
+    }
 
-    // Add vanity URL availability check
-    useEffect(() => {
-        // Debounce the check to avoid too many API calls
-        const timer = setTimeout(() => {
-            if (formData.vanityUrl && formData.vanityUrl.length > 0) {
-                checkAvailability.mutate({
-                    vanityURL: formData.vanityUrl,
-                });
-            } else {
-                setIsVanityUrlAvailable(null);
-            }
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [formData.vanityUrl]);
-
-    // Add this effect to reset isTrusted when asset code or issuer changes
-    useEffect(() => {
-        if (isTrusted && (formData.assetCode || formData.issuer)) {
-            setIsTrusted(false);
-        }
-    }, [formData.assetCode, formData.issuer]);
+    // A changed asset code or issuer has to be checked again.
+    const assetKey = `${formData.assetCode}|${formData.issuer}`;
+    const [checkedAssetKey, setCheckedAssetKey] = useState(assetKey);
+    if (checkedAssetKey !== assetKey) {
+        setCheckedAssetKey(assetKey);
+        if (isTrusted) setIsTrusted(false);
+    }
 
     const RequestForBrandCreation =
         api.fan.creator.requestForBrandCreation.useMutation({
@@ -225,6 +220,22 @@ export default function ArtistOnboarding() {
                 toast.error("Failed to check URL availability");
             },
         });
+
+    // Add vanity URL availability check
+    useEffect(() => {
+        // Debounce the check to avoid too many API calls
+        const timer = setTimeout(() => {
+            if (formData.vanityUrl && formData.vanityUrl.length > 0) {
+                checkAvailability.mutate({
+                    vanityURL: formData.vanityUrl,
+                });
+            } else {
+                setIsVanityUrlAvailable(null);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData.vanityUrl]);
 
     const CheckCustomAssetValidity =
         api.fan.creator.checkCustomAssetValidity.useMutation({
@@ -435,7 +446,7 @@ export default function ArtistOnboarding() {
                             formData.assetCode.length > 12
                         ) {
                             toast.error("Please enter a valid asset code (4-12 letters)");
-                        } else if (!formData.issuer || formData.issuer.length !== 56) {
+                        } else if (formData.issuer?.length !== 56) {
                             toast.error(
                                 "Please enter a valid issuer (exactly 56 characters)",
                             );
@@ -587,33 +598,13 @@ export default function ArtistOnboarding() {
                             </div>
                         </motion.div>
                     </div>
-                    {Array.from({ length: 100 }).map((_, i) => (
+                    {CONFETTI.map((c, i) => (
                         <motion.div
                             key={i}
                             className="absolute h-2 w-2 rounded-full"
-                            initial={{
-                                top: "50%",
-                                left: "50%",
-                                scale: 0,
-                                backgroundColor: [
-                                    "#FF5733",
-                                    "#33FF57",
-                                    "#3357FF",
-                                    "#F3FF33",
-                                    "#FF33F3",
-                                ][Math.floor(Math.random() * 5)],
-                            }}
-                            animate={{
-                                top: `${Math.random() * 100}%`,
-                                left: `${Math.random() * 100}%`,
-                                scale: [0, 1, 0],
-                                opacity: [0, 1, 0],
-                            }}
-                            transition={{
-                                duration: 2 + Math.random() * 2,
-                                delay: Math.random() * 0.5,
-                                ease: "easeOut",
-                            }}
+                            initial={{ top: "50%", left: "50%", scale: 0, backgroundColor: c.color }}
+                            animate={{ top: c.top, left: c.left, scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                            transition={{ duration: c.duration, delay: c.delay, ease: "easeOut" }}
                         />
                     ))}
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ImagePlus, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
@@ -50,15 +50,15 @@ export function AiImageButton({
     onError: (e) => toast.error(e.message),
   });
 
-  // Each time it opens, start from the latest form content.
-  useEffect(() => {
-    if (open) setPrompt((p) => (result ? p : suggestedPrompt || p));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // Each time it opens, start from the latest form content (unless an image is already showing).
+  const openDialog = () => {
+    if (!result && suggestedPrompt) setPrompt(suggestedPrompt);
+    setOpen(true);
+  };
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" className={cn("gap-1.5", className)} onClick={() => setOpen(true)}>
+      <Button type="button" variant="outline" size="sm" className={cn("gap-1.5", className)} onClick={openDialog}>
         <Sparkles className="size-4 text-primary" /> {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !generate.isPending && setOpen(o)}>

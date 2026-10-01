@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Send, Loader2 } from "lucide-react";
-import { SubmitHandler, useForm } from "react-hook-form";
-import { z } from "zod";
+import { type SubmitHandler, useForm } from "react-hook-form";
+import { type z } from "zod";
 import { api } from "~/utils/api";
 import { BountyCommentSchema } from "../comment/Add-Bounty-Comment";
 import { Button } from "../shadcn/ui/button";

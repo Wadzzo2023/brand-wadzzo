@@ -224,23 +224,22 @@ function JobProgressBar({ jobId, onComplete }: {
     jobId: string;
     onComplete: (count: number) => void;
 }) {
-    const [done, setDone] = useState(false);
     const { data } = api.agent.jobStatus.useQuery(
         { jobId },
         {
-            enabled: !done,
-            refetchInterval: (d) => {
-                if (!d) return 1500;
-                const s = (d as { status?: string })?.status;
-                if (s === "completed" || s === "failed") return false;
-                return 1500;
+            // Query 5 passes the query here (not its data): stop once the job is finished.
+            refetchInterval: (query) => {
+                const s = query.state.data?.status;
+                return s === "completed" || s === "failed" ? false : 1500;
             },
         },
     );
+    // Tell the parent once, when the job finishes.
+    const reported = useRef(false);
     useEffect(() => {
-        if (!data) return;
+        if (reported.current || !data) return;
         if (data.status === "completed" || data.status === "failed") {
-            setDone(true);
+            reported.current = true;
             onComplete(data.completed ?? 0);
         }
     }, [data, onComplete]);
@@ -310,7 +309,12 @@ function ResultsConfirmPanel({
     const [pinNumber, setPinNumber] = useState(detectedPinNumber ?? 1);
     const [step, setStep] = useState(0);
 
-    useEffect(() => { setPinNumber(detectedPinNumber ?? 1); }, [detectedPinNumber]);
+    // A new detected number resets the choice (adjusted during render, no extra pass).
+    const [seenDetected, setSeenDetected] = useState(detectedPinNumber);
+    if (seenDetected !== detectedPinNumber) {
+        setSeenDetected(detectedPinNumber);
+        setPinNumber(detectedPinNumber ?? 1);
+    }
 
     const isLast = step === 1;
     const handleNext = () => {

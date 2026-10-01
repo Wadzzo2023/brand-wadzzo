@@ -1,6 +1,6 @@
 import { db } from "~/server/db"
 import { addMonths } from 'date-fns'
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import { Horizon, Keypair, Operation, TransactionBuilder, } from "@stellar/stellar-sdk";
 import { PLATFORM_ASSET, STELLAR_URL, TrxBaseFee, networkPassphrase } from "../constant";
 import { MOTHER_SECRET } from "../marketplace/SECRET";
@@ -179,8 +179,8 @@ export async function verifyVanityPayment({
     const platform = Keypair.fromSecret(MOTHER_SECRET).publicKey();
     const ops = await server.operations().forTransaction(txHash).call();
     const paid = ops.records.some((op) => {
-        if (op.type !== "payment") return false;
-        const p = op as Horizon.ServerApi.PaymentOperationRecord;
+        if (op.type !== Horizon.HorizonApi.OperationResponseType.payment) return false;
+        const p = op;
         return (
             p.from === creatorId &&
             p.to === platform &&

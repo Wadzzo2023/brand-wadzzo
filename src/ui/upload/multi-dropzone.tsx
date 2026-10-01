@@ -89,7 +89,7 @@ export function MultiDropzone({
         <button
           type="button"
           onClick={() => input.current?.click()}
-          disabled={disabled || busy}
+          disabled={Boolean(disabled) || busy}
           className={cn("relative flex size-10 items-center justify-center rounded-lg border bg-card text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-60", className)}
           aria-label={label ?? "Attach files"}
           title={busy ? `Uploading ${progress}%` : (label ?? "Attach files")}
@@ -119,7 +119,7 @@ export function MultiDropzone({
         className={cn(
           "relative flex cursor-pointer flex-col items-center gap-2 overflow-hidden rounded-xl border-2 border-dashed bg-surface-2 px-4 py-6 text-center transition-colors hover:border-line-bright",
           dragging && "border-primary bg-primary/5",
-          (disabled || busy) && "cursor-default opacity-70",
+          (Boolean(disabled) || busy) && "cursor-default opacity-70",
         )}
       >
         <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">

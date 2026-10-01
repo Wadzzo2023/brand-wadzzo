@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { creatorAprovalTrx } from "~/lib/stellar/fan/creator-aproval";
-import { AccountSchema, AccountType } from "~/lib/stellar/fan/utils";
+import { AccountSchema, type AccountType } from "~/lib/stellar/fan/utils";
 import {
   adminProcedure,
   createTRPCRouter,

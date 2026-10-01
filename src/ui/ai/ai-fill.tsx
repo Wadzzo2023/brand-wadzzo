@@ -34,7 +34,7 @@ export function AiFillCard<F extends FillForm>({
   const [undo, setUndo] = useState<(() => void) | null>(null);
   const fill = api.ai.fillForm.useMutation({
     onSuccess: (result) => {
-      const u = apply(result as FillResult<F>);
+      const u = apply(result);
       setUndo(() => u ?? null);
       toast.success("Filled in — review everything before you publish");
     },

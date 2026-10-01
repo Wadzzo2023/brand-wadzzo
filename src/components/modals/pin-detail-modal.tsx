@@ -250,7 +250,7 @@ const MapOptionModal = () => {
                                                 type="button"
                                                 className="flex h-auto items-center justify-start gap-2 py-3 bg-transparent"
                                                 onClick={() => {
-                                                    data.id && pinM.mutate(data.id)
+                                                    if (data.id) pinM.mutate(data.id)
                                                 }}
                                                 disabled={pinM.isPending}
                                             >

@@ -80,7 +80,7 @@ function IconUpload({ id, endpoint, variant, className, disabled, onBeforeUpload
         <button
           type="button"
           onClick={() => input.current?.click()}
-          disabled={disabled || busy}
+          disabled={Boolean(disabled) || busy}
           aria-label={label ?? "Upload"}
           title={busy ? `Uploading ${progress}%` : (label ?? "Upload")}
           className={cn(
@@ -100,7 +100,7 @@ function IconUpload({ id, endpoint, variant, className, disabled, onBeforeUpload
         accept={ENDPOINT_ACCEPT[endpoint].accept || undefined}
         className="sr-only"
         tabIndex={-1}
-        disabled={disabled || busy}
+        disabled={Boolean(disabled) || busy}
         onChange={(e) => {
           void pick(e.target.files?.[0]);
           e.target.value = "";

@@ -57,13 +57,14 @@ export default function EmbedEditorPage() {
     const [draft, setDraft] = useState<EmbedDraft | null>(null)
     const [dirty, setDirty] = useState(false)
 
-    useEffect(() => {
-        if (isNew && !draft) setDraft(DEFAULT_DRAFT)
-        if (existing.data && !draft) {
+    // Start the draft from the defaults or the saved embed, once (during render, no extra pass).
+    if (!draft) {
+        if (isNew) setDraft(DEFAULT_DRAFT)
+        else if (existing.data) {
             const { id: _i, creatorId: _c, createdAt: _a, updatedAt: _u, ...rest } = existing.data
             setDraft(rest)
         }
-    }, [isNew, existing.data, draft])
+    }
 
     const set = useCallback(<K extends keyof EmbedDraft>(k: K, v: EmbedDraft[K]) => {
         setDraft((d) => (d ? { ...d, [k]: v } : d))

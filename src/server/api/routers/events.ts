@@ -25,7 +25,7 @@ const optionalText = (max: number) =>
     .trim()
     .max(max)
     .nullish()
-    .transform((v) => (v ? v : null));
+    .transform((v) => (v?.length ? v : null));
 
 export const EventInput = z
   .object({

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { EnableCors } from "~/server/api-cors";
 import { db } from "~/server/db";
-import { ConsumedLocation } from "~/types/game/location";
+import { type ConsumedLocation } from "~/types/game/location";
 import { avaterIconUrl } from "../brands";
 import { WadzzoCircularIconURL, WadzzoIconURL } from "./index";
 

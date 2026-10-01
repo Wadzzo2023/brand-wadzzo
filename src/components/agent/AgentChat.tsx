@@ -48,13 +48,13 @@ function usePollAgentJob() {
                         onStatusChange?.(job.status);
                         if (job.status === "completed" && job.result) {
                             console.log("[pollJob] completed with result:", job.result);
-                            resolve(job.result as AgentPollResult);
+                            resolve(job.result);
                         } else if (job.status === "failed") {
                             reject(new Error(job.error ?? "Agent job failed"));
                         } else {
                             setTimeout(() => void tick(), INTERVAL_MS);
                         }
-                    } catch (err) { reject(err); }
+                    } catch (err) { reject(err instanceof Error ? err : new Error(String(err))); }
                 };
                 void tick();
             }),
@@ -182,7 +182,7 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
     const buildHistory = useCallback((extraUserText?: string) => {
         const history = messages
             .map(m => {
-                if (m.content.kind === "text") return { role: m.role as "user" | "assistant", text: m.content.text };
+                if (m.content.kind === "text") return { role: m.role, text: m.content.text };
                 if (m.content.kind === "response") {
                     const d = m.content.data;
                     const text = (d.type === "question" || d.type === "success" || d.type === "confirm")
@@ -588,7 +588,7 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
     const isInteractionPending = useMemo(() => {
         for (let i = messages.length - 1; i >= 0; i--) {
             const m = messages[i];
-            if (!m || m.role !== "assistant" || m.content.kind !== "response") continue;
+            if (m?.role !== "assistant" || m.content.kind !== "response") continue;
             const { data, questionAnswered, resultsConfirmed } = m.content;
             if (data.type === "question" && !questionAnswered) return true;
             if (data.type === "results" && !resultsConfirmed) return true;

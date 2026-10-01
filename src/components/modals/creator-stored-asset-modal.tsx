@@ -3,7 +3,7 @@ import { ArrowLeft, CreditCard, DollarSign, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { type SubmitHandler, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent } from "~/components/shadcn/ui/dialog";
@@ -27,7 +27,7 @@ import {
     CardHeader,
     CardTitle,
 } from "~/components/shadcn/ui/card";
-import { MarketAssetType, useModal } from "~/lib/state/play/use-modal-store";
+import { type MarketAssetType, useModal } from "~/lib/state/play/use-modal-store";
 import { Label } from "../shadcn/ui/label";
 import ShowThreeDModel from "../3d-model/model-show";
 import { Separator } from "@radix-ui/react-select";
@@ -71,7 +71,7 @@ export default function CreatorStoredAssetModal({
         }
     );
 
-    if (data && data.asset)
+    if (data?.asset)
         return (
             <>
                 <Dialog open={isOpen} onOpenChange={handleClose}>

@@ -15,9 +15,9 @@ import {
   TrxBaseFee,
   TrxBaseFeeInPlatformAsset,
 } from "../constant";
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import { getplatformAssetNumberForXLM as getPlatformAssetNumberForXLM } from "./get_token_price";
-import { AccountType } from "./utils";
+import { type AccountType } from "./utils";
 
 const log = console;
 

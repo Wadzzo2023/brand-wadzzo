@@ -68,7 +68,7 @@ ${RULES}`,
           text: { format: zodTextFormat(schema, "form") },
         });
         if (!res.output_parsed) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The AI didn't return a form. Try rephrasing." });
-        return res.output_parsed as Record<string, unknown>;
+        return res.output_parsed;
       });
     }),
 

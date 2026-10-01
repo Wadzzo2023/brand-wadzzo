@@ -237,7 +237,7 @@ export default function NewAssetPage() {
               value={values.mediaUrl}
               description={kind.hint}
               onUploadingChange={setUploading}
-              onChange={(url) => setValue("mediaUrl", url as string, { shouldValidate: Boolean(url) })}
+              onChange={(url) => setValue("mediaUrl", url!, { shouldValidate: Boolean(url) })}
             />
           </Field>
           <Field

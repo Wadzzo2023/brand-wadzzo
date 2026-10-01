@@ -4,7 +4,7 @@ import { MediaType } from "@prisma/client";
 import { Coins, CuboidIcon, ImageIcon, Music, Package, Plus, Search, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 
 import CreatorStoredAssetModal from "~/components/modals/creator-stored-asset-modal";
 import SellPageAssetModal from "~/components/modals/sell-page-asset-modal";
@@ -34,6 +34,10 @@ const TYPES: { value: MediaType | "ALL"; label: string; icon?: typeof ImageIcon 
   { value: MediaType.THREE_D, label: "3D", icon: CuboidIcon },
 ];
 const typeIcon = (t: MediaType) => TYPES.find((x) => x.value === t)?.icon ?? ImageIcon;
+/** The icon for a media type (the lookup returns one of a fixed set of icons). */
+function MediaTypeIcon({ type, className }: { type: MediaType; className?: string }) {
+  return createElement(typeIcon(type), { className });
+}
 
 /** Stores: what the brand sells — NFT assets and its page asset. */
 export default function StoresPage() {
@@ -203,7 +207,6 @@ function AssetsTab() {
 
 /** One store item: thumbnail, name, code and price. */
 export function AssetCard({ item, onOpen }: { item: MarketAssetType; onOpen: () => void }) {
-  const Icon = typeIcon(item.asset.mediaType);
   return (
     <button
       type="button"
@@ -216,11 +219,11 @@ export function AssetCard({ item, onOpen }: { item: MarketAssetType; onOpen: () 
           <img src={item.asset.thumbnail} alt="" className="size-full object-cover transition-transform group-hover:scale-[1.03]" />
         ) : (
           <div className="flex size-full items-center justify-center text-faint">
-            <Icon className="size-8" />
+            <MediaTypeIcon type={item.asset.mediaType} className="size-8" />
           </div>
         )}
         <span className="absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-card/90 text-muted-foreground">
-          <Icon className="size-3.5" />
+          <MediaTypeIcon type={item.asset.mediaType} className="size-3.5" />
         </span>
       </div>
       <div className="p-3">

@@ -3,7 +3,7 @@
 import { useState, type ReactElement } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatPostCreatedAt } from "~/utils/format-date"
-import { Comment } from "@prisma/client"
+import { type Comment } from "@prisma/client"
 import { Button } from "~/components/shadcn/ui/button"
 import { useSession } from "next-auth/react"
 import { api } from "~/utils/api"
@@ -210,7 +210,7 @@ function CommentContextMenu({ commentorId, commentId }: { commentorId: string; c
 
     const handleDelete = () => deleteComment.mutate(commentId)
 
-    if (session?.user && session.user.id === commentorId) {
+    if (session?.user?.id === commentorId) {
         return (
             <ContextMenu
                 bg="bg-base-300"

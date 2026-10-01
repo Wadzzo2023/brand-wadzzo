@@ -9,7 +9,7 @@ import {
 import { env } from "~/env";
 import { networkPassphrase, STELLAR_URL, TrxBaseFee } from "../constant";
 import { SignUserType } from "../utils";
-import { AccountType } from "./utils";
+import { type AccountType } from "./utils";
 import { Key } from "lucide-react";
 
 const log = console;

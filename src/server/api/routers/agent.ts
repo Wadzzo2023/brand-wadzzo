@@ -4,7 +4,7 @@ import { publicProcedure, createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "~/server/db";
 import { taskClient } from "~/lib/express/taskClient-sdk";
-import { AgentPollResult } from "~/types/agent/types";
+import { type AgentPollResult } from "~/types/agent/types";
 
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────

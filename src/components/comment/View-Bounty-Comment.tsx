@@ -2,7 +2,7 @@ import { formatPostCreatedAt } from "~/utils/format-date";
 import { useSession } from "next-auth/react";
 import React, { useState } from "react";
 import { api } from "~/utils/api";
-import { BountyComment } from "@prisma/client";
+import { type BountyComment } from "@prisma/client";
 import { Button } from "~/components/shadcn/ui/button";
 import CustomAvatar from "../common/custom-avatar";
 import { AddBountyReplyComment } from "../reply/Add-Reply-Bounty-Comment";
@@ -131,7 +131,7 @@ function CommentContextMenu({
     });
   };
 
-  if (data?.user && data.user.id === commentatorId) {
+  if (data?.user?.id === commentatorId) {
     return (
       <div>
         <ContextMenu

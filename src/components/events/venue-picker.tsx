@@ -1,7 +1,7 @@
 "use client"
 
 import { X } from "lucide-react"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 
 import { MapPicker } from "~/components/map-kit/map-picker"
 import { Button } from "~/components/shadcn/ui/button"
@@ -34,8 +34,11 @@ async function addressAt(lat: number, lng: number) {
  * editable, because "Hall B, 2nd floor" is never what the geocoder says.
  */
 export function VenuePicker({ value, onChange }: { value: Venue; onChange: (v: Venue) => void }) {
+    // Async geocoding answers must see the newest value, not the one from when they started.
     const latest = useRef(value)
-    latest.current = value
+    useEffect(() => {
+        latest.current = value
+    }, [value])
     const pin = value.latitude != null && value.longitude != null ? { lat: value.latitude, lng: value.longitude } : null
 
     return (

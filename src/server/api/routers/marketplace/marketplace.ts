@@ -14,7 +14,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { MarketAssetType } from "~/lib/state/play/use-modal-store";
+import { type MarketAssetType } from "~/lib/state/play/use-modal-store";
 export const BackMarketFormSchema = z.object({
   placingCopies: z
     .number({
@@ -163,7 +163,6 @@ export const marketRouter = createTRPCRouter({
       });
 
       if (!asset) throw new Error("asset not found");
-      ``;
 
       console.log("asset", asset, code, issuer);
 

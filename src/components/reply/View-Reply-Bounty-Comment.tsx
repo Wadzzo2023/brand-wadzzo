@@ -84,7 +84,7 @@ function CommentContextMenu({
     })
   }
 
-  if (data?.user && data.user.id === commentatorId) {
+  if (data?.user?.id === commentatorId) {
     return <ContextMenu handleDelete={handleDelete} isLoading={deletePost.isPending} />
   }
 

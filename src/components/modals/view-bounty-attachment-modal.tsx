@@ -9,7 +9,7 @@ import {
     DialogTitle,
 } from "~/components/shadcn/ui/dialog";
 import AttachmentSection from "../bounty/attahment-section";
-import { SubmissionAttachment } from "@prisma/client";
+import { type SubmissionAttachment } from "@prisma/client";
 
 type ViewBountyAttachmentModalProps = {
     data: SubmissionAttachment[];

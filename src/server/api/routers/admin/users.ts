@@ -6,7 +6,7 @@ import {
   publicProcedure,
 } from "~/server/api/trpc";
 
-import { createTransport, Transporter } from "nodemailer";
+import { createTransport, type Transporter } from "nodemailer";
 
 export const userRouter = createTRPCRouter({
   // Admins only: this lists every user's email.

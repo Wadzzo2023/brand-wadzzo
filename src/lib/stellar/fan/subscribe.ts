@@ -14,8 +14,8 @@ import {
   networkPassphrase,
 } from "../constant";
 import { StellarAccount } from "../marketplace/test/Account";
-import { SignUserType, WithSing } from "../utils";
-import { MyAssetType } from "./utils";
+import { type SignUserType, WithSing } from "../utils";
+import { type MyAssetType } from "./utils";
 
 const log = console;
 // transection variables

@@ -413,9 +413,12 @@ export function TagsSection({ suggestions }: { suggestions?: string[] } = {}) {
     const [newTagInput, setNewTagInput] = useState("")
     const [aiTags, setAiTags] = useState<string[]>([]) // AI suggested labels
     // "Fill with AI" hands its tag ideas in here as one-click suggestions.
-    useEffect(() => {
+    // (adjusted during render when a new set of suggestions arrives)
+    const [seenSuggestions, setSeenSuggestions] = useState(suggestions)
+    if (seenSuggestions !== suggestions) {
+        setSeenSuggestions(suggestions)
         if (suggestions?.length) setAiTags(suggestions)
-    }, [suggestions])
+    }
 
     const myTagsQuery = api.tag.myTags.useQuery({})
 

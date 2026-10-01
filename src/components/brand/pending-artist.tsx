@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Clock, ArrowRight } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "~/components/shadcn/ui/button"
 import { Card, CardContent, CardFooter } from "~/components/shadcn/ui/card"
@@ -14,7 +15,8 @@ export default function PendingPage({ createdAt }: {
 
     // admin can accept the applciation within 2-3 days
     // so we will show the progress bar for 3 days with dynamic progress from 100% to 0%
-    const progressPercent = 100 - Math.floor((Date.now() - applicationDate.getTime()) / (1000 * 60 * 60 * 24) * 100 / 3)
+    const [now] = useState(() => Date.now())
+    const progressPercent = 100 - Math.floor((now - applicationDate.getTime()) / (1000 * 60 * 60 * 24) * 100 / 3)
 
 
     const formattedDate = applicationDate.toLocaleDateString("en-US", {

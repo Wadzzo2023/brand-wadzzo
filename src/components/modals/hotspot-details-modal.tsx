@@ -27,6 +27,7 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
   const utils = api.useUtils();
   const hotspot = api.maps.pin.getHotspot.useQuery({ hotspotId: hotspotId ?? "" }, { enabled: !!hotspotId && isOpen });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [now] = useState(() => Date.now());
 
   const close = (open: boolean) => {
     if (!open) setConfirmDelete(false);
@@ -64,13 +65,12 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
   const stats = useMemo(() => {
     const groups = h?.locationGroups ?? [];
     const collected = groups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l.consumers.length, 0), 0);
-    const now = Date.now();
     const live = groups.filter((g) => new Date(g.startDate).getTime() <= now && new Date(g.endDate).getTime() >= now).length;
     return { drops: groups.length, live, collected };
-  }, [h]);
+  }, [h, now]);
   const title = h?.locationGroups?.[0]?.title ?? "Hotspot";
   const busy = pause.isPending || resume.isPending;
-  const ended = h ? new Date(h.hotspotEndDate).getTime() < Date.now() : false;
+  const ended = h ? new Date(h.hotspotEndDate).getTime() < now : false;
 
   return (
     <Dialog open={isOpen} onOpenChange={close}>

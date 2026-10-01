@@ -59,7 +59,8 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     const [duration, setDuration] = useState(0)
     const [isMuted, setIsMuted] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
-    const [showControls, setShowControls] = useState(true)
+    // Controls hide 3s after playback starts unless paused or hovered (in fullscreen, moving the mouse shows them again).
+    const [timerHidden, setTimerHidden] = useState(false)
     const [volume, setVolume] = useState(1)
     const [isVolumeSliderVisible, setIsVolumeSliderVisible] = useState(false)
     const [isHovering, setIsHovering] = useState(false)
@@ -74,12 +75,14 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     // Get current media item
     const currentMedia = media[currentIndex]
 
-    // Reset playback state when changing media
-    useEffect(() => {
+    // Reset playback state when changing media (adjusted during render, no extra pass)
+    const [shownIndex, setShownIndex] = useState(currentIndex)
+    if (shownIndex !== currentIndex) {
+        setShownIndex(currentIndex)
         setIsPlaying(false)
         setProgress(0)
         setDuration(0)
-    }, [currentIndex])
+    }
 
     // Handle media element initialization and cleanup
     useEffect(() => {
@@ -166,7 +169,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
         const handleFullscreenChange = () => {
             const isInFullscreen = !!document.fullscreenElement
             setIsFullscreen(isInFullscreen)
-            setShowControls(true)
+            setTimerHidden(false)
 
             if (controlsTimeoutRef.current) {
                 clearTimeout(controlsTimeoutRef.current)
@@ -181,34 +184,18 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     }, [])
 
     // Auto-hide controls - but keep them visible in fullscreen mode
+    const controlsKey = `${isPlaying}-${isHovering}-${isFullscreen}`
+    const [shownControlsKey, setShownControlsKey] = useState(controlsKey)
+    if (shownControlsKey !== controlsKey) {
+        setShownControlsKey(controlsKey)
+        setTimerHidden(false) // any change brings the controls back
+    }
+    const showControls = !isPlaying || (isHovering && !isFullscreen) || !timerHidden
     useEffect(() => {
-        if (isFullscreen) {
-            setShowControls(true)
-            return
-        }
-
-        if (!isHovering && !isPlaying) return
-
-        const showControlsTemporarily = () => {
-            setShowControls(true)
-
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current)
-            }
-
-            if (isPlaying && !isHovering && !isFullscreen) {
-                controlsTimeoutRef.current = setTimeout(() => {
-                    setShowControls(false)
-                }, 3000)
-            }
-        }
-
-        showControlsTemporarily()
-
+        if (!isPlaying || (isHovering && !isFullscreen)) return
+        controlsTimeoutRef.current = setTimeout(() => setTimerHidden(true), 3000)
         return () => {
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current)
-            }
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
         }
     }, [isPlaying, isHovering, isFullscreen])
 
@@ -276,7 +263,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                 try {
                     void playerRef.current.requestFullscreen()
                     setIsFullscreen(true)
-                    setShowControls(true)
+                    setTimerHidden(false)
                 } catch (err) {
                     console.error(`Error attempting to enable fullscreen: ${err instanceof Error ? err.message : String(err)}`)
                 }
@@ -305,7 +292,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
 
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement | HTMLAudioElement>) => {
         const mediaElement = e.currentTarget
-        if (mediaElement && mediaElement.duration) {
+        if (mediaElement?.duration) {
             const newProgress = (mediaElement.currentTime / mediaElement.duration) * 100
             setProgress(newProgress)
         }
@@ -454,7 +441,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     // Show controls when mouse moves in fullscreen
     const handleMouseMove = () => {
         if (isFullscreen) {
-            setShowControls(true)
+            setTimerHidden(false)
 
             if (controlsTimeoutRef.current) {
                 clearTimeout(controlsTimeoutRef.current)
@@ -463,7 +450,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
             // Only auto-hide controls if playing
             if (isPlaying) {
                 controlsTimeoutRef.current = setTimeout(() => {
-                    setShowControls(false)
+                    setTimerHidden(true)
                 }, 3000)
             }
         }
@@ -502,7 +489,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                 {/* Media content */}
                 <div className={`relative w-full bg-muted ${isFullscreen ? "h-full" : fullHeight ? "h-[90vh]" : "h-[50vh]"}`}>
                     {/* Navigation arrows - always visible in fullscreen, only on hover in normal mode */}
-                    {media.length > 1 && (showControls ?? isFullscreen) && (
+                    {media.length > 1 && (showControls || isFullscreen) && (
                         <>
                             <button
                                 className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 text-white bg-black/50 hover:bg-black/70 rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center"

@@ -116,7 +116,7 @@ export const publicProcedure = t.procedure;
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({
@@ -128,11 +128,11 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  if (ctx.session && ctx.session.user) {
+  if (ctx.session?.user) {
     const admin = await ctx.db.admin.findUnique({
       where: { id: ctx.session.user.id },
     });
@@ -149,11 +149,11 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
 });
 
 export const creatorProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  if (ctx.session && ctx.session.user) {
+  if (ctx.session?.user) {
     const creator = await ctx.db.creator.findUnique({
       where: { id: ctx.session.user.id },
     });

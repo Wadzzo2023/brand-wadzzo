@@ -23,7 +23,7 @@ import { clientSelect } from "~/lib/stellar/fan/utils";
 import { addrShort } from "~/utils/utils";
 import { z } from "zod";
 import clsx from "clsx";
-import { AssetType } from "~/lib/state/play/use-modal-store";
+import { type AssetType } from "~/lib/state/play/use-modal-store";
 import { Card, CardContent } from "~/components/shadcn/ui/card";
 import BuyWithSquire from "./buy-with-squire";
 import RechargeLink from "./recharge-link";
