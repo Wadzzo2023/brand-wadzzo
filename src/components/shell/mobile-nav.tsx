@@ -14,10 +14,11 @@ import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
 
 /** Phone top bar: logo, current section, account. */
-export function MobileTopBar({ title }: { title?: string }) {
+/** Phone top bar: logo, current section, account. */
+export function MobileTopBar({ title, homeHref = "/pins" }: { title?: string; homeHref?: string }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 lg:hidden">
-      <Link href="/pins" className="flex items-center gap-2" aria-label="Home">
+      <Link href={homeHref} className="flex items-center gap-2" aria-label="Home">
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
           <Image src="/images/loading.png" alt="" width={20} height={20} className="object-contain" />
         </span>
@@ -30,12 +31,94 @@ export function MobileTopBar({ title }: { title?: string }) {
 
 /**
  * Phone bottom bar: Map · Stores · [+ Create] · Bounties · More (decided).
- * Sections a brand can't open yet (no nav permission) drop out of the bar and
- * the next ungated ones take their slots, so the bar never has dead tabs.
+ * For pure admins (admin but not approved creator), renders admin navigation
+ * tabs without creator actions.
  */
-export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; navPermission: boolean }) {
+export function MobileTabBar({
+  isAdmin,
+  navPermission,
+  isApprovedCreator = false,
+}: {
+  isAdmin: boolean;
+  navPermission: boolean;
+  isApprovedCreator?: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const [sheet, setSheet] = useState<"create" | "more" | null>(null);
+
+  // Pure admin mode: Only admin tabs, no creator actions
+  if (isAdmin && !isApprovedCreator) {
+    const adminTabs: NavItem[] = [
+      ADMIN_NAV.items.find((i) => i.href === "/admin/creators")!,
+      ADMIN_NAV.items.find((i) => i.href === "/admin/users")!,
+      ADMIN_NAV.items.find((i) => i.href === "/admin/pins")!,
+      ADMIN_NAV.items.find((i) => i.href === "/admin/maps")!,
+    ].filter(Boolean);
+    const inAdminBar = new Set(adminTabs.map((t) => t.href));
+    const adminMoreItems = ADMIN_NAV.items.filter((i) => !inAdminBar.has(i.href));
+    const moreActive = adminMoreItems.some((i) => isActive(pathname, i));
+
+    return (
+      <>
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 pb-[var(--safe-bottom)] backdrop-blur-sm supports-[backdrop-filter]:bg-card/85 lg:hidden"
+          aria-label="Admin sections"
+        >
+          <div className="mx-auto flex h-16 max-w-md items-stretch">
+            {adminTabs.map((t) => (
+              <Tab key={t.href} item={t} active={isActive(pathname, t)} />
+            ))}
+            <button
+              type="button"
+              onClick={() => setSheet("more")}
+              className={cn(
+                "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
+                moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-label="More admin sections"
+            >
+              <MoreHorizontal className="size-5 shrink-0" />
+              <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+                More
+              </span>
+            </button>
+          </div>
+        </nav>
+
+        {/* Admin More Drawer */}
+        <Drawer open={sheet === "more"} onOpenChange={(o) => setSheet(o ? "more" : null)}>
+          <DrawerContent>
+            <DrawerHeader className="text-left">
+              <DrawerTitle className="font-hud">Admin Sections</DrawerTitle>
+            </DrawerHeader>
+            <div className="space-y-4 px-4 pb-6">
+              <ul className="space-y-1">
+                {adminMoreItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(pathname, item);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setSheet(null)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="size-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </>
+    );
+  }
 
   const allowed = (i: NavItem) => !i.gated || navPermission;
   const fallback: NavItem[] = BRAND_NAV.flatMap((g) => g.items).filter((i) => !i.gated && i.href !== "/pins");

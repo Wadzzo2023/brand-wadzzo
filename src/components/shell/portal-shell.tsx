@@ -69,14 +69,26 @@ export function PortalShell({ children }: { children: ReactNode }) {
     <CreatorGate access={access}>{children}</CreatorGate>
   );
 
+  const homeHref = access.isAdmin && !access.approved ? "/admin/creators" : "/pins";
+
   return (
     <div className="flex min-h-dvh bg-background">
-      <Sidebar collapsed={collapsed} onToggle={toggle} isAdmin={access.isAdmin} navPermission={access.navPermission} />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={toggle}
+        isAdmin={access.isAdmin}
+        navPermission={access.navPermission}
+        isApprovedCreator={access.approved}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <MobileTopBar title={title} />
+        <MobileTopBar title={title} homeHref={homeHref} />
         <main className="min-w-0 flex-1">{page}</main>
       </div>
-      <MobileTabBar isAdmin={access.isAdmin} navPermission={access.navPermission} />
+      <MobileTabBar
+        isAdmin={access.isAdmin}
+        navPermission={access.navPermission}
+        isApprovedCreator={access.approved}
+      />
     </div>
   );
 }

@@ -45,13 +45,36 @@ export function SignInScreen() {
  * created but never applied → request approval; nothing yet → join.
  */
 export function CreatorGate({ access, children }: { access: Access; children: ReactNode }) {
+  const router = useRouter();
   const { creator } = access;
+  const c = creator.data;
+  const isSettled = creator.isFetched;
+  const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true);
+  const shouldRedirectAdmin = access.isAdmin && isSettled && !isApproved;
+
+  // If user is an admin but NOT an approved creator, they only have access to
+  // their admin section, not the creator section. Redirect them to /admin/creators.
+  useEffect(() => {
+    if (shouldRedirectAdmin) {
+      router.replace("/admin/creators");
+    }
+  }, [shouldRedirectAdmin, router]);
+
   if (access.creatorLoading) return <PageSkeleton />;
   // Approved last time: show the page while the check runs (the server still
   // refuses anything this brand may not do).
   if (creator.isLoading && access.approved) return <>{children}</>;
-  const c = creator.data;
-  if ((c?.id && c.aprovalSend && c.approved === true) || access.isAdmin) return <>{children}</>;
+  if (isApproved) return <>{children}</>;
+
+  if (shouldRedirectAdmin) {
+    return (
+      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-center">
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Redirecting to admin portal...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[70dvh] items-center justify-center px-4 py-10">
       {c?.aprovalSend && (c.approved === null || c.approved === undefined) ? (
@@ -88,7 +111,7 @@ export function AdminGate({ access, children }: { access: Access; children: Reac
 /**
  * Onboarding gate: Only accessible if the user hasn't submitted the form yet
  * or isn't a creator yet (!c?.id && !c?.aprovalSend). If they already submitted or
- * are already a creator, redirect them to /pins.
+ * are already a creator, redirect them to their portal.
  */
 export function OnboardingGate({ access, children }: { access: Access; children: ReactNode }) {
   const router = useRouter();
@@ -96,12 +119,14 @@ export function OnboardingGate({ access, children }: { access: Access; children:
   const isSettled = access.creator.isFetched;
 
   const hasSubmittedOrIsCreator = Boolean(c?.id) || Boolean(c?.aprovalSend);
+  const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true);
+  const destination = access.isAdmin && !isApproved ? "/admin/creators" : "/pins";
 
   useEffect(() => {
     if (isSettled && hasSubmittedOrIsCreator) {
-      router.replace("/pins");
+      router.replace(destination);
     }
-  }, [isSettled, hasSubmittedOrIsCreator, router]);
+  }, [isSettled, hasSubmittedOrIsCreator, destination, router]);
 
   if (access.creatorLoading || (access.creator.isLoading && !c)) {
     return <PageSkeleton />;
