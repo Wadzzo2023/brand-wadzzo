@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import {
@@ -16,25 +17,28 @@ export const adminRouter = createTRPCRouter({
       return admin;
     }
   }),
-  makeMeAdmin: protectedProcedure.mutation(async ({ ctx }) => {
-    const id = ctx.session.user.id;
-    await ctx.db.admin.create({ data: { id } });
-  }),
-
   makeAdmin: adminProcedure
-    .input(z.string().length(56))
+    .input(z.string().trim().length(56))
     .mutation(async ({ input, ctx }) => {
-      const id = input;
-      await ctx.db.admin.create({ data: { id } });
+      const user = await ctx.db.user.findUnique({ where: { id: input }, select: { id: true } });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "No Wadzzo account has that public key — they need to sign in once first." });
+      const existing = await ctx.db.admin.findUnique({ where: { id: input }, select: { id: true } });
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "That account is already an admin." });
+      await ctx.db.admin.create({ data: { id: input } });
     }),
 
   admins: adminProcedure.query(async ({ ctx }) => {
-    const admins = await ctx.db.admin.findMany();
-    return admins;
+    return ctx.db.admin.findMany({
+      orderBy: { joinedAt: "asc" },
+      select: { id: true, joinedAt: true, user: { select: { name: true, email: true, image: true } } },
+    });
   }),
   deleteAdmin: adminProcedure
     .input(z.string().length(56))
     .mutation(async ({ input, ctx }) => {
+      // Never lock the platform out: not yourself, and never the last admin.
+      if (input === ctx.session.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "You can't remove your own admin access." });
+      if ((await ctx.db.admin.count()) <= 1) throw new TRPCError({ code: "BAD_REQUEST", message: "There must always be at least one admin." });
       return await ctx.db.admin.delete({ where: { id: input } });
     }),
 });

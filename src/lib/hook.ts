@@ -1,6 +1,6 @@
 import { useSession } from "next-auth/react";
 import { WalletType } from "../../package/connect_wallet/src/lib/enums";
-import { SignUserType } from "~/lib/stellar/utils";
+import { type SignUserType } from "~/lib/stellar/utils";
 
 const useNeedSign = () => {
   const session = useSession();

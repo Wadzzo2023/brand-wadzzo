@@ -4,9 +4,8 @@
 // Next.js is now a THIN CLIENT — it only enqueues jobs and polls for results.
 // All agent/pipeline/DB logic runs on the Express task server.
 
-import { EXPRESS_SERVER_URL } from "../common";
+import { taskServerUrl } from "./server-url";
 
-const TASK_SERVER_URL = (EXPRESS_SERVER_URL).replace(/\/$/, "");
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 export type JobType = "agent_run" | "create_pins" | "generic";
@@ -28,8 +27,7 @@ export const taskClient = {
         payload: Record<string, unknown>,
         maxAttempts = 3,
     ): Promise<{ jobId: string }> {
-        console.log("Initializing taskClient with server URL:", TASK_SERVER_URL);
-        const res = await fetch(`${TASK_SERVER_URL}/jobs/enqueue`, {
+        const res = await fetch(`${taskServerUrl()}/jobs/enqueue`, {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ type, creatorId, payload, maxAttempts }),
@@ -43,7 +41,7 @@ export const taskClient = {
 
     /** Poll once — compatible with your existing pollJobResult tRPC shape. */
     async poll(jobId: string): Promise<PollResult> {
-        const res = await fetch(`${TASK_SERVER_URL}/jobs/${jobId}`, {
+        const res = await fetch(`${taskServerUrl()}/jobs/${jobId}`, {
             headers: JSON_HEADERS,
         });
         if (res.status === 404) throw new Error("Job not found");
@@ -53,7 +51,7 @@ export const taskClient = {
 
     /** Cancel a job. */
     async cancel(jobId: string): Promise<void> {
-        await fetch(`${TASK_SERVER_URL} / jobs / ${jobId}/cancel`, {
+        await fetch(`${taskServerUrl()}/jobs/${jobId}/cancel`, {
             method: "POST",
             headers: JSON_HEADERS,
         });

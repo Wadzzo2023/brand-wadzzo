@@ -8,10 +8,10 @@ interface Props {
 }
 
 const TREND_CONFIG = {
-    improving: { label: "Improving ↑", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/25" },
-    declining: { label: "Declining ↓", color: "text-red-400", bg: "bg-red-500/10 border-red-500/25" },
-    stable: { label: "Stable →", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/25" },
-    peaked: { label: "Peaked 📈", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/25" },
+    improving: { label: "Improving ↑", color: "text-success", bg: "bg-success/10 border-success/25" },
+    declining: { label: "Declining ↓", color: "text-destructive", bg: "bg-destructive/10 border-destructive/25" },
+    stable: { label: "Stable →", color: "text-info", bg: "bg-info/10 border-info/25" },
+    peaked: { label: "Peaked 📈", color: "text-warning", bg: "bg-warning/10 border-warning/25" },
 };
 
 export function HotspotTrendBlock({ data }: Props) {
@@ -34,7 +34,7 @@ export function HotspotTrendBlock({ data }: Props) {
                     </p>
                 </div>
                 <span className={cn(
-                    "text-[11px] font-bold px-2.5 py-1 rounded-full border flex-shrink-0",
+                    "text-[11px] font-bold px-2.5 py-1 rounded-full border shrink-0",
                     trendCfg.color, trendCfg.bg,
                 )}>
                     {trendCfg.label}
@@ -62,7 +62,7 @@ export function HotspotTrendBlock({ data }: Props) {
                                     <div
                                         className={cn(
                                             "absolute bottom-0 left-0 right-0 rounded-t-md transition-all",
-                                            isPeak ? "bg-amber-400" : "bg-primary/60",
+                                            isPeak ? "bg-warning" : "bg-primary/60",
                                         )}
                                         style={{ height: `${pct}%` }}
                                     />
@@ -78,7 +78,7 @@ export function HotspotTrendBlock({ data }: Props) {
                 {/* Legend */}
                 <div className="flex items-center gap-3 mt-1">
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                        <div className="w-2.5 h-2.5 rounded-sm bg-warning" />
                         <span className="text-[10px] text-muted-foreground">Peak (drop #{peakDrop})</span>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -101,13 +101,13 @@ export function HotspotTrendBlock({ data }: Props) {
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-xl border",
                                 isPeak
-                                    ? "border-amber-500/30 bg-amber-500/5"
+                                    ? "border-warning/30 bg-warning/5"
                                     : "border-border bg-muted/30",
                             )}
                         >
                             <span className={cn(
-                                "text-[11px] font-black w-7 flex-shrink-0",
-                                isPeak ? "text-amber-400" : "text-muted-foreground",
+                                "text-[11px] font-black w-7 shrink-0",
+                                isPeak ? "text-warning" : "text-muted-foreground",
                             )}>
                                 #{drop.dropNumber}
                             </span>
@@ -120,13 +120,13 @@ export function HotspotTrendBlock({ data }: Props) {
                                 </p>
                             </div>
                             <span className={cn(
-                                "text-[12px] font-bold flex-shrink-0",
-                                isPeak ? "text-amber-400" : "text-foreground",
+                                "text-[12px] font-bold shrink-0",
+                                isPeak ? "text-warning" : "text-foreground",
                             )}>
                                 {drop.claimRate}
                                 <span className={cn(
                                     "text-[10px] ml-0.5",
-                                    arrow === " ↑" ? "text-emerald-400" : arrow === " ↓" ? "text-red-400" : "text-muted-foreground",
+                                    arrow === " ↑" ? "text-success" : arrow === " ↓" ? "text-destructive" : "text-muted-foreground",
                                 )}>
                                     {arrow}
                                 </span>
@@ -139,7 +139,7 @@ export function HotspotTrendBlock({ data }: Props) {
             {/* ── Insight ────────────────────────────────────────────────────── */}
             {insight && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <span className="text-base shrink-0">💡</span>
                     <p className="text-[12px] text-primary leading-relaxed">{insight}</p>
                 </div>
             )}

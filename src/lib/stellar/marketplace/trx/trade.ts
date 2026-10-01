@@ -1,5 +1,5 @@
 import {
-  Asset,
+  type Asset,
   BASE_FEE,
   Horizon,
   Keypair,
@@ -7,7 +7,7 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { STORAGE_SECRET } from "../SECRET";
-import { SignUserType, WithSing } from "../../utils";
+import { type SignUserType, WithSing } from "../../utils";
 import { networkPassphrase, STELLAR_URL, TrxBaseFee } from "../../constant";
 
 export async function tradeAssetXDR(props: {

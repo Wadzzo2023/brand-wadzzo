@@ -54,11 +54,11 @@ function Checkbox({ checked, onChange, color = "primary", isSlate }: {
             disabled={isSlate}
             onClick={onChange}
             className={cn(
-                "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
                 isSlate && "cursor-not-allowed border-muted-foreground/30 bg-transparent",
                 checked
                     ? color === "red"
-                        ? "bg-red-500 border-red-500"
+                        ? "bg-destructive border-destructive"
                         : "bg-primary border-primary"
                     : "border-muted-foreground/40 bg-transparent hover:border-primary"
             )}
@@ -87,7 +87,7 @@ export function PinRow({
             "flex flex-col gap-0 rounded-xl border bg-muted/30 overflow-hidden transition-all",
             indent && "ml-4 border-l-2 border-l-primary/20",
             isEditing && "border-primary/40 bg-primary/5",
-            isSelected && !isEditing && mode === "delete" && "border-red-500/30 bg-red-500/5",
+            isSelected && !isEditing && mode === "delete" && "border-destructive/30 bg-destructive/5",
             isSelected && !isEditing && mode === "edit" && "border-primary/30 bg-primary/5",
             !isSelected && !isEditing && "border-border",
         )}>
@@ -130,14 +130,14 @@ export function PinRow({
                             isSlate={isSlate}
                         />
                         {pin.hotspotId && (
-                            <span className="text-[10px] text-blue-400 ml-auto">🔁 hotspot</span>
+                            <span className="text-[10px] text-info ml-auto">🔁 hotspot</span>
                         )}
                     </div>
                 )}
 
                 {/* Delete mode — hotspot tag only */}
                 {mode === "delete" && pin.hotspotId && (
-                    <span className={cn("text-[10px] text-blue-400", showCheckbox && "pl-6")}>
+                    <span className={cn("text-[10px] text-info", showCheckbox && "pl-6")}>
                         🔁 hotspot
                     </span>
                 )}

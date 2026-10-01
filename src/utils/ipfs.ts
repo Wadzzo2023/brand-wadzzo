@@ -13,6 +13,6 @@ export function urlToIpfsHash(url: string | null) {
   if (!url) {
     return undefined;
   }
-  const match = url.match(/\/ipfs\/(.+)$/);
+  const match = /\/ipfs\/(.+)$/.exec(url);
   return match ? match[1] : undefined;
 }

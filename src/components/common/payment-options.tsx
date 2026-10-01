@@ -16,7 +16,7 @@ import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 
 import { create } from "zustand";
 import { env } from "~/env";
-import { PaymentMethod, PaymentMethodEnum } from "../payment/payment-process";
+import { type PaymentMethod, PaymentMethodEnum } from "../payment/payment-process";
 import Image from "next/image";
 
 interface PaymentMethodStore {
@@ -53,7 +53,8 @@ export function PaymentChoose({
   XLM_EQUIVALENT: number;
   handleConfirm: () => void;
   loading: boolean;
-  trigger: React.ReactNode;
+  /** Omit to open it yourself with usePaymentMethodStore().setIsOpen(true). */
+  trigger?: React.ReactNode;
   beforeTrigger?: () => Promise<boolean>;
   costBreakdown?: CostBreakdownItem[];
 }) {
@@ -75,7 +76,7 @@ export function PaymentChoose({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
         onInteractOutside={(e) => {
           e.preventDefault();
@@ -93,7 +94,7 @@ export function PaymentChoose({
             onValueChange={setPaymentMethod}
             className="space-y-4"
           >
-            <div className="flex items-center space-x-2 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50">
+            <div className="flex items-center space-x-2 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50">
               <RadioGroupItem
                 value={PaymentMethodEnum.enum.asset}
                 id={PaymentMethodEnum.enum.asset}
@@ -114,11 +115,11 @@ export function PaymentChoose({
                 ) : (
                   <Coins className="mr-3 h-6 w-6" />
                 )}
-                <div className="flex-grow">
+                <div className="grow">
                   <div className="font-medium">
                     Pay with {PLATFORM_ASSET.code}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     Use platform tokens
                   </div>
                 </div>
@@ -127,7 +128,7 @@ export function PaymentChoose({
                 </div>
               </Label>
             </div>
-            <div className="flex items-center space-x-2 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50">
+            <div className="flex items-center space-x-2 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50">
               <RadioGroupItem
                 value={PaymentMethodEnum.enum.xlm}
                 id={PaymentMethodEnum.enum.xlm}
@@ -138,9 +139,9 @@ export function PaymentChoose({
                 className="flex flex-1 cursor-pointer items-center"
               >
                 <DollarSign className="mr-3 h-6 w-6" />
-                <div className="flex-grow">
+                <div className="grow">
                   <div className="font-medium">Pay with XLM</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     Use Stellar Lumens
                   </div>
                 </div>
@@ -152,15 +153,15 @@ export function PaymentChoose({
           </RadioGroup>
         </div>
 
-        <div className="mt-6 space-y-3 border-t border-gray-200 pt-4">
+        <div className="mt-6 space-y-3 border-t border-border pt-4">
           {costBreakdown ? (
             costBreakdown.map((item, index) => (
               <div
                 key={index}
                 className={`flex justify-between ${item.highlighted ? "font-semibold" : ""
-                  } ${item.type === "total" ? "border-t border-gray-200 pt-2 text-lg" : "text-sm"}`}
+                  } ${item.type === "total" ? "border-t border-border pt-2 text-lg" : "text-sm"}`}
               >
-                <span className={item.type === "fee" ? "text-gray-500" : ""}>
+                <span className={item.type === "fee" ? "text-muted-foreground" : ""}>
                   {item.label}
                 </span>
                 <span>
@@ -173,7 +174,7 @@ export function PaymentChoose({
             <></>
           )}
         </div>
-        <div className="mt-4 text-center text-sm text-gray-500">
+        <div className="mt-4 text-center text-sm text-muted-foreground">
           Your account will be charged{" "}
           {paymentMethod === "asset"
             ? `${requiredToken} ${PLATFORM_ASSET.code}`
@@ -191,7 +192,7 @@ export function PaymentChoose({
           <Button
             onClick={handleConfirm}
             disabled={loading}
-            className="w-full  shadow-sm shadow-foreground"
+            className="w-full  shadow-xs shadow-foreground"
           >
             {loading && <Loader2 className="mr-2 animate-spin" />}
             Confirm Payment

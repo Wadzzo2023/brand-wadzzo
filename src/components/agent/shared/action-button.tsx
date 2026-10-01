@@ -42,7 +42,7 @@ export function ActionButtons({
                         size="sm"
                         onClick={onPause}
                         disabled={isSlate}
-                        className={`${cls} font-semibold text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:border-amber-500/50`}
+                        className={`${cls} font-semibold text-warning border-warning/30 hover:bg-warning/10 hover:border-warning/50`}
                     >
                         <PauseCircle className="w-3 h-3" />
                         Pause
@@ -53,7 +53,7 @@ export function ActionButtons({
                         size="sm"
                         onClick={onResume}
                         disabled={isSlate}
-                        className={`${cls} font-semibold text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/50`}
+                        className={`${cls} font-semibold text-success border-success/30 hover:bg-success/10 hover:border-success/50`}
                     >
                         <PlayCircle className="w-3 h-3" />
                         Resume
@@ -67,7 +67,7 @@ export function ActionButtons({
                     size="sm"
                     disabled={isSlate}
                     onClick={onDelete}
-                    className={`${cls} font-semibold text-red-400 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50`}
+                    className={`${cls} font-semibold text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50`}
                 >
                     <Trash2 className="w-3 h-3" />
                     Delete

@@ -64,7 +64,7 @@ export function LocationCollectorsBlock({ data, onLoadMore, isLoadingMore, isSla
                             key={i}
                             className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-muted/30"
                         >
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary flex-shrink-0 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0 overflow-hidden">
                                 {c.image
                                     // eslint-disable-next-line @next/next/no-img-element
                                     ? <img src={c.image} className="w-8 h-8 object-cover" alt={c.name} />
@@ -87,11 +87,11 @@ export function LocationCollectorsBlock({ data, onLoadMore, isLoadingMore, isSla
                                     )}
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <div className="flex flex-col items-end gap-1 shrink-0">
                                 <span className={cn(
                                     "text-[10px] px-1.5 py-0.5 rounded border font-semibold",
                                     c.isRedeemed
-                                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                        ? "bg-success/15 text-success border-success/25"
                                         : "bg-muted text-muted-foreground border-border",
                                 )}>
                                     {c.isRedeemed ? "Redeemed" : "Claimed"}

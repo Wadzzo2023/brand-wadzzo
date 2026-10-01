@@ -7,7 +7,7 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { networkPassphrase } from "./create_song_token";
-import { SignUserType, WithSing } from "../../utils";
+import { type SignUserType, WithSing } from "../../utils";
 import {
   PLATFORM_ASSET,
   PLATFORM_FEE,
@@ -17,7 +17,6 @@ import {
 } from "../../constant";
 import { env } from "~/env";
 import { StellarAccount } from "../../marketplace/test/Account";
-import { b } from "vitest/dist/suite-IbNSsUWN";
 import { getplatformAssetNumberForXLM } from "../../fan/get_token_price";
 
 const log = console;

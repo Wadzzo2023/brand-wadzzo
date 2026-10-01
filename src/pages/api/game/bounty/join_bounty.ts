@@ -11,7 +11,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await EnableCors(req, res);
+  if (await EnableCors(req, res)) return;
   const token = await getToken({ req });
 
   if (!token?.sub) {

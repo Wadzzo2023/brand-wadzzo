@@ -25,7 +25,7 @@ const optionalText = (max: number) =>
     .trim()
     .max(max)
     .nullish()
-    .transform((v) => (v ? v : null));
+    .transform((v) => (v?.length ? v : null));
 
 export const EventInput = z
   .object({
@@ -158,6 +158,20 @@ export const eventsRouter = createTRPCRouter({
         },
       });
     }),
+
+  /** One of the brand's own events, for the edit page. */
+  myEvent: creatorProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const creatorId = await creatorIdOf(ctx.db, ctx.session.user.id);
+    await ownEvent(ctx.db, creatorId, input.id);
+    return ctx.db.creatorEvent.findUniqueOrThrow({
+      where: { id: input.id },
+      include: {
+        pins: { select: { id: true, title: true } },
+        bounties: { select: { id: true, title: true } },
+        _count: { select: { rsvps: true, comments: true } },
+      },
+    });
+  }),
 
   createEvent: creatorProcedure.input(EventInput).mutation(async ({ ctx, input }) => {
     const creatorId = await creatorIdOf(ctx.db, ctx.session.user.id);

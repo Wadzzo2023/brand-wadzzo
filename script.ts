@@ -13,7 +13,7 @@ async function downloadImage(
   if (!response.ok) {
     throw new Error(`Failed to download: ${response.statusText}`);
   }
-  const contentType = response.headers.get("content-type") || "image/jpeg";
+  const contentType = response.headers.get("content-type") ?? "image/jpeg";
   const arrayBuffer = await response.arrayBuffer();
   return {
     buffer: Buffer.from(arrayBuffer),

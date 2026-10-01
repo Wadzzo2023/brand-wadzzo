@@ -18,16 +18,16 @@ const SEGMENT_CONFIG: Record<Segment, {
     label: string; icon: string;
     color: string; bg: string; border: string;
 }> = {
-    champions: { label: "Champions", icon: "🏆", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/25" },
-    collectorsOnly: { label: "Collectors Only", icon: "📦", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/25" },
-    atRisk: { label: "At Risk", icon: "⚠️", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/25" },
-    newThisWeek: { label: "New This Week", icon: "✨", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+    champions: { label: "Champions", icon: "🏆", color: "text-warning", bg: "bg-warning/10", border: "border-warning/25" },
+    collectorsOnly: { label: "Collectors Only", icon: "📦", color: "text-info", bg: "bg-info/10", border: "border-info/25" },
+    atRisk: { label: "At Risk", icon: "⚠️", color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/25" },
+    newThisWeek: { label: "New This Week", icon: "✨", color: "text-success", bg: "bg-success/10", border: "border-success/25" },
 };
 
 function CollectorCard({ c }: { c: CollectorLoyalty }) {
     return (
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-muted/30">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary flex-shrink-0 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0 overflow-hidden">
                 {c.image
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={c.image} className="w-8 h-8 object-cover" alt={c.name} />
@@ -41,7 +41,7 @@ function CollectorCard({ c }: { c: CollectorLoyalty }) {
                     Last seen {c.daysSinceLastSeen != null ? `${c.daysSinceLastSeen}d ago` : fmt(c.lastCollectedAt)}
                 </p>
             </div>
-            <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+            <div className="flex flex-col items-end gap-0.5 shrink-0">
                 <span className="text-[11px] font-bold text-foreground tabular-nums">
                     {c.totalCollected} collected
                 </span>

@@ -12,7 +12,7 @@ import {
   STELLAR_URL,
   networkPassphrase,
 } from "../constant";
-import { MyAssetType } from "./utils";
+import { type MyAssetType } from "./utils";
 
 const log = console;
 

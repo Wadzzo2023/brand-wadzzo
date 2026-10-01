@@ -16,7 +16,7 @@ import {
   TrxBaseFeeInPlatformAsset,
 } from "../../constant";
 import { getplatformAssetNumberForXLM } from "../../fan/get_token_price";
-import { SignUserType, WithSing } from "../../utils";
+import { type SignUserType, WithSing } from "../../utils";
 import { StellarAccount } from "../test/Account";
 
 export async function sendNft2StorageXDR({

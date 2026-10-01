@@ -6,7 +6,7 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import { env } from "~/env";
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import { PLATFORM_ASSET, STELLAR_URL, TrxBaseFee, TrxBaseFeeInPlatformAsset, networkPassphrase } from "../constant";
 
 export async function trustCustomPageAsset({

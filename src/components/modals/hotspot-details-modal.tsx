@@ -1,187 +1,226 @@
-import React, { useEffect } from "react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-    DialogClose,
-} from "~/components/shadcn/ui/dialog";
+"use client";
+
+import { CalendarClock, Hexagon, Loader2, MapPin, Pause, Play, Repeat, Timer, Trash2, Users } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { Layer, Source, type MapRef } from "react-map-gl/mapbox";
+
+import { BaseMap } from "~/components/map-kit/base-map";
+import { featureCenter, toMapboxFeature, type StoredFeature } from "~/components/map-kit/geo";
+import { Button } from "~/components/shadcn/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
+import { cn } from "~/lib/utils";
+import { ErrorState } from "~/ui/error-state";
 import { api } from "~/utils/api";
 
 type Props = {
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
-    hotspotId: string | null;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  hotspotId: string | null;
 };
 
-const HotspotDetailModal: React.FC<Props> = ({ isOpen, setIsOpen, hotspotId }) => {
-    const hotspotQuery = api.maps.pin.getHotspot.useQuery(
-        { hotspotId: hotspotId ?? "" },
-        { enabled: !!hotspotId && isOpen },
-    );
-    console.log("Hotspot query:", hotspotId);
-    const pauseSchedule = api.maps.pin.pauseHotspotSchedule.useMutation();
-    const resumeSchedule = api.maps.pin.resumeHotspotSchedule.useMutation();
-    const deleteCascade = api.maps.pin.deleteHotspotCascade.useMutation();
+const fmt = (d: Date | string | null | undefined) => (d ? new Date(d).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—");
+const every = (days: number) => (days === 1 ? "Every day" : days === 7 ? "Every week" : `Every ${days} days`);
 
-    const h = hotspotQuery.data;
+/** A hotspot at a glance: its area, schedule, how it's doing, and pause / resume / delete. */
+export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Props) {
+  const utils = api.useUtils();
+  const hotspot = api.maps.pin.getHotspot.useQuery({ hotspotId: hotspotId ?? "" }, { enabled: !!hotspotId && isOpen });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [now] = useState(() => Date.now());
 
-    useEffect(() => {
-        if (!isOpen) hotspotQuery.remove();
-    }, [isOpen, hotspotQuery]);
+  const close = (open: boolean) => {
+    if (!open) setConfirmDelete(false);
+    setIsOpen(open);
+  };
+  const refresh = () => {
+    void utils.maps.pin.getHotspot.invalidate({ hotspotId: hotspotId ?? "" });
+    void utils.maps.pin.myHotspots.invalidate();
+  };
+  const pause = api.maps.pin.pauseHotspotSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("Hotspot paused — no new drops until you resume");
+      refresh();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const resume = api.maps.pin.resumeHotspotSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("Hotspot resumed");
+      refresh();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const remove = api.maps.pin.deleteHotspotCascade.useMutation({
+    onSuccess: () => {
+      toast.success("Hotspot deleted");
+      void utils.maps.pin.myHotspots.invalidate();
+      void utils.maps.pin.getMyPins.invalidate();
+      close(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
-    const handlePause = () => {
-        if (!hotspotId) return;
-        pauseSchedule.mutate({ hotspotId });
-    };
-    const handleResume = () => {
-        if (!hotspotId) return;
-        resumeSchedule.mutate({ hotspotId });
-    };
-    const handleDelete = () => {
-        if (!hotspotId) return;
-        if (window.confirm("This will hide the hotspot and all of its location groups. Continue?")) {
-            deleteCascade.mutate({ hotspotId });
-            setIsOpen(false);
-        }
-    };
+  const h = hotspot.data;
+  const stats = useMemo(() => {
+    const groups = h?.locationGroups ?? [];
+    const collected = groups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l.consumers.length, 0), 0);
+    const live = groups.filter((g) => new Date(g.startDate).getTime() <= now && new Date(g.endDate).getTime() >= now).length;
+    return { drops: groups.length, live, collected };
+  }, [h, now]);
+  const title = h?.locationGroups?.[0]?.title ?? "Hotspot";
+  const busy = pause.isPending || resume.isPending;
+  const ended = h ? new Date(h.hotspotEndDate).getTime() < now : false;
 
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border border-border shadow-xl rounded-xl">
-
-                <div className="px-6 pt-5 pb-6">
-                    <DialogHeader>
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <DialogTitle className="text-card-foreground text-base font-semibold tracking-tight">
-                                    {(h?.locationGroups?.[0]?.title as string | undefined) || "Hotspot"}
-                                </DialogTitle>
-                                <DialogDescription className="text-muted-foreground text-[0.7rem] uppercase tracking-widest mt-0.5">
-                                    {h ? "Schedule details" : null}
-                                </DialogDescription>
-                            </div>
-
-                            {h && (
-                                <span
-                                    className={[
-                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.65rem] font-medium uppercase tracking-widest border shrink-0",
-                                        h.isActive
-                                            ? "bg-primary/10 text-primary border-primary/25"
-                                            : "bg-muted text-muted-foreground border-border",
-                                    ].join(" ")}
-                                >
-                                    <span
-                                        className={[
-                                            "w-1.5 h-1.5 rounded-full",
-                                            h.isActive ? "bg-primary shadow-[0_0_6px_hsl(var(--primary))]" : "bg-muted-foreground",
-                                        ].join(" ")}
-                                    />
-                                    {h.isActive ? "Active" : "Stopped"}
-                                </span>
-                            )}
-                        </div>
-                    </DialogHeader>
-
-                    {hotspotQuery.isLoading && (
-                        <div className="flex items-center gap-2 mt-6 text-muted-foreground text-xs tracking-wide">
-                            <svg
-                                className="animate-spin w-4 h-4"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                            >
-                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                            </svg>
-                            Loading…
-                        </div>
-                    )}
-
-                    {h && (
-                        <>
-                            {/* Data grid */}
-                            <div className="mt-5 rounded-lg overflow-hidden border border-border divide-y divide-border">
-                                {/* Row 1: two cols */}
-                                <div className="grid grid-cols-2 divide-x divide-border">
-                                    <DataCell label="Start" value={h.hotspotStartDate.toLocaleString()} />
-                                    <DataCell label="End" value={h.hotspotEndDate.toLocaleString()} />
-                                </div>
-                                {/* Row 2: two cols */}
-                                <div className="grid grid-cols-2 divide-x divide-border">
-                                    <DataCell label="Drop every" value={`${h.dropEveryDays} days`} />
-                                    <DataCell label="Pin duration" value={`${h.pinDurationDays} days`} />
-                                </div>
-                                {/* Row 3: full width */}
-                                <DataCell label="Next run" value={h.nextRunTime ? new Date(h.nextRunTime).toLocaleString() : "—"} />
-                                {/* Row 4: full width */}
-                                <DataCell
-                                    label="Scheduled"
-                                    value={h.hasSchedule ? "Yes" : "No"}
-                                    valueClassName={h.hasSchedule ? "text-primary" : "text-muted-foreground"}
-                                />
-                            </div>
-
-                            <DialogFooter className="mt-5 flex gap-2">
-                                <button
-                                    onClick={handlePause}
-                                    disabled={pauseSchedule.isLoading || !h.isActive}
-                                    className={[
-                                        "flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition-colors duration-150",
-                                        h.isActive
-                                            ? "bg-secondary/60 hover:bg-secondary text-secondary-foreground border-border cursor-pointer"
-                                            : "bg-muted text-muted-foreground border-border cursor-not-allowed opacity-50",
-                                    ].join(" ")}
-                                >
-                                    {pauseSchedule.isLoading ? "Pausing…" : h.isActive ? "Pause schedule" : "Paused"}
-                                </button>
-                                <button
-                                    onClick={handleResume}
-                                    disabled={resumeSchedule.isLoading || h.isActive}
-                                    className={[
-                                        "flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition-colors duration-150",
-                                        !h.isActive
-                                            ? "bg-secondary/60 hover:bg-secondary text-secondary-foreground border-border cursor-pointer"
-                                            : "bg-muted text-muted-foreground border-border cursor-not-allowed opacity-50",
-                                    ].join(" ")}
-                                >
-                                    {resumeSchedule.isLoading ? "Resuming…" : !h.isActive ? "Resume schedule" : "Resumed"}
-                                </button>
-
-                                <button
-                                    onClick={handleDelete}
-                                    disabled={deleteCascade.isLoading}
-                                    className="flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition-colors duration-150 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {deleteCascade.isLoading ? "Deleting…" : "Delete hotspot"}
-                                </button>
-                            </DialogFooter>
-                        </>
-                    )}
+  return (
+    <Dialog open={isOpen} onOpenChange={close}>
+      <DialogContent className="gap-0 p-0 sm:max-w-lg">
+        {hotspot.isLoading ? (
+          <div className="flex h-72 items-center justify-center">
+            <DialogTitle className="sr-only">Loading hotspot</DialogTitle>
+            <Loader2 className="size-6 animate-spin text-primary" />
+          </div>
+        ) : !h ? (
+          <div className="p-6">
+            <DialogTitle className="sr-only">Hotspot</DialogTitle>
+            <ErrorState message={hotspot.error?.message ?? "This hotspot couldn't be loaded."} onRetry={() => void hotspot.refetch()} />
+          </div>
+        ) : (
+          <>
+            {h.geoJson && <AreaMap feature={h.geoJson as unknown as StoredFeature} />}
+            <div className="space-y-5 p-5">
+              <DialogHeader className="space-y-1 text-left">
+                <div className="flex items-start justify-between gap-3 pr-6">
+                  <DialogTitle className="font-hud text-lg leading-snug">{title}</DialogTitle>
+                  <StatusBadge active={h.isActive} ended={ended} />
                 </div>
+                <DialogDescription className="flex items-center gap-1.5">
+                  <Hexagon className="size-3.5" />
+                  <span className="capitalize">{h.shape.toLowerCase()}</span> hotspot · {h.autoCollect ? "auto collect" : "manual collect"}
+                </DialogDescription>
+              </DialogHeader>
 
-                <DialogClose className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors" />
-            </DialogContent>
-        </Dialog>
-    );
-};
+              <div className="grid grid-cols-3 divide-x rounded-lg border text-center">
+                <Stat icon={MapPin} label="Drops" value={stats.drops} />
+                <Stat icon={CalendarClock} label="Live now" value={stats.live} />
+                <Stat icon={Users} label="Collected" value={stats.collected} />
+              </div>
 
-// Small helper so the grid cells stay DRY
-const DataCell: React.FC<{
-    label: string;
-    value: string;
-    valueClassName?: string;
-}> = ({ label, value, valueClassName }) => (
-    <div className="px-4 py-3 bg-card">
-        <p className="text-[0.65rem] text-muted-foreground uppercase tracking-widest mb-0.5">
-            {label}
-        </p>
-        <p className={`text-sm tabular-nums text-card-foreground ${valueClassName ?? ""}`}>
-            {value}
-        </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <Row label="Starts" value={fmt(h.hotspotStartDate)} />
+                <Row label="Ends" value={fmt(h.hotspotEndDate)} />
+                <Row icon={Repeat} label="New pin" value={every(h.dropEveryDays)} />
+                <Row icon={Timer} label="Each pin lasts" value={h.pinDurationDays === 1 ? "1 day" : `${h.pinDurationDays} days`} />
+                <Row
+                  label="Next drop"
+                  value={ended ? "Finished" : !h.isActive ? "Paused" : h.nextRunTime ? fmt(h.nextRunTime) : "Not scheduled yet"}
+                  className="col-span-2"
+                />
+              </dl>
+
+              {confirmDelete ? (
+                <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                  <p className="text-sm">
+                    Delete this hotspot? Its schedule stops and all {stats.drops} drop{stats.drops === 1 ? "" : "s"} are hidden from fans. This can&apos;t be undone.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+                      Keep it
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => hotspotId && remove.mutate({ hotspotId })} disabled={remove.isPending}>
+                      {remove.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete hotspot
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  {h.isActive ? (
+                    <Button variant="outline" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && pause.mutate({ hotspotId })}>
+                      {pause.isPending ? <Loader2 className="animate-spin" /> : <Pause />} Pause drops
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" disabled={busy || ended} onClick={() => hotspotId && resume.mutate({ hotspotId })}>
+                      {resume.isPending ? <Loader2 className="animate-spin" /> : <Play />} Resume drops
+                    </Button>
+                  )}
+                  <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+                    <Trash2 /> Delete
+                  </Button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StatusBadge({ active, ended }: { active: boolean; ended: boolean }) {
+  const [label, tone] = ended
+    ? ["Ended", "bg-muted text-muted-foreground"]
+    : active
+      ? ["Active", "bg-primary/10 text-primary"]
+      : ["Paused", "bg-warning/10 text-warning"];
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 font-hud text-[11px] font-semibold uppercase tracking-wide", tone)}>
+      <span className={cn("size-1.5 rounded-full bg-current", active && !ended && "animate-pulse")} />
+      {label}
+    </span>
+  );
+}
+
+function Stat({ icon: Icon, label, value }: { icon: typeof MapPin; label: string; value: number }) {
+  return (
+    <div className="px-2 py-3">
+      <p className="font-hud text-xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+        <Icon className="size-3" /> {label}
+      </p>
     </div>
-);
+  );
+}
 
-export default HotspotDetailModal;
+function Row({ label, value, icon: Icon, className }: { label: string; value: string; icon?: typeof MapPin; className?: string }) {
+  return (
+    <div className={className}>
+      <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+        {Icon && <Icon className="size-3" />}
+        {label}
+      </dt>
+      <dd className="mt-0.5 font-medium">{value}</dd>
+    </div>
+  );
+}
+
+/** The hotspot's area on a small static map. */
+function AreaMap({ feature }: { feature: StoredFeature }) {
+  const map = useRef<MapRef>(null);
+  const shape = useMemo(() => toMapboxFeature(feature), [feature]);
+  if (!shape) return null;
+  const c = featureCenter(feature);
+  const ring = shape.geometry.coordinates[0]!;
+  const fit = () => {
+    // The dialog animates in: measure the real size before framing.
+    map.current?.resize();
+    const lngs = ring.map((p) => p[0]!);
+    const lats = ring.map((p) => p[1]!);
+    map.current?.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 28, duration: 0, maxZoom: 17 },
+    );
+  };
+  return (
+    <div className="h-40 overflow-hidden rounded-t-xl border-b">
+      <BaseMap ref={map} initialViewState={{ latitude: c.lat, longitude: c.lng, zoom: 14 }} onLoad={() => requestAnimationFrame(() => setTimeout(fit, 220))} interactive={false} controls={false}>
+        <Source id="hotspot-detail" type="geojson" data={shape}>
+          <Layer id="hotspot-detail-fill" type="fill" paint={{ "fill-color": "#22c55e", "fill-opacity": 0.2 }} />
+          <Layer id="hotspot-detail-line" type="line" paint={{ "line-color": "#16a34a", "line-width": 2 }} />
+        </Source>
+      </BaseMap>
+    </div>
+  );
+}

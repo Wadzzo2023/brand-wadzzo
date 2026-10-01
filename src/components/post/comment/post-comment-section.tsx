@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactElement } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatPostCreatedAt } from "~/utils/format-date"
-import { Comment } from "@prisma/client"
+import { type Comment } from "@prisma/client"
 import { Button } from "~/components/shadcn/ui/button"
 import { useSession } from "next-auth/react"
 import { api } from "~/utils/api"
@@ -41,7 +41,7 @@ export function CommentSection({ postId, initialCommentCount }: CommentSectionPr
             <Button
                 variant="ghost"
                 size="sm"
-                className="flex items-center gap-2 mb-2 text-gray-600"
+                className="flex items-center gap-2 mb-2 text-muted-foreground"
                 onClick={toggleComments}
             >
                 <MessageCircle className="h-4 w-4" />
@@ -51,7 +51,7 @@ export function CommentSection({ postId, initialCommentCount }: CommentSectionPr
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="flex items-center gap-2 mb-2 text-gray-600 underline mt-2"
+                    className="flex items-center gap-2 mb-2 text-muted-foreground underline mt-2"
 
                 >
 
@@ -82,7 +82,7 @@ export function CommentSection({ postId, initialCommentCount }: CommentSectionPr
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-4 text-gray-500">
+                            <div className="text-center py-4 text-muted-foreground">
                                 No comments yet. Be the first to comment!
                             </div>
                         )}
@@ -149,7 +149,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                         <Link href={`/fans/creator/${comment.userId}`} className="font-bold hover:underline">
                             {comment.user.name}
                         </Link>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                             {formatPostCreatedAt(comment.createdAt)}
                         </span>
                     </div>
@@ -171,7 +171,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                                 onClick={toggleReplies}
                                 variant="ghost"
                                 size="sm"
-                                className="h-auto px-2 py-1 text-xs text-gray-500"
+                                className="h-auto px-2 py-1 text-xs text-muted-foreground"
                             >
                                 {showReplies ? "Hide replies" : `Show replies (${childrenComments.length})`}
                             </Button>
@@ -198,7 +198,7 @@ function CommentView({ comment, childrenComments }: CommentViewProps) {
                     <AnimatePresence>
                         {showReplies && childrenComments.length > 0 && (
                             <motion.div
-                                className="mt-2 w-full pl-2 border-l-2 border-gray-100 dark:border-gray-800"
+                                className="mt-2 w-full pl-2 border-l-2 border-border"
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -237,12 +237,12 @@ function CommentContextMenu({ commentorId, commentId }: { commentorId: string; c
 
     const handleDelete = () => deleteComment.mutate(commentId)
 
-    if (session?.user && session.user.id === commentorId) {
+    if (session?.user?.id === commentorId) {
         return (
             <ContextMenu
                 bg="bg-base-300"
                 handleDelete={handleDelete}
-                isLoading={deleteComment.isLoading}
+                isLoading={deleteComment.isPending}
             />
         )
     }
@@ -270,7 +270,7 @@ function formatLinks(text: string) {
                     href={match}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-info hover:underline"
                 >
                     {match}
                 </a>
@@ -279,7 +279,7 @@ function formatLinks(text: string) {
             arr.push(part)
         }
         return arr
-    }, [] as (string | JSX.Element)[])
+    }, [] as (string | ReactElement)[])
 }
 
 function CommentFormatter({ content, maxLength = 250, className }: CommentFormatterProps) {

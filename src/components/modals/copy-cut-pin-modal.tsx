@@ -85,9 +85,9 @@ const CopyCutPinModal = () => {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <Button onClick={handlePastePin} className="w-full h-12 text-base font-medium" disabled={PastePin.isLoading}>
+          <Button onClick={handlePastePin} className="w-full h-12 text-base font-medium" disabled={PastePin.isPending}>
             <ClipboardCheck size={18} className="mr-2" />
-            {PastePin.isLoading ? "Pasting..." : `Paste Pin Here`}
+            {PastePin.isPending ? "Pasting..." : `Paste Pin Here`}
           </Button>
 
           <Button onClick={() => handleCloseModal()} variant="outline" className="w-full h-12 text-base font-medium bg-transparent">

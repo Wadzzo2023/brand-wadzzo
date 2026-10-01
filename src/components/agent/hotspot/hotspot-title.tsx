@@ -109,19 +109,19 @@ export function HotspotTile({
                                 {hotspot.hotspotName}
                             </span>
                             <span className={cn(
-                                "text-[10px] px-1.5 py-0.5 rounded-full font-semibold border flex-shrink-0",
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-semibold border shrink-0",
                                 hotspot.isActive
-                                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                                    ? "bg-success/15 text-success border-success/25"
                                     : "bg-muted text-muted-foreground border-border"
                             )}>
                                 {hotspot.isActive ? "active" : "paused"}
                             </span>
                             {hotspot.dropCount != null && (
-                                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                                <span className="text-[10px] text-muted-foreground shrink-0">
                                     {hotspot.dropCount} drops
                                 </span>
                             )}
-                            <span className="ml-auto flex-shrink-0">
+                            <span className="ml-auto shrink-0">
                                 {expanded
                                     ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
                                     : <ChevronDown className="w-4 h-4 text-muted-foreground" />

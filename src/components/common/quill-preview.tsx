@@ -1,15 +1,14 @@
 import dynamic from "next/dynamic";
 
-import "react-quill/dist/quill.bubble.css";
+import "react-quill-new/dist/quill.bubble.css";
+
+// Created once, outside render (see quill-editor.tsx).
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 
 interface PreviewProps {
     value: string;
 }
 
 export const Preview = ({ value }: PreviewProps) => {
-    const ReactQuill = dynamic(() => import("react-quill"));
-
-    return (
-        <ReactQuill className="m-0 p-0" theme="bubble" value={value} readOnly />
-    );
+    return <ReactQuill className="m-0 p-0" theme="bubble" value={value} readOnly />;
 };

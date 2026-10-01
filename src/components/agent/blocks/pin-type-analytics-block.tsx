@@ -8,11 +8,11 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-    EVENT: "bg-amber-500",
+    EVENT: "bg-warning",
     LANDMARK: "bg-primary",
     BOUNTY: "bg-purple-500",
-    EXPERIENCE: "bg-cyan-500",
-    LAUNCH: "bg-emerald-500",
+    EXPERIENCE: "bg-info",
+    LAUNCH: "bg-success",
     OTHER: "bg-muted-foreground",
 };
 
@@ -60,7 +60,7 @@ export function PinTypeAnalyticsBlock({ data }: Props) {
                             {/* Type row */}
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className={cn("w-2 h-2 rounded-full flex-shrink-0", barColor)} />
+                                    <div className={cn("w-2 h-2 rounded-full shrink-0", barColor)} />
                                     <span className="text-[12px] font-bold text-foreground">{t.type}</span>
                                     <span className="text-[10px] text-muted-foreground">{t.count} pin{t.count !== 1 ? "s" : ""}</span>
                                 </div>
@@ -97,7 +97,7 @@ export function PinTypeAnalyticsBlock({ data }: Props) {
             {/* ── Insight ────────────────────────────────────────────────────── */}
             {insight && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <span className="text-base shrink-0">💡</span>
                     <p className="text-[12px] text-primary leading-relaxed">{insight}</p>
                 </div>
             )}

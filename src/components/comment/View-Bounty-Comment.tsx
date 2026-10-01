@@ -2,7 +2,7 @@ import { formatPostCreatedAt } from "~/utils/format-date";
 import { useSession } from "next-auth/react";
 import React, { useState } from "react";
 import { api } from "~/utils/api";
-import { BountyComment } from "@prisma/client";
+import { type BountyComment } from "@prisma/client";
 import { Button } from "~/components/shadcn/ui/button";
 import CustomAvatar from "../common/custom-avatar";
 import { AddBountyReplyComment } from "../reply/Add-Reply-Bounty-Comment";
@@ -34,7 +34,7 @@ export default function ViewBountyComment({
 
   return (
     <div className="relative">
-      <div className={clsx("flex items-start justify-between w-full text-sm", isDeleting && "blur-sm")}>
+      <div className={clsx("flex items-start justify-between w-full text-sm", isDeleting && "blur-xs")}>
         <div className="flex w-full gap-2">
           <div className="h-auto w-auto rounded-full">
             <CustomAvatar
@@ -47,7 +47,7 @@ export default function ViewBountyComment({
             <h2 className="font-bold">{comment.user.name}</h2>
             <CommentFormatter content={comment.content} />
 
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               {formatPostCreatedAt(comment.createdAt)}
             </p>
 
@@ -131,13 +131,13 @@ function CommentContextMenu({
     });
   };
 
-  if (data?.user && data.user.id === commentatorId) {
+  if (data?.user?.id === commentatorId) {
     return (
       <div>
         <ContextMenu
           handleDelete={handleDelete}
 
-          isLoading={deletePost.isLoading}
+          isLoading={deletePost.isPending}
         />
       </div>
     );

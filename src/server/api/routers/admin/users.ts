@@ -6,13 +6,99 @@ import {
   publicProcedure,
 } from "~/server/api/trpc";
 
-import { createTransport, Transporter } from "nodemailer";
+import { createTransport, type Transporter } from "nodemailer";
 
 export const userRouter = createTRPCRouter({
-  getUsers: protectedProcedure.query(({ ctx, input }) => {
-    const users = ctx.db.user.findMany({ orderBy: { joinedAt: "desc" } });
-
-    return users;
+  // Admins only: this lists every user's email.
+  getUsers: adminProcedure
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+          cursor: z.string().optional(),
+          limit: z.number().min(1).max(100).default(30),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const q = input?.search?.trim();
+      const limit = input?.limit ?? 30;
+      const where = q
+        ? {
+            OR: [
+              { id: { contains: q, mode: "insensitive" as const } },
+              { name: { contains: q, mode: "insensitive" as const } },
+              { email: { contains: q, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
+      const [total, users] = await Promise.all([
+        ctx.db.user.count({ where }),
+        ctx.db.user.findMany({
+          where,
+          orderBy: [{ joinedAt: "desc" }, { id: "desc" }],
+          take: limit + 1,
+          ...(input?.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            joinedAt: true,
+            firstSignUpMethod: true,
+            creator: { select: { id: true, name: true, approved: true } },
+            Admin: { select: { id: true }, take: 1 },
+            _count: { select: { LocationConsumer: true } },
+          },
+        }),
+      ]);
+      const nextCursor = users.length > limit ? users.pop()!.id : undefined;
+      return { users, nextCursor, total };
+    }),
+  // One user for the admin detail page: profile, roles, counts and their most
+  // recent collections / redemptions / purchases.
+  getUser: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const user = await ctx.db.user.findUniqueOrThrow({
+      where: { id: input },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        bio: true,
+        joinedAt: true,
+        firstSignUpMethod: true,
+        fromAppSignup: true,
+        Admin: { select: { id: true }, take: 1 },
+        creator: { select: { id: true, name: true, approved: true, profileUrl: true } },
+        _count: { select: { LocationConsumer: true, RedeemConsumer: true, assets: true, followings: true, BountySubmission: true } },
+        LocationConsumer: {
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            isRedeemed: true,
+            redeemedAt: true,
+            claimedAt: true,
+            createdAt: true,
+            location: {
+              select: {
+                locationGroup: {
+                  select: { id: true, title: true, image: true, type: true, creator: { select: { id: true, name: true } } },
+                },
+              },
+            },
+          },
+        },
+        RedeemConsumer: { orderBy: { redeemedAt: "desc" }, take: 50, select: { id: true, code: true, redeemedAt: true } },
+        assets: {
+          orderBy: { buyAt: "desc" },
+          take: 50,
+          select: { id: true, buyAt: true, asset: { select: { id: true, name: true, code: true, issuer: true, thumbnail: true } } },
+        },
+      },
+    });
+    return user;
   }),
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";

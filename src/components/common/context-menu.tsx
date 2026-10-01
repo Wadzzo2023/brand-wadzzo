@@ -28,7 +28,7 @@ export default function ContextMenu({
     handleEdit,
     handleShare,
     isLoading = false,
-    bg = "bg-white dark:bg-gray-800",
+    bg = "bg-white",
     position = "right",
     items,
 }: ContextMenuProps) {
@@ -91,7 +91,7 @@ export default function ContextMenu({
             <motion.button
                 whileTap={{ scale: 0.9 }}
                 whileHover={{ backgroundColor: "rgba(0,0,0,0.05)" }}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="Menu"
             >
@@ -106,7 +106,7 @@ export default function ContextMenu({
                         exit={{ opacity: 0, scale: 0.95, y: -5 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
                         className={cn(
-                            "absolute z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-gray-200 shadow-lg dark:border-gray-700",
+                            "absolute z-50 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-border shadow-lg",
                             bg,
                             position === "left" ? "left-0" : "right-0",
                         )}
@@ -130,8 +130,8 @@ export default function ContextMenu({
                                         className={cn(
                                             "flex w-full items-center px-4 py-2 text-sm transition-colors",
                                             item.danger
-                                                ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/60",
+                                                ? "text-destructive hover:bg-destructive/10"
+                                                : "text-foreground hover:bg-muted",
                                             item.disabled && "cursor-not-allowed opacity-50",
                                         )}
                                     >
@@ -143,7 +143,7 @@ export default function ContextMenu({
                                                     className="h-4 w-4"
                                                 >
                                                     <svg
-                                                        className="h-4 w-4 text-red-600 dark:text-red-400"
+                                                        className="h-4 w-4 text-destructive"
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         fill="none"
                                                         viewBox="0 0 24 24"

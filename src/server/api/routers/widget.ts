@@ -208,6 +208,10 @@ export const widgetRouter = createTRPCRouter({
           collection_limit_remaining: location.remaining,
           auto_collect: location.autoCollect,
           brand_image_url: location.creator.profileUrl ?? WadzzoIconURL,
+          circular_image_url: location.creator.circularProfileUrl ?? location.creator.profileUrl ?? WadzzoIconURL,
+          // Embed pins are never collected from the widget.
+          redeemCode: null,
+          isRedeemed: null,
           brand_id: location.creatorId,
           public: true,
           aiUrlDescriptions: location.aiUrlDescriptions,

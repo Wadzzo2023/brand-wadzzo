@@ -1,17 +1,17 @@
 import { create } from "zustand";
 import {
-  AdminAsset,
-  Asset,
-  ItemPrivacy,
-  LocationGroup,
-  MarketAsset,
-  Song,
-  SubmissionAttachment,
+  type AdminAsset,
+  type Asset,
+  type ItemPrivacy,
+  type LocationGroup,
+  type MarketAsset,
+  type Song,
+  type SubmissionAttachment,
   type Location,
   type LocationConsumer,
 } from "@prisma/client";
 
-import { Horizon } from "@stellar/stellar-sdk";
+import { type Horizon } from "@stellar/stellar-sdk";
 export type AssetRightType = AssetType & { copies: number };
 
 export type SongItemType = Song & { asset: AssetType };

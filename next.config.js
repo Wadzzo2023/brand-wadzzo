@@ -11,13 +11,6 @@ const withBundleAnalyzer = analyzer({
 /** @type {import("next").NextConfig} */
 const config = {
   transpilePackages: ["three"],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
   reactStrictMode: true,
   images: {
     remotePatterns: [
@@ -30,6 +23,20 @@ const config = {
         hostname: "**",
       },
     ],
+  },
+
+  /** Old portal URLs → their new homes (bookmarks keep working). */
+  async redirects() {
+    return [
+      { source: "/map", destination: "/pins", permanent: true },
+      { source: "/pin-manage", destination: "/pins/manage", permanent: true },
+      { source: "/report", destination: "/reports", permanent: true },
+      { source: "/report/:id", destination: "/reports/:id", permanent: true },
+      { source: "/create", destination: "/onboarding", permanent: true },
+      { source: "/admin/collection-report", destination: "/admin/reports", permanent: true },
+      { source: "/admin/collection-report/:id", destination: "/admin/reports/:id", permanent: true },
+      { source: "/admin", destination: "/admin/creators", permanent: false },
+    ];
   },
 
   async rewrites() {
@@ -66,15 +73,6 @@ const config = {
     ];
   },
 
-  /**
-   * If you are using `appDir` then you must comment the below `i18n` config out.
-   *
-   * @see https://github.com/vercel/next.js/issues/41980
-   */
-  i18n: {
-    locales: ["en"],
-    defaultLocale: "en",
-  },
 };
 
 export default withBundleAnalyzer(config);

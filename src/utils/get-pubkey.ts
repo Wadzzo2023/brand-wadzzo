@@ -14,7 +14,6 @@ export async function fetchUsersByPublicKeys(
   publicKeys: string[],
 ): Promise<{ email: string; publicKey: string }[]> {
   const body = JSON.stringify({ publicKeys });
-  console.log("Fetching public keys for:", body);
   const response = await fetch("https://accounts.action-tokens.com/api/pubs", {
     method: "POST",
     headers: {
@@ -28,7 +27,6 @@ export async function fetchUsersByPublicKeys(
       email: string;
       publicKey: string;
     }[];
-    console.log("Fetched public keys:", data);
     return data;
   } else {
     // const data = await response.json();

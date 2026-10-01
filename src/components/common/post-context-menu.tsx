@@ -19,11 +19,11 @@ export function PostContextMenu({
         deletePost.mutate(postId)
     };
 
-    if (data?.user && data.user.id === creatorId) {
+    if (data?.user?.id === creatorId) {
         return (
             <ContextMenu
                 handleDelete={handleDelete}
-                isLoading={deletePost.isLoading}
+                isLoading={deletePost.isPending}
             />
         );
     }

@@ -13,9 +13,10 @@ import { ItemPrivacy } from "@prisma/client";
 import { PinType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { assertOwnerOrAdmin, isAdmin as checkIsAdmin } from "~/server/api/access";
 import { createOptimizedImage } from "~/server/image-optimizer";
-import { createHotspotFormSchema } from "~/components/modals/create-hotspot-modal";
-import { updateMapFormSchema } from "~/components/modals/pin-detail-modal";
+import { createHotspotFormSchema } from "~/types/hotspot";
+import { updateMapFormSchema } from "~/types/pin-edit";
 import { hotspotClient } from "~/lib/express/hotspotClient-sdk";
 
 import {
@@ -25,7 +26,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { PinLocation } from "~/types/pin";
+import { type PinLocation } from "~/types/pin";
 import { BADWORDS } from "~/utils/banned-word";
 import { fetchUsersByPublicKeys } from "~/utils/get-pubkey";
 import {
@@ -79,6 +80,7 @@ export const createPinFormSchema = z.object({
   pinCollectionLimit: z.number().min(0),
   tier: z.string().optional(),
   multiPin: z.boolean().optional(),
+  creatorId: z.string().optional(),
   tags: z.array(z.string()).default([]),
 });
 
@@ -118,6 +120,32 @@ export const createAdminPinFormSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
+type AuthCtx = Parameters<typeof assertOwnerOrAdmin>[0];
+
+/** The hotspot, if the caller owns it or is an admin. */
+async function manageableHotspot(ctx: AuthCtx, hotspotId: string) {
+  const h = await ctx.db.hotspot.findUnique({ where: { id: hotspotId }, select: { id: true, creatorId: true, isActive: true } });
+  if (!h) throw new TRPCError({ code: "NOT_FOUND", message: "Hotspot not found" });
+  await assertOwnerOrAdmin(ctx, h.creatorId);
+  return h;
+}
+
+/** What Admin › Pin review shows for each group. Kept to two queries — this list can be long. */
+const reviewSelect = {
+  id: true,
+  title: true,
+  description: true,
+  image: true,
+  type: true,
+  startDate: true,
+  endDate: true,
+  createdAt: true,
+  latitude: true,
+  longitude: true,
+  creator: { select: { name: true, id: true, profileUrl: true } },
+  _count: { select: { locations: { where: { hidden: false } } } },
+} as const;
+
 export const pinRouter = createTRPCRouter({
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";
@@ -133,13 +161,18 @@ export const pinRouter = createTRPCRouter({
     .input(createHotspotFormSchema.extend({ creatorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const creatorId = input.creatorId ?? ctx.session.user.id;
+      // Creating a hotspot for another brand is an admin action.
+      await assertOwnerOrAdmin(ctx, creatorId);
+      if (input.hotspotEndDate <= input.hotspotStartDate)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The hotspot must end after it starts" });
 
       try {
         const result = await hotspotClient.create(creatorId, {
           title: input.title,
           description: input.description,
-          image: input.image,
-          url: input.url,
+          image: input.image ?? undefined,
+          // The task server rejects "" as a URL: leave the link out when empty.
+          url: input.url ?? undefined,
           type: input.type,
           dropEveryDays: input.dropEveryDays,
           pinDurationDays: input.pinDurationDays,
@@ -188,11 +221,39 @@ export const pinRouter = createTRPCRouter({
     });
   }),
 
+  getCreatorHotspots: adminProcedure
+    .input(z.object({ creatorId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.hotspot.findMany({
+        where: { creatorId: input.creatorId, hidden: false },
+        select: {
+          id: true,
+          creatorId: true,
+          isActive: true,
+          dropEveryDays: true,
+          pinDurationDays: true,
+          hotspotStartDate: true,
+          hotspotEndDate: true,
+          shape: true,
+          geoJson: true,
+          autoCollect: true,
+          multiPin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
+
   getHotspot: creatorProcedure
     .input(z.object({ hotspotId: z.string() }))
     .query(async ({ ctx, input }) => {
+      const admin = await checkIsAdmin(ctx);
       const hotspot = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
+        where: {
+          id: input.hotspotId,
+          ...(!admin ? { creatorId: ctx.session.user.id } : {}),
+        },
         select: {
           id: true,
           creatorId: true,
@@ -217,10 +278,11 @@ export const pinRouter = createTRPCRouter({
         },
       });
       if (!hotspot) return null;
+      await assertOwnerOrAdmin(ctx, hotspot.creatorId);
 
       let scheduleState = { hasSchedule: false, nextRunTime: null as string | null };
       try {
-        const expressData = await hotspotClient.get(ctx.session.user.id, input.hotspotId);
+        const expressData = await hotspotClient.get(hotspot.creatorId, input.hotspotId);
         scheduleState = { hasSchedule: expressData.hasSchedule, nextRunTime: expressData.nextRunTime ?? null };
       } catch {
         // Express server unavailable — return hotspot without schedule state
@@ -229,18 +291,13 @@ export const pinRouter = createTRPCRouter({
       return { ...hotspot, ...scheduleState };
     }),
 
-  pauseHotspotSchedule: creatorProcedure
+  pauseHotspotSchedule: protectedProcedure
     .input(z.object({ hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Verify ownership before delegating to Express
-      const h = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-        select: { id: true },
-      });
-      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+      const h = await manageableHotspot(ctx, input.hotspotId);
 
       try {
-        return await hotspotClient.pause(ctx.session.user.id, input.hotspotId);
+        return await hotspotClient.pause(h.creatorId, input.hotspotId);
       } catch (err) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -250,20 +307,13 @@ export const pinRouter = createTRPCRouter({
       }
     }),
 
-  resumeHotspotSchedule: creatorProcedure
+  resumeHotspotSchedule: protectedProcedure
     .input(z.object({ hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const h = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-        select: { id: true },
-      });
-      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+      const h = await manageableHotspot(ctx, input.hotspotId);
 
       try {
-        return await hotspotClient.resume(
-          ctx.session.user.id,
-          input.hotspotId
-        );
+        return await hotspotClient.resume(h.creatorId, input.hotspotId);
       } catch (err) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -273,20 +323,13 @@ export const pinRouter = createTRPCRouter({
       }
     }),
 
-  deleteHotspotCascade: creatorProcedure
+  deleteHotspotCascade: protectedProcedure
     .input(z.object({ hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const h = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-        select: { id: true },
-      });
-      if (!h) throw new TRPCError({ code: "NOT_FOUND" });
+      const h = await manageableHotspot(ctx, input.hotspotId);
 
       try {
-        return await hotspotClient.delete(
-          ctx.session.user.id,
-          input.hotspotId
-        );
+        return await hotspotClient.delete(h.creatorId, input.hotspotId);
       } catch (err) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -326,9 +369,12 @@ export const pinRouter = createTRPCRouter({
         ? await createOptimizedImage(input.image).catch(() => null)
         : null;
 
+      const targetCreatorId = input.creatorId ?? ctx.session.user.id;
+      await assertOwnerOrAdmin(ctx, targetCreatorId);
+
       const locationGroup = await ctx.db.locationGroup.create({
         data: {
-          creatorId: ctx.session.user.id,
+          creatorId: targetCreatorId,
           endDate: input.endDate,
           startDate: input.startDate,
           title: input.title,
@@ -507,6 +553,51 @@ export const pinRouter = createTRPCRouter({
       };
     }),
 
+  /** One of the brand's own pins, shaped for the edit page. Admins can view and edit any creator's pin. */
+  myPinForEdit: creatorProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const admin = await checkIsAdmin(ctx);
+    const pin = await ctx.db.location.findFirst({
+      where: {
+        OR: [{ id: input }, { locationGroupId: input }],
+        ...(!admin ? { locationGroup: { creatorId: ctx.session.user.id } } : {}),
+      },
+      include: {
+        locationGroup: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!pin?.locationGroup) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
+    await assertOwnerOrAdmin(ctx, pin.locationGroup.creatorId);
+    const g = pin.locationGroup;
+    return {
+      id: pin.id,
+      creatorId: g.creatorId,
+      creatorName: g.creator?.name ?? null,
+      title: g.title,
+      description: g.description ?? "",
+      image: g.image ?? "",
+      type: g.type,
+      url: g.link ?? "",
+      startDate: g.startDate,
+      endDate: g.endDate,
+      limit: g.limit,
+      remaining: g.remaining,
+      multiPin: g.multiPin,
+      autoCollect: pin.autoCollect,
+      lat: pin.latitude,
+      lng: pin.longitude,
+      approved: g.approved,
+    };
+  }),
+
   updatePin: protectedProcedure
     .input(updateMapFormSchema)
     .mutation(async ({ ctx, input }) => {
@@ -517,15 +608,18 @@ export const pinRouter = createTRPCRouter({
 
       try {
         const findLocation = await ctx.db.location.findFirst({
-          where: { id: pinId },
+          where: {
+            OR: [{ id: pinId }, { locationGroupId: pinId }],
+          },
           include: { locationGroup: true },
         });
         if (!findLocation?.locationGroup) {
           throw new Error("Location or associated LocationGroup not found");
         }
+        await assertOwnerOrAdmin(ctx, findLocation.locationGroup.creatorId);
 
         await ctx.db.location.update({
-          where: { id: pinId },
+          where: { id: findLocation.id },
           data: { latitude: lat, longitude: lng, autoCollect },
         });
 
@@ -552,6 +646,7 @@ export const pinRouter = createTRPCRouter({
           },
         });
       } catch (e) {
+        if (e instanceof TRPCError) throw e;
         console.error("Error updating location group:", e);
         throw new Error("Failed to update location group");
       }
@@ -671,10 +766,7 @@ export const pinRouter = createTRPCRouter({
   getAdminLocationGroups: adminProcedure.query(async ({ ctx }) => {
     return ctx.db.locationGroup.findMany({
       where: { approved: { equals: null }, endDate: { gte: new Date() }, hidden: false },
-      include: {
-        creator: { select: { name: true, id: true } },
-        locations: true,
-      },
+      select: reviewSelect,
       orderBy: { createdAt: "desc" },
     });
   }),
@@ -682,13 +774,64 @@ export const pinRouter = createTRPCRouter({
   getApprovedLocationGroups: adminProcedure.query(async ({ ctx }) => {
     return ctx.db.locationGroup.findMany({
       where: { approved: { equals: true }, endDate: { gte: new Date() }, hidden: false },
-      include: {
-        creator: { select: { name: true, id: true } },
-        locations: { where: { hidden: false } },
-      },
+      select: reviewSelect,
       orderBy: { createdAt: "desc" },
     });
   }),
+
+  /** One group's live locations, loaded when an admin opens it in Pin review. */
+  getReviewLocations: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    return ctx.db.location.findMany({
+      where: { locationGroupId: input, hidden: false },
+      select: { id: true, latitude: true, longitude: true, autoCollect: true, _count: { select: { consumers: true } } },
+      orderBy: { id: "asc" },
+    });
+  }),
+
+  /** Everything Pin review's preview drawer shows for one group. */
+  getReviewGroup: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const g = await ctx.db.locationGroup.findUnique({
+      where: { id: input },
+      select: {
+        id: true, title: true, description: true, image: true, type: true, link: true,
+        startDate: true, endDate: true, createdAt: true, updatedAt: true,
+        approved: true, hidden: true, privacy: true, limit: true, remaining: true, multiPin: true,
+        creator: { select: { id: true, name: true, profileUrl: true } },
+        asset: { select: { name: true, code: true, thumbnail: true } },
+        locationGroupTags: { select: { tag: { select: { label: true } } } },
+        locations: {
+          where: { hidden: false },
+          select: { id: true, latitude: true, longitude: true, autoCollect: true, _count: { select: { consumers: true } } },
+          orderBy: { id: "asc" },
+        },
+      },
+    });
+    if (!g) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
+    return g;
+  }),
+
+  /** Review groups with at least one live location inside the box (west > east crosses the antimeridian). */
+  reviewGroupsInArea: adminProcedure
+    .input(z.object({ north: z.number(), south: z.number(), east: z.number(), west: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const lng = input.west <= input.east
+        ? { longitude: { gte: input.west, lte: input.east } }
+        : { OR: [{ longitude: { gte: input.west } }, { longitude: { lte: input.east } }] };
+      const rows = await ctx.db.location.findMany({
+        where: { hidden: false, latitude: { gte: input.south, lte: input.north }, ...lng, locationGroup: { hidden: false } },
+        select: { locationGroupId: true },
+        distinct: ["locationGroupId"],
+      });
+      return rows.flatMap((r) => (r.locationGroupId ? [r.locationGroupId] : []));
+    }),
+
+  /** Undo for deleteLocationGroupForAdmin. */
+  restoreLocationGroupsForAdmin: adminProcedure
+    .input(z.object({ ids: z.array(z.string()).min(1).max(1000) }))
+    .mutation(async ({ ctx, input }) => {
+      const { count } = await ctx.db.locationGroup.updateMany({ where: { id: { in: input.ids } }, data: { hidden: false } });
+      return { count };
+    }),
 
   getPinsGrops: adminProcedure.query(async ({ ctx }) => {
     return ctx.db.locationGroup.findMany({
@@ -697,7 +840,8 @@ export const pinRouter = createTRPCRouter({
   }),
 
   approveLocationGroups: adminProcedure
-    .input(z.object({ locationGroupIds: z.array(z.string()), approved: z.boolean() }))
+    // approved: null sends pins back to review (used by undo and "Move back to review").
+    .input(z.object({ locationGroupIds: z.array(z.string()).min(1).max(1000), approved: z.boolean().nullable() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.locationGroup.updateMany({
         where: { id: { in: input.locationGroupIds } },
@@ -736,18 +880,23 @@ export const pinRouter = createTRPCRouter({
       isAdmin: z.boolean().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      // Admins may look at any brand; a brand only ever sees its own report.
+      let creatorId: string;
       if (input?.isAdmin) {
         const admin = await ctx.db.admin.findUnique({ where: { id: ctx.session.user.id } });
         if (!admin) throw new TRPCError({ code: "UNAUTHORIZED" });
         if (!input.creatorId) return;
+        creatorId = input.creatorId;
       } else {
         const creator = await ctx.db.creator.findUnique({ where: { id: ctx.session.user.id } });
         if (!creator) throw new TRPCError({ code: "UNAUTHORIZED" });
+        creatorId = creator.id;
       }
 
       const consumedLocations = await ctx.db.locationGroup.findMany({
         where: {
-          creatorId: input?.creatorId,
+          creatorId,
+          hidden: false,
           createdAt: input?.day
             ? { gte: new Date(Date.now() - input.day * 86_400_000) }
             : {},
@@ -801,10 +950,13 @@ export const pinRouter = createTRPCRouter({
       if (!input.creatorId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Creator ID is required" });
       }
+      // The export contains fans' names and emails: owner or admin only.
+      await assertOwnerOrAdmin(ctx, input.creatorId);
 
       const consumedLocations = await ctx.db.locationGroup.findMany({
         where: {
           creatorId: input.creatorId,
+          hidden: false,
           createdAt: input.day
             ? { gte: new Date(Date.now() - input.day * 86_400_000) }
             : {},
@@ -993,6 +1145,9 @@ export const pinRouter = createTRPCRouter({
   toggleAutoCollect: protectedProcedure
     .input(z.object({ id: z.string(), isAutoCollect: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
+      const location = await ctx.db.location.findUnique({ where: { id: input.id }, select: { locationGroup: { select: { creatorId: true } } } });
+      if (!location) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
+      await assertOwnerOrAdmin(ctx, location.locationGroup?.creatorId);
       await ctx.db.location.update({
         where: { id: input.id },
         data: { autoCollect: input.isAutoCollect },
@@ -1008,10 +1163,7 @@ export const pinRouter = createTRPCRouter({
       });
       if (!location) throw new Error("Location not found");
 
-      if (ctx.session.user.id !== location.locationGroup?.creatorId) {
-        const admin = await ctx.db.admin.findUnique({ where: { id: ctx.session.user.id } });
-        if (!admin) throw new Error("You are not authorized to paste this pin");
-      }
+      await assertOwnerOrAdmin(ctx, location.locationGroup?.creatorId);
 
       if (input.isCut) {
         await ctx.db.location.update({
@@ -1047,7 +1199,7 @@ export const pinRouter = createTRPCRouter({
       return { item: items.id };
     }),
 
-  deletePinForAdmin: protectedProcedure
+  deletePinForAdmin: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const items = await ctx.db.location.update({
@@ -1057,14 +1209,15 @@ export const pinRouter = createTRPCRouter({
       return { item: items.id };
     }),
 
-  deleteLocationGroupForAdmin: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  // Soft delete: hidden groups drop off the map and every list.
+  deleteLocationGroupForAdmin: adminProcedure
+    .input(z.object({ ids: z.array(z.string()).min(1).max(1000) }))
     .mutation(async ({ ctx, input }) => {
-      const items = await ctx.db.locationGroup.update({
-        where: { id: input.id },
+      const { count } = await ctx.db.locationGroup.updateMany({
+        where: { id: { in: input.ids } },
         data: { hidden: true },
       });
-      return { item: items.id };
+      return { count };
     }),
 
   getMyCollectedPins: protectedProcedure
@@ -1092,7 +1245,8 @@ export const pinRouter = createTRPCRouter({
   lookupRedeemCode: protectedProcedure
     .input(z.object({
       code: z.string().trim().toUpperCase().length(6),
-      locationId: z.string(),
+      // Optional: when given, the code must belong to this pin.
+      locationId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const consumer = await ctx.db.locationConsumer.findUnique({
@@ -1105,6 +1259,7 @@ export const pinRouter = createTRPCRouter({
                 select: {
                   id: true, title: true, description: true, image: true,
                   link: true, type: true, startDate: true, endDate: true,
+                  creatorId: true,
                   creator: { select: { name: true } },
                 },
               },
@@ -1114,8 +1269,10 @@ export const pinRouter = createTRPCRouter({
       });
 
       if (!consumer) return { status: "not_found" as const };
+      // Codes are only visible to the brand that owns the pin (or an admin).
+      await assertOwnerOrAdmin(ctx, consumer.location.locationGroup?.creatorId);
 
-      if (consumer.locationId !== input.locationId) {
+      if (input.locationId && consumer.locationId !== input.locationId) {
         return {
           status: "wrong_location" as const,
           actualLocation: {
@@ -1170,6 +1327,7 @@ export const pinRouter = createTRPCRouter({
       const total = await ctx.db.locationGroup.count({ where });
       const groups = await ctx.db.locationGroup.findMany({
         where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         include: {
@@ -1216,12 +1374,6 @@ export const pinRouter = createTRPCRouter({
               })),
             })),
           };
-        })
-        .sort((a, b) => {
-          if (!a.latestConsumerAt && !b.latestConsumerAt) return 0;
-          if (!a.latestConsumerAt) return 1;
-          if (!b.latestConsumerAt) return -1;
-          return new Date(b.latestConsumerAt).getTime() - new Date(a.latestConsumerAt).getTime();
         });
 
       return { items, nextCursor, total };
@@ -1295,7 +1447,7 @@ export const pinRouter = createTRPCRouter({
       };
     }),
 
-  redeemByCode: publicProcedure
+  redeemByCode: protectedProcedure
     .input(z.object({
       code: z.string().trim().toUpperCase().length(6, "Code must be exactly 6 characters"),
     }))
@@ -1310,6 +1462,7 @@ export const pinRouter = createTRPCRouter({
                 select: {
                   id: true, title: true, description: true, image: true,
                   link: true, type: true, startDate: true, endDate: true,
+                  creatorId: true,
                   creator: { select: { name: true } },
                 },
               },
@@ -1319,6 +1472,8 @@ export const pinRouter = createTRPCRouter({
       });
 
       if (!consumer) return { status: "not_found" as const };
+      // Only the brand that owns the pin (or an admin) can redeem its codes.
+      await assertOwnerOrAdmin(ctx, consumer.location.locationGroup?.creatorId);
 
       if (consumer.isRedeemed) {
         return {
@@ -1341,6 +1496,7 @@ export const pinRouter = createTRPCRouter({
                 select: {
                   id: true, title: true, description: true, image: true,
                   link: true, type: true, startDate: true, endDate: true,
+                  creatorId: true,
                   creator: { select: { name: true } },
                 },
               },
@@ -1364,10 +1520,28 @@ export const pinRouter = createTRPCRouter({
       ctx.db.locationGroup.count({ where: { creatorId, hotspotId: null, type: PinType.OTHER } }),
       ctx.db.locationGroup.count({ where: { creatorId, hotspotId: null, type: PinType.LANDMARK } }),
       ctx.db.locationGroup.count({ where: { creatorId, hotspotId: null, type: PinType.EVENT } }),
-      ctx.db.hotspot.count({ where: { creatorId } }),
+      ctx.db.hotspot.count({ where: { creatorId, hidden: false } }),
     ]);
     return { general, landmark, event, hotspot };
   }),
+
+  getRedeemSummary: protectedProcedure.query(async ({ ctx }) => {
+    const creatorId = ctx.session.user.id;
+    const [rewards, redeemed, totalCollected] = await Promise.all([
+      ctx.db.locationGroup.count({
+        where: { creatorId, hidden: false, type: { in: [PinType.LANDMARK, PinType.EVENT] } },
+      }),
+      ctx.db.locationConsumer.count({
+        where: { location: { locationGroup: { creatorId } }, isRedeemed: true },
+      }),
+      ctx.db.locationConsumer.count({
+        where: { location: { locationGroup: { creatorId, type: { in: [PinType.LANDMARK, PinType.EVENT] } } } },
+      }),
+    ]);
+    const waiting = totalCollected - redeemed;
+    return { rewards, redeemed, waiting };
+  }),
+
 
   getLocationGroups: protectedProcedure
     .input(z.object({
@@ -1417,10 +1591,9 @@ export const pinRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      const group = await ctx.db.locationGroup.findFirst({
-        where: { id, creatorId: ctx.session.user.id },
-      });
+      const group = await ctx.db.locationGroup.findUnique({ where: { id } });
       if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      await assertOwnerOrAdmin(ctx, group.creatorId);
 
       const imageChanged = data.image !== undefined && data.image !== group.image;
       const optimizedImage = imageChanged
@@ -1436,10 +1609,9 @@ export const pinRouter = createTRPCRouter({
   deleteLocationGroup: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.locationGroup.findFirst({
-        where: { id: input.id, creatorId: ctx.session.user.id },
-      });
+      const group = await ctx.db.locationGroup.findUnique({ where: { id: input.id }, select: { creatorId: true } });
       if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      await assertOwnerOrAdmin(ctx, group.creatorId);
       await ctx.db.locationGroup.update({ where: { id: input.id }, data: { hidden: true } });
       return { success: true };
     }),
@@ -1447,12 +1619,9 @@ export const pinRouter = createTRPCRouter({
   bulkDeleteLocationGroups: protectedProcedure
     .input(z.object({ ids: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const count = await ctx.db.locationGroup.count({
-        where: { id: { in: input.ids }, creatorId: ctx.session.user.id },
-      });
-      if (count !== input.ids.length) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Some groups do not belong to you" });
-      }
+      const groups = await ctx.db.locationGroup.findMany({ where: { id: { in: input.ids } }, select: { creatorId: true } });
+      if (groups.length !== input.ids.length) throw new TRPCError({ code: "NOT_FOUND", message: "Some groups were not found" });
+      for (const owner of new Set(groups.map((g) => g.creatorId))) await assertOwnerOrAdmin(ctx, owner);
       await ctx.db.locationGroup.updateMany({
         where: { id: { in: input.ids } },
         data: { hidden: true },
@@ -1463,21 +1632,21 @@ export const pinRouter = createTRPCRouter({
   deleteLocation: protectedProcedure
     .input(z.object({ locationId: z.string(), locationGroupId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.locationGroup.findFirst({
-        where: { id: input.locationGroupId, creatorId: ctx.session.user.id },
-      });
-      if (!group) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
-      await ctx.db.location.update({ where: { id: input.locationId }, data: { hidden: true } });
+      const group = await ctx.db.locationGroup.findUnique({ where: { id: input.locationGroupId }, select: { creatorId: true } });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      await assertOwnerOrAdmin(ctx, group.creatorId);
+      // Only a pin that really is in this group.
+      const { count } = await ctx.db.location.updateMany({ where: { id: input.locationId, locationGroupId: input.locationGroupId }, data: { hidden: true } });
+      if (!count) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found in this group" });
       return { success: true };
     }),
 
   bulkDeleteLocations: protectedProcedure
     .input(z.object({ locationIds: z.array(z.string()).min(1), locationGroupId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const group = await ctx.db.locationGroup.findFirst({
-        where: { id: input.locationGroupId, creatorId: ctx.session.user.id },
-      });
-      if (!group) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      const group = await ctx.db.locationGroup.findUnique({ where: { id: input.locationGroupId }, select: { creatorId: true } });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+      await assertOwnerOrAdmin(ctx, group.creatorId);
       await ctx.db.location.updateMany({
         where: { id: { in: input.locationIds }, locationGroupId: input.locationGroupId },
         data: { hidden: true },
@@ -1493,7 +1662,12 @@ export const pinRouter = createTRPCRouter({
     }))
     .query(async ({ ctx, input }) => {
       const hotspots = await ctx.db.hotspot.findMany({
-        where: { creatorId: ctx.session.user.id, hidden: false },
+        where: {
+          creatorId: ctx.session.user.id,
+          hidden: false,
+          // A hotspot is named after its drops, so search their titles.
+          ...(input.search ? { locationGroups: { some: { title: { contains: input.search, mode: "insensitive" } } } } : {}),
+        },
         select: {
           id: true,
           creatorId: true,
@@ -1544,17 +1718,13 @@ export const pinRouter = createTRPCRouter({
   toggleHotspotActive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const hotspot = await ctx.db.hotspot.findFirst({
-        where: { id: input.id, creatorId: ctx.session.user.id },
-        select: { id: true, isActive: true },
-      });
-      if (!hotspot) throw new TRPCError({ code: "NOT_FOUND", message: "Hotspot not found" });
+      const hotspot = await manageableHotspot(ctx, input.id);
 
       try {
         if (hotspot.isActive) {
-          return await hotspotClient.pause(ctx.session.user.id, input.id);
+          return await hotspotClient.pause(hotspot.creatorId, input.id);
         } else {
-          return await hotspotClient.resume(ctx.session.user.id, input.id);
+          return await hotspotClient.resume(hotspot.creatorId, input.id);
         }
       } catch (err) {
         throw new TRPCError({
@@ -1567,24 +1737,20 @@ export const pinRouter = createTRPCRouter({
   deleteHotspotDropGroup: protectedProcedure
     .input(z.object({ locationGroupId: z.string(), hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const hotspot = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-      });
-      if (!hotspot) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
-      await ctx.db.locationGroup.update({
-        where: { id: input.locationGroupId },
+      await manageableHotspot(ctx, input.hotspotId);
+      // Only a drop that really belongs to this hotspot.
+      const { count } = await ctx.db.locationGroup.updateMany({
+        where: { id: input.locationGroupId, hotspotId: input.hotspotId },
         data: { hidden: true },
       });
+      if (!count) throw new TRPCError({ code: "NOT_FOUND", message: "Drop not found in this hotspot" });
       return { success: true };
     }),
 
   bulkDeleteHotspotDropGroups: protectedProcedure
     .input(z.object({ locationGroupIds: z.array(z.string()).min(1), hotspotId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const hotspot = await ctx.db.hotspot.findFirst({
-        where: { id: input.hotspotId, creatorId: ctx.session.user.id },
-      });
-      if (!hotspot) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      await manageableHotspot(ctx, input.hotspotId);
       await ctx.db.locationGroup.updateMany({
         where: { id: { in: input.locationGroupIds }, hotspotId: input.hotspotId },
         data: { hidden: true },

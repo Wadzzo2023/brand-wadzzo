@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import toast from "react-hot-toast"
 
-type SetMapCenter = (center: google.maps.LatLngLiteral) => void
+type SetMapCenter = (center: { lat: number; lng: number }) => void
 type SetMapZoom = (zoom: number) => void
 
 export function useGeolocation(setMapCenter: SetMapCenter, setMapZoom: SetMapZoom) {

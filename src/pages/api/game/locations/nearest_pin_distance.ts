@@ -1,11 +1,11 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { type NextApiRequest, type NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { EnableCors } from "~/server/api-cors";
 import { db } from "~/server/db";
 import { z } from "zod";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    await EnableCors(req, res);
+    if (await EnableCors(req, res)) return;
     const session = await getToken({ req });
 
     if (!session) {

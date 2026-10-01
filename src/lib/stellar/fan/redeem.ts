@@ -14,7 +14,7 @@ import {
   TrxBaseFeeInPlatformAsset,
   networkPassphrase,
 } from "../constant";
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import { P } from "pino";
 import { getplatformAssetNumberForXLM } from "./get_token_price";
 

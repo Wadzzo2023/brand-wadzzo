@@ -116,7 +116,7 @@ export const publicProcedure = t.procedure;
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({
@@ -128,16 +128,16 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  if (ctx.session && ctx.session.user) {
-    const admin = await ctx.db.admin.findUnique({
-      where: { id: ctx.session.user.id },
-    });
+  const admin = await ctx.db.admin.findUnique({
+    where: { id: ctx.session.user.id },
+  });
 
-    if (!admin) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!admin) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
 
   return next({
@@ -149,20 +149,32 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
 });
 
 export const creatorProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
+  if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  if (ctx.session && ctx.session.user) {
-    const creator = await ctx.db.creator.findUnique({
-      where: { id: ctx.session.user.id },
-    });
+  const admin = await ctx.db.admin.findUnique({
+    where: { id: ctx.session.user.id },
+  });
 
-    const admin = await ctx.db.admin.findUnique({
-      where: { id: ctx.session.user.id },
+  if (admin) {
+    return next({
+      ctx: {
+        // infers the `session` as non-nullable
+        session: { ...ctx.session, user: ctx.session.user },
+      },
     });
+  }
 
-    if (!creator && !admin) throw new TRPCError({ code: "UNAUTHORIZED" });
+  const creator = await ctx.db.creator.findUnique({
+    where: { id: ctx.session.user.id },
+  });
+
+  if (!creator || !creator.aprovalSend || creator.approved !== true) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Creator access requires an approved brand account",
+    });
   }
 
   return next({

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Send } from "lucide-react";
-import { SubmitHandler, useForm } from "react-hook-form";
-import { z } from "zod";
+import { Send, Loader2 } from "lucide-react";
+import { type SubmitHandler, useForm } from "react-hook-form";
+import { type z } from "zod";
 import { api } from "~/utils/api";
 import { BountyCommentSchema } from "../comment/Add-Bounty-Comment";
 import { Button } from "../shadcn/ui/button";
@@ -45,15 +45,15 @@ export function AddBountyReplyComment({
           <div className="flex w-full  items-center gap-2">
             <Textarea
               {...register("content")}
-              className="w-full  border  shadow-sm shadow-slate-300"
+              className="w-full  border  shadow-xs shadow-slate-300"
             />
             <Button
-              disabled={ReplyMutation.isLoading || !contentValue?.trim()}
-              className="flex items-center gap-1 shadow-sm shadow-black"
+              disabled={ReplyMutation.isPending || !contentValue?.trim()}
+              className="flex items-center gap-1 shadow-xs shadow-black"
               type="submit"
             >
-              {ReplyMutation.isLoading && (
-                <span className="loading loading-spinner" />
+              {ReplyMutation.isPending && (
+                <Loader2 className="size-4 animate-spin" />
               )}
               <Send size={14} /> Reply
             </Button>

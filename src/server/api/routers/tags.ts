@@ -130,7 +130,7 @@ Return ONLY a valid JSON array of 7 strings.`,
 
             let tags: string[] = []
             try {
-                const match = textContent.match(/\[[\s\S]*?\]/)
+                const match = /\[[\s\S]*?\]/.exec(textContent)
                 if (match) {
                     tags = (JSON.parse(match[0]) as unknown[])
                         .map((t) => String(t).toLowerCase().trim())

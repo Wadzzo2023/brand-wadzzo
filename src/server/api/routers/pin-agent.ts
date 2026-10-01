@@ -433,7 +433,7 @@ Return ONLY the enhanced description, nothing else.`,
 
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 const data = await response.json()
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 const enhancedDescription = data.choices[0]?.message?.content as string
 
                 if (!enhancedDescription) {
@@ -475,7 +475,7 @@ Return ONLY the enhanced description, nothing else.`,
             // Add user message with pin data context
             const messages = [
                 ...conversationHistory.map((msg) => ({
-                    role: msg.role as "user" | "assistant",
+                    role: msg.role,
                     content: msg.content,
                 })),
                 {

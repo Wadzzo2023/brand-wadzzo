@@ -161,7 +161,7 @@ async function main() {
     const going = Math.min(wanted, users.length);
     const capacity = ev.capacity
       ? wanted > users.length
-        ? Math.max(going, Math.round(going / (ev.fill || 1)))
+        ? Math.max(going, Math.round(going / Math.max(ev.fill ?? 1, 0.01)))
         : ev.capacity
       : null;
 

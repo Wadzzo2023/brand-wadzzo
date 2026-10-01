@@ -159,7 +159,7 @@ export default function SellPageAssetList() {
                                         <CardTitle className="text-xl font-semibold">{asset.title}</CardTitle>
                                         <Badge
                                             variant={asset.isSold ? "secondary" : "default"}
-                                            className={asset.isSold ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}
+                                            className={asset.isSold ? "bg-success/10 text-success" : "bg-info/10 text-info"}
                                         >
                                             {asset.isSold ? (
                                                 <>
@@ -202,7 +202,7 @@ export default function SellPageAssetList() {
                                                     <AlertDialogTrigger asChild>
                                                         <DropdownMenuItem
                                                             onSelect={(e) => e.preventDefault()}
-                                                            className="text-red-600 focus:text-red-600"
+                                                            className="text-destructive focus:text-destructive"
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Delete Asset
@@ -219,7 +219,7 @@ export default function SellPageAssetList() {
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 onClick={() => handleDelete(asset.id)}
-                                                                className="bg-red-600 hover:bg-red-700"
+                                                                className="bg-destructive hover:bg-destructive"
                                                             >
                                                                 Delete
                                                             </AlertDialogAction>
@@ -291,7 +291,7 @@ export default function SellPageAssetList() {
                                     <h2 className="text-2xl font-bold mb-2">{selectedAsset.title}</h2>
                                     <Badge
                                         variant={selectedAsset.isSold ? "secondary" : "default"}
-                                        className={`${selectedAsset.isSold ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"} px-3 py-1`}
+                                        className={`${selectedAsset.isSold ? "bg-success/10 text-success" : "bg-info/10 text-info"} px-3 py-1`}
                                     >
                                         {selectedAsset.isSold ? (
                                             <>
@@ -324,7 +324,7 @@ export default function SellPageAssetList() {
                                     <Card>
                                         <CardContent className="p-4">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Package className="h-5 w-5 text-blue-600" />
+                                                <Package className="h-5 w-5 text-info" />
                                                 <span className="font-medium">Amount</span>
                                             </div>
                                             <p className="text-2xl font-bold">{selectedAsset.amountToSell.toLocaleString()}</p>
@@ -375,11 +375,11 @@ export default function SellPageAssetList() {
                                         </div>
                                     </div>
                                     {selectedAsset.isSold && selectedAsset.soldAt && (
-                                        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                        <div className="flex items-center gap-3 p-3 bg-success/10 rounded-lg">
+                                            <CheckCircle2 className="h-5 w-5 text-success" />
                                             <div>
-                                                <p className="font-medium text-green-800">Sold</p>
-                                                <p className="text-sm text-green-600">{formatDate(selectedAsset.soldAt)}</p>
+                                                <p className="font-medium text-success">Sold</p>
+                                                <p className="text-sm text-success">{formatDate(selectedAsset.soldAt)}</p>
                                             </div>
                                         </div>
                                     )}

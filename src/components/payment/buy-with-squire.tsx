@@ -58,9 +58,11 @@ export default function BuyWithSquire({
                         // console.log("token:", token);
                         // console.log("verifiedBuyer:", verifiedBuyer);
 
-                        if (token.token) {
+                        // Only a successful tokenize result carries a token.
+                        const sourceId = "token" in token ? token.token : undefined;
+                        if (sourceId) {
                             paymentMutation.mutate({
-                                sourceId: token.token,
+                                sourceId,
                                 assetId: marketId,
                             });
                         } else {

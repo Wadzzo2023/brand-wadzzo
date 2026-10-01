@@ -20,6 +20,9 @@ import { AccountSchema } from "~/lib/stellar/fan/utils";
 import {
   createOrRenewVanitySubscription,
   getVanitySubscriptionXDR,
+  vanityPrice,
+  vanityState,
+  verifyVanityPayment,
 } from "~/lib/stellar/fan/vanity-url";
 import { getAssetBalance } from "~/lib/stellar/marketplace/test/acc";
 import { StellarAccount } from "~/lib/stellar/marketplace/test/Account";
@@ -27,6 +30,7 @@ import { SignUser } from "~/lib/stellar/utils";
 import { BLANK_KEYWORD } from "~/lib/utils";
 import { createCircularImage } from "~/server/circular-image";
 import {
+  adminProcedure,
   createTRPCRouter,
   creatorProcedure,
   protectedProcedure,
@@ -36,8 +40,15 @@ import { BADWORDS } from "~/utils/banned-word";
 import { truncateString } from "~/utils/string";
 import { PaymentMethodEnum } from "../bounty/bounty";
 import axios from "axios";
-import { RequestBrandCreateFormSchema } from "~/pages/create";
+import { TRPCError } from "@trpc/server";
+import { RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
 import { creatorExtraFiledsSchema } from "~/types/creator";
+/** A vanity URL is free to claim if nobody else has it. */
+async function assertVanityFree(db: typeof import("~/server/db").db, vanityURL: string, creatorId: string) {
+  const taken = await db.creator.findUnique({ where: { vanityURL }, select: { id: true } });
+  if (taken && taken.id !== creatorId) throw new Error("That URL is taken. Try another.");
+}
+
 export const brandCreateRequestSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   bio: z.string().max(500, "Bio must be 500 characters or less"),
@@ -124,7 +135,7 @@ export const creatorRouter = createTRPCRouter({
         throw new Error("Creator not found");
       }
       const feature = await ctx.db.subscription.delete({
-        where: { id: input.id },
+        where: { id: input.id, creatorId: creator.id },
       });
       return feature;
     }),
@@ -254,6 +265,83 @@ export const creatorRouter = createTRPCRouter({
       },
     });
   }),
+  /** Everything the brand profile page header needs, in one call (no secrets). */
+  profileOverview: protectedProcedure.query(async ({ ctx }) => {
+    const id = ctx.session.user.id;
+    const creator = await ctx.db.creator.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        bio: true,
+        profileUrl: true,
+        coverUrl: true,
+        vanityURL: true,
+        joinedAt: true,
+        approved: true,
+        customPageAssetCodeIssuer: true,
+        vanitySubscription: true,
+        pageAsset: { select: { code: true, issuer: true, thumbnail: true, price: true, priceUSD: true } },
+        _count: { select: { followers: true, posts: true, Bounty: true } },
+      },
+    });
+    if (!creator) return null;
+
+    const [pins, hotspots, storeItems, recentPins] = await Promise.all([
+      ctx.db.locationGroup.count({ where: { creatorId: id, hotspotId: null } }),
+      ctx.db.hotspot.count({ where: { creatorId: id, hidden: false } }),
+      ctx.db.marketAsset.count({ where: { asset: { creatorId: id, song: null } } }),
+      ctx.db.locationGroup.findMany({
+        where: { creatorId: id, hotspotId: null },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          title: true,
+          image: true,
+          type: true,
+          startDate: true,
+          endDate: true,
+          approved: true,
+          locations: { select: { id: true }, take: 1 },
+          _count: { select: { locations: true } },
+        },
+      }),
+    ]);
+
+    const custom = creator.customPageAssetCodeIssuer?.split("-");
+    const pageAsset = creator.pageAsset
+      ? {
+          code: creator.pageAsset.code,
+          issuer: creator.pageAsset.issuer,
+          thumbnail: creator.pageAsset.thumbnail,
+          custom: false,
+          // Created but not issued on Stellar yet (an admin issues it).
+          pending: creator.pageAsset.issuer === BLANK_KEYWORD,
+          price: creator.pageAsset.price,
+          priceUSD: creator.pageAsset.priceUSD,
+        }
+      : custom?.[0] && custom[1]
+        ? {
+            code: custom[0],
+            issuer: custom[1],
+            thumbnail: null,
+            custom: true,
+            pending: false,
+            price: custom[2] ? Number(custom[2]) : null,
+            priceUSD: custom[3] ? Number(custom[3]) : null,
+          }
+        : null;
+
+    const { customPageAssetCodeIssuer: _c, _count, ...rest } = creator;
+    return {
+      ...rest,
+      pageAsset,
+      counts: { followers: _count.followers, posts: _count.posts, bounties: _count.Bounty, pins, hotspots, storeItems },
+      recentPins,
+    };
+  }),
+
   vanitySubscription: protectedProcedure.query(async ({ ctx }) => {
     const creator = ctx.db.creator.findFirst({
       where: { user: { id: ctx.session.user.id } },
@@ -322,11 +410,13 @@ export const creatorRouter = createTRPCRouter({
         nextCursor,
       };
     }),
-  getCreators: protectedProcedure.query(async ({ input, ctx }) => {
-    const items = await ctx.db.creator.findMany({
+  // Admin brand pickers. Never return whole rows: Creator holds storageSecret.
+  getCreators: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db.creator.findMany({
       where: { approved: { equals: true } },
+      select: { id: true, name: true, profileUrl: true },
+      orderBy: { name: "asc" },
     });
-    return items;
   }),
 
   // getLatest: protectedProcedure.query(({ ctx }) => {
@@ -471,7 +561,7 @@ export const creatorRouter = createTRPCRouter({
           } else {
             throw new Error("Invalid asset code or issuer");
           }
-        } else throw new Error("creator has no page asset");
+        } else return null; // no page asset yet — a normal state, not an error
       }
     },
   ),
@@ -662,37 +752,14 @@ export const creatorRouter = createTRPCRouter({
 
   // Vanity URL Section
 
+  // Step 1: the payment to sign. The price comes from the server.
   updateVanityURL: protectedProcedure
     .input(
       z.object({
         vanityURL: z.string().min(2).max(30).optional().nullable(),
-        isChanging: z.boolean(),
+        isChanging: z.boolean().optional(),
         signWith: SignUser,
-        cost: z.number(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const creator = await ctx.db.creator.findUnique({
-        where: { id: userId },
-      });
-
-      if (!creator) {
-        throw new Error("Creator not found");
-      }
-      return getVanitySubscriptionXDR({
-        amount: input.cost,
-        signWith: input.signWith,
-        userPubKey: userId,
-      });
-    }),
-
-  createOrUpdateVanityURL: protectedProcedure
-    .input(
-      z.object({
-        vanityURL: z.string().min(2).max(30),
-        isChanging: z.boolean(),
-        amount: z.number(),
+        cost: z.number().optional(), // ignored; kept so older clients still validate
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -705,12 +772,51 @@ export const creatorRouter = createTRPCRouter({
       if (!creator) {
         throw new Error("Creator not found");
       }
+      const state = vanityState(creator.vanitySubscription);
+      if (state !== "expired" && input.vanityURL) await assertVanityFree(ctx.db, input.vanityURL, userId);
+      return getVanitySubscriptionXDR({
+        amount: vanityPrice(state),
+        signWith: input.signWith,
+        userPubKey: userId,
+      });
+    }),
+
+  // Step 2: after paying, save the URL — only once the payment is on the network.
+  createOrUpdateVanityURL: protectedProcedure
+    .input(
+      z.object({
+        vanityURL: z.string().min(2).max(30),
+        txHash: z.string().regex(/^[0-9a-f]{64}$/i, "Invalid transaction"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const creator = await ctx.db.creator.findUnique({
+        where: { id: userId },
+        include: { vanitySubscription: true },
+      });
+
+      if (!creator) {
+        throw new Error("Creator not found");
+      }
+      const state = vanityState(creator.vanitySubscription);
+      const amount = vanityPrice(state);
+      // Renewing keeps the current URL; setting or changing claims a new one.
+      const vanityURL = state === "expired" && creator.vanityURL ? creator.vanityURL : input.vanityURL;
+      if (state !== "expired") await assertVanityFree(ctx.db, vanityURL, userId);
+
+      await verifyVanityPayment({
+        txHash: input.txHash.toLowerCase(),
+        creatorId: userId,
+        amount,
+        after: creator.vanitySubscription?.lastPaymentDate,
+      });
 
       return createOrRenewVanitySubscription({
         creatorId: userId,
-        isChanging: input.isChanging,
-        amount: input.amount,
-        vanityURL: input.vanityURL,
+        isChanging: state === "active",
+        amount,
+        vanityURL,
       });
     }),
 
@@ -764,6 +870,57 @@ export const creatorRouter = createTRPCRouter({
         platformAssetInUSD: platformAssetUSD,
       };
     }),
+  /**
+   * Give an existing brand a page asset from Settings. A new asset waits for an
+   * admin to issue it (same step as brand approval); an existing Stellar asset
+   * is connected once we've confirmed it exists.
+   */
+  setupPageAsset: protectedProcedure
+    .input(
+      z.discriminatedUnion("type", [
+        z.object({
+          type: z.literal("new"),
+          code: z.string().regex(/^[A-Za-z0-9]{4,12}$/, "4–12 letters or numbers"),
+          thumbnail: z.string().url().optional(),
+        }),
+        z.object({
+          type: z.literal("custom"),
+          code: z.string().regex(/^[A-Za-z0-9]{1,12}$/, "Up to 12 letters or numbers"),
+          issuer: z.string().regex(/^G[A-Z2-7]{55}$/, "That isn't a Stellar account address"),
+        }),
+      ]),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorId = ctx.session.user.id;
+      const creator = await ctx.db.creator.findUnique({
+        where: { id: creatorId },
+        select: { customPageAssetCodeIssuer: true, pageAsset: { select: { code: true } } },
+      });
+      if (!creator) throw new TRPCError({ code: "NOT_FOUND", message: "Set up your brand first" });
+      if (creator.pageAsset ?? creator.customPageAssetCodeIssuer)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Your brand already has a page asset" });
+
+      if (input.type === "new") {
+        await ctx.db.creatorPageAsset.create({
+          data: { creatorId, code: input.code, issuer: BLANK_KEYWORD, thumbnail: input.thumbnail, limit: 0 },
+        });
+        return { status: "pending" as const };
+      }
+
+      const network = process.env.NEXT_PUBLIC_STELLAR_PUBNET === "true" ? "public" : "testnet";
+      const exists = await axios
+        .get(`https://api.stellar.expert/explorer/${network}/asset/${input.code}-${input.issuer}`)
+        .then((r) => r.status === 200)
+        .catch(() => false);
+      if (!exists) throw new TRPCError({ code: "BAD_REQUEST", message: `We couldn't find ${input.code} from that issuer on Stellar` });
+
+      await ctx.db.creator.update({
+        where: { id: creatorId },
+        data: { customPageAssetCodeIssuer: `${input.code}-${input.issuer}` },
+      });
+      return { status: "connected" as const };
+    }),
+
   updatePageAssetPrice: protectedProcedure
     .input(
       z.object({

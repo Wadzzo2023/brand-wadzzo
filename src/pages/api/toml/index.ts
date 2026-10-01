@@ -1,8 +1,8 @@
+import { applyCors } from "~/server/api-cors";
 // nextjs 14 api routes
 
 import { Asset } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-import NextCors from "nextjs-cors";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 import { db } from "~/server/db";
 import { ipfsHashToUrl } from "~/utils/ipfs";
@@ -11,12 +11,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await NextCors(req, res, {
-    // Options
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
-    origin: "*",
-    optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
-  });
+  if (await applyCors(req, res, { origin: "*" })) return;
 
   let FullTomlContent = defaultTomlString;
 

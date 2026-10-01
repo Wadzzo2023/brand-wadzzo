@@ -59,7 +59,8 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     const [duration, setDuration] = useState(0)
     const [isMuted, setIsMuted] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
-    const [showControls, setShowControls] = useState(true)
+    // Controls hide 3s after playback starts unless paused or hovered (in fullscreen, moving the mouse shows them again).
+    const [timerHidden, setTimerHidden] = useState(false)
     const [volume, setVolume] = useState(1)
     const [isVolumeSliderVisible, setIsVolumeSliderVisible] = useState(false)
     const [isHovering, setIsHovering] = useState(false)
@@ -74,12 +75,14 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     // Get current media item
     const currentMedia = media[currentIndex]
 
-    // Reset playback state when changing media
-    useEffect(() => {
+    // Reset playback state when changing media (adjusted during render, no extra pass)
+    const [shownIndex, setShownIndex] = useState(currentIndex)
+    if (shownIndex !== currentIndex) {
+        setShownIndex(currentIndex)
         setIsPlaying(false)
         setProgress(0)
         setDuration(0)
-    }, [currentIndex])
+    }
 
     // Handle media element initialization and cleanup
     useEffect(() => {
@@ -166,7 +169,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
         const handleFullscreenChange = () => {
             const isInFullscreen = !!document.fullscreenElement
             setIsFullscreen(isInFullscreen)
-            setShowControls(true)
+            setTimerHidden(false)
 
             if (controlsTimeoutRef.current) {
                 clearTimeout(controlsTimeoutRef.current)
@@ -181,34 +184,18 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     }, [])
 
     // Auto-hide controls - but keep them visible in fullscreen mode
+    const controlsKey = `${isPlaying}-${isHovering}-${isFullscreen}`
+    const [shownControlsKey, setShownControlsKey] = useState(controlsKey)
+    if (shownControlsKey !== controlsKey) {
+        setShownControlsKey(controlsKey)
+        setTimerHidden(false) // any change brings the controls back
+    }
+    const showControls = !isPlaying || (isHovering && !isFullscreen) || !timerHidden
     useEffect(() => {
-        if (isFullscreen) {
-            setShowControls(true)
-            return
-        }
-
-        if (!isHovering && !isPlaying) return
-
-        const showControlsTemporarily = () => {
-            setShowControls(true)
-
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current)
-            }
-
-            if (isPlaying && !isHovering && !isFullscreen) {
-                controlsTimeoutRef.current = setTimeout(() => {
-                    setShowControls(false)
-                }, 3000)
-            }
-        }
-
-        showControlsTemporarily()
-
+        if (!isPlaying || (isHovering && !isFullscreen)) return
+        controlsTimeoutRef.current = setTimeout(() => setTimerHidden(true), 3000)
         return () => {
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current)
-            }
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
         }
     }, [isPlaying, isHovering, isFullscreen])
 
@@ -276,7 +263,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                 try {
                     void playerRef.current.requestFullscreen()
                     setIsFullscreen(true)
-                    setShowControls(true)
+                    setTimerHidden(false)
                 } catch (err) {
                     console.error(`Error attempting to enable fullscreen: ${err instanceof Error ? err.message : String(err)}`)
                 }
@@ -305,7 +292,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
 
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement | HTMLAudioElement>) => {
         const mediaElement = e.currentTarget
-        if (mediaElement && mediaElement.duration) {
+        if (mediaElement?.duration) {
             const newProgress = (mediaElement.currentTime / mediaElement.duration) * 100
             setProgress(newProgress)
         }
@@ -403,13 +390,13 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     const getMediaTypeIcon = (type: MediaType) => {
         switch (type) {
             case "IMAGE":
-                return <ImageIcon className="h-5 w-5 text-gray-500" />
+                return <ImageIcon className="h-5 w-5 text-muted-foreground" />
             case "VIDEO":
-                return <Film className="h-5 w-5 text-gray-500" />
+                return <Film className="h-5 w-5 text-muted-foreground" />
             case "MUSIC":
-                return <Music className="h-5 w-5 text-gray-500" />
+                return <Music className="h-5 w-5 text-muted-foreground" />
             default:
-                return <ImageIcon className="h-5 w-5 text-gray-500" />
+                return <ImageIcon className="h-5 w-5 text-muted-foreground" />
         }
     }
 
@@ -454,7 +441,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
     // Show controls when mouse moves in fullscreen
     const handleMouseMove = () => {
         if (isFullscreen) {
-            setShowControls(true)
+            setTimerHidden(false)
 
             if (controlsTimeoutRef.current) {
                 clearTimeout(controlsTimeoutRef.current)
@@ -463,7 +450,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
             // Only auto-hide controls if playing
             if (isPlaying) {
                 controlsTimeoutRef.current = setTimeout(() => {
-                    setShowControls(false)
+                    setTimerHidden(true)
                 }, 3000)
             }
         }
@@ -474,18 +461,18 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
 
     return (
         <div
-            className={cn("w-full h-full flex flex-col bg-gray-100 relative", isFullscreen && "fixed inset-0 z-50 bg-black")}
+            className={cn("w-full h-full flex flex-col bg-muted relative", isFullscreen && "fixed inset-0 z-50 bg-black")}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
             onMouseMove={handleMouseMove}
             ref={playerRef}
         >
             {/* Main media container */}
-            <div className="relative flex-1 bg-gray-100 ">
+            <div className="relative flex-1 bg-muted ">
                 {/* Close button for fullscreen */}
                 {isFullscreen && onClose && (
                     <button
-                        className="absolute top-4 right-4 z-20 text-white bg-gray-800/70 hover:bg-gray-800 rounded-full h-10 w-10 flex items-center justify-center"
+                        className="absolute top-4 right-4 z-20 text-white bg-black/70 hover:bg-black rounded-full h-10 w-10 flex items-center justify-center"
                         onClick={onClose}
                     >
                         <X className="h-5 w-5" />
@@ -494,18 +481,18 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
 
                 {/* Position indicator */}
                 {media.length > 1 && (
-                    <div className="absolute top-4 left-4 z-10 bg-gray-800/70 text-white text-xs px-2 py-1 rounded">
+                    <div className="absolute top-4 left-4 z-10 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         {currentIndex + 1} / {media.length}
                     </div>
                 )}
 
                 {/* Media content */}
-                <div className={`relative w-full bg-gray-100 ${isFullscreen ? "h-full" : fullHeight ? "h-[90vh]" : "h-[50vh]"}`}>
+                <div className={`relative w-full bg-muted ${isFullscreen ? "h-full" : fullHeight ? "h-[90vh]" : "h-[50vh]"}`}>
                     {/* Navigation arrows - always visible in fullscreen, only on hover in normal mode */}
-                    {media.length > 1 && (showControls ?? isFullscreen) && (
+                    {media.length > 1 && (showControls || isFullscreen) && (
                         <>
                             <button
-                                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 text-white bg-gray-800/50 hover:bg-gray-800/70 rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center"
+                                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 text-white bg-black/50 hover:bg-black/70 rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center"
                                 onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
@@ -515,7 +502,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                 <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                             </button>
                             <button
-                                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 text-white bg-gray-800/50 hover:bg-gray-800/70 rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center"
+                                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 text-white bg-black/50 hover:bg-black/70 rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center"
                                 onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
@@ -575,25 +562,24 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                     )}
 
                                     {currentMedia.type === "MUSIC" && (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-200 to-gray-100 p-4">
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-gray-200 to-gray-100 p-4">
                                             <div className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 mb-4">
                                                 <motion.div
                                                     animate={{ rotate: isPlaying ? 360 : 0 }}
                                                     transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                                                    className="w-full h-full rounded-full overflow-hidden border-4 border-gray-300"
+                                                    className="w-full h-full rounded-full overflow-hidden border-4 border-border"
                                                 >
                                                     <img
                                                         src={currentMedia.thumbnail ?? "/images/logo.png"}
                                                         alt={currentMedia.title ?? "Album Art"}
-                                                        fill
-                                                        className="object-cover"
+                                                        className="absolute inset-0 size-full object-cover"
                                                         sizes="(max-width: 768px) 96px, 192px"
                                                     />
                                                 </motion.div>
                                             </div>
                                             <div className="text-center">
                                                 <h3 className="text-lg sm:text-xl font-bold mb-1">{currentMedia.title ?? "Unknown Track"}</h3>
-                                                <p className="text-sm sm:text-base text-gray-600">{currentMedia.artist ?? "Unknown Artist"}</p>
+                                                <p className="text-sm sm:text-base text-muted-foreground">{currentMedia.artist ?? "Unknown Artist"}</p>
                                             </div>
                                             <audio
                                                 ref={audioRef}
@@ -618,7 +604,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
-                                className="bg-gray-800/70 hover:bg-gray-800/90 text-white rounded-full h-12 w-12 sm:h-16 sm:w-16 flex items-center justify-center"
+                                className="bg-black/70 hover:bg-black/90 text-white rounded-full h-12 w-12 sm:h-16 sm:w-16 flex items-center justify-center"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     togglePlay()
@@ -642,7 +628,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                 exit={{ opacity: 0, y: 20 }}
                                 transition={{ duration: 0.2 }}
                                 className={cn(
-                                    "bg-gray-900/90 text-white z-20",
+                                    "bg-black/90 text-white z-20",
                                     isFullscreen ? "absolute bottom-0 left-0 right-0 p-4" : "absolute bottom-0 left-0 right-0 p-4",
                                 )}
                                 onClick={(e) => e.stopPropagation()}
@@ -650,14 +636,14 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                 {/* Progress bar */}
                                 {(currentMedia?.type === "VIDEO" || currentMedia?.type === "MUSIC") && (
                                     <div
-                                        className="w-full h-1 bg-gray-700 mb-3 cursor-pointer"
+                                        className="w-full h-1 bg-black mb-3 cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             handleProgressBarClick(e)
                                         }}
                                         ref={progressBarRef}
                                     >
-                                        <div className="h-full bg-red-500" style={{ width: `${progress}%` }} />
+                                        <div className="h-full bg-destructive" style={{ width: `${progress}%` }} />
                                     </div>
                                 )}
 
@@ -739,7 +725,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                                 {isVolumeSliderVisible && (
                                                     <div
                                                         className={cn(
-                                                            "absolute p-2 bg-gray-800 rounded shadow-lg z-50",
+                                                            "absolute p-2 bg-black rounded shadow-lg z-50",
                                                             isFullscreen ? "right-0 top-0 -translate-y-full" : "bottom-full right-0 mb-2",
                                                         )}
                                                         onMouseEnter={() => setIsVolumeSliderVisible(true)}
@@ -785,14 +771,14 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
 
             {/* Thumbnails row - only in normal mode */}
             {!isFullscreen && media.length > 1 && (
-                <div className="flex flex-col  absolute h-full gap-2 overflow-x-auto bg-gray-200 p-2 z-10 items-center justify-start">
+                <div className="flex flex-col  absolute h-full gap-2 overflow-x-auto bg-muted p-2 z-10 items-center justify-start">
                     {media.map((item, index) => (
-                        <div key={item.id} className="flex-shrink-0  ">
+                        <div key={item.id} className="shrink-0  ">
                             <button
                                 onClick={() => setCurrentIndex(index)}
                                 className={cn(
-                                    "w-[60px] h-[60px] flex items-center justify-center border-2 rounded overflow-hidden bg-gray-300",
-                                    index === currentIndex ? "border-red-500" : "border-transparent",
+                                    "w-[60px] h-[60px] flex items-center justify-center border-2 rounded overflow-hidden bg-muted",
+                                    index === currentIndex ? "border-destructive" : "border-transparent",
                                 )}
                             >
                                 {item.type === "IMAGE" ? (

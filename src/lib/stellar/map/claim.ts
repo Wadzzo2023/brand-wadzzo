@@ -5,8 +5,8 @@ import {
   Operation,
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
-import { MyAssetType } from "../fan/utils";
-import { SignUserType, WithSing } from "../utils";
+import { type MyAssetType } from "../fan/utils";
+import { type SignUserType, WithSing } from "../utils";
 import { networkPassphrase, PLATFORM_ASSET, STELLAR_URL, TrxBaseFee } from "../constant";
 import { env } from "~/env";
 

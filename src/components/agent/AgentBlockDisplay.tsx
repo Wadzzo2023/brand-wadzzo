@@ -83,8 +83,8 @@ function ModeBadge({ mode }: { mode?: AgentMode }) {
             className={cn(
                 "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mb-1",
                 mode === "management"
-                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+                    ? "bg-info/10 text-info border border-info/20"
+                    : "bg-success/10 text-success border border-success/20",
             )}
         >
             {mode === "management" ? "📋 Managing pins" : "🌍 Searching locations"}
@@ -117,7 +117,7 @@ function QuestionBlock({
                         key={f.id}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 border border-border/50 opacity-70"
                     >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
                         <span className="text-[12px] text-muted-foreground">{f.label}:</span>
                         <span className="text-[12px] font-semibold text-foreground truncate">
                             {answeredValues[f.id] ?? "—"}
@@ -175,7 +175,7 @@ function QuestionBlock({
                             onClick={() => handleChoice(current.id, opt)}
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left bg-muted border border-border text-foreground text-[13px] hover:bg-primary/10 hover:border-primary/40 transition-all duration-150 active:scale-[0.98]"
                         >
-                            <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground flex-shrink-0">
+                            <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground shrink-0">
                                 {idx + 1}
                             </span>
                             <span className="font-medium">{opt}</span>
@@ -185,7 +185,7 @@ function QuestionBlock({
                         onClick={() => setShowCustom((p) => ({ ...p, [current.id]: true }))}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left bg-transparent border border-dashed border-border text-muted-foreground text-[13px] hover:text-foreground hover:border-primary/50 transition-all"
                     >
-                        <span className="w-6 h-6 rounded-full border border-border flex items-center justify-center flex-shrink-0">
+                        <span className="w-6 h-6 rounded-full border border-border flex items-center justify-center shrink-0">
                             <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                                 <path d="M6 1v10M1 6h10" />
                             </svg>
@@ -203,12 +203,12 @@ function QuestionBlock({
                         onChange={(e) => setCustomValues((p) => ({ ...p, [current.id]: e.target.value }))}
                         onKeyDown={(e) => { if (e.key === "Enter") handleCustomSubmit(current.id); }}
                         placeholder={current.placeholder ?? "Type your answer…"}
-                        className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-foreground text-sm placeholder-muted-foreground border border-border focus:border-primary focus:outline-none transition-colors"
+                        className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-foreground text-sm placeholder-muted-foreground border border-border focus:border-primary focus:outline-hidden transition-colors"
                     />
                     <button
                         onClick={() => handleCustomSubmit(current.id)}
                         disabled={!customValues[current.id]?.trim()}
-                        className="px-3 py-2.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-bold transition-colors flex-shrink-0"
+                        className="px-3 py-2.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-bold transition-colors shrink-0"
                     >
                         →
                     </button>
@@ -224,23 +224,22 @@ function JobProgressBar({ jobId, onComplete }: {
     jobId: string;
     onComplete: (count: number) => void;
 }) {
-    const [done, setDone] = useState(false);
     const { data } = api.agent.jobStatus.useQuery(
         { jobId },
         {
-            enabled: !done,
-            refetchInterval: (d) => {
-                if (!d) return 1500;
-                const s = (d as { status?: string })?.status;
-                if (s === "completed" || s === "failed") return false;
-                return 1500;
+            // Query 5 passes the query here (not its data): stop once the job is finished.
+            refetchInterval: (query) => {
+                const s = query.state.data?.status;
+                return s === "completed" || s === "failed" ? false : 1500;
             },
         },
     );
+    // Tell the parent once, when the job finishes.
+    const reported = useRef(false);
     useEffect(() => {
-        if (!data) return;
+        if (reported.current || !data) return;
         if (data.status === "completed" || data.status === "failed") {
-            setDone(true);
+            reported.current = true;
             onComplete(data.completed ?? 0);
         }
     }, [data, onComplete]);
@@ -264,12 +263,12 @@ function JobProgressBar({ jobId, onComplete }: {
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
-                    className={cn("h-full rounded-full transition-all duration-500", isError ? "bg-red-500" : "bg-emerald-500")}
+                    className={cn("h-full rounded-full transition-all duration-500", isError ? "bg-destructive" : "bg-success")}
                     style={{ width: `${pct}%` }}
                 />
             </div>
             {isError && data?.error && (
-                <p className="text-[11px] text-red-400">{data.error}</p>
+                <p className="text-[11px] text-destructive">{data.error}</p>
             )}
             {(isDone || isError) && data?.log && data.log.length > 0 && (
                 <details className="mt-1">
@@ -279,12 +278,12 @@ function JobProgressBar({ jobId, onComplete }: {
                     <div className="mt-1.5 space-y-0.5 max-h-32 overflow-y-auto">
                         {data.log.map((entry, i) => (
                             <div key={i} className="flex items-center gap-1.5 text-[11px]">
-                                <span className={entry.status === "ok" ? "text-emerald-500" : "text-red-400"}>
+                                <span className={entry.status === "ok" ? "text-success" : "text-destructive"}>
                                     {entry.status === "ok" ? "✓" : "✗"}
                                 </span>
                                 <span className="text-foreground truncate">{entry.title}</span>
                                 {entry.error && (
-                                    <span className="text-red-400 truncate">— {entry.error}</span>
+                                    <span className="text-destructive truncate">— {entry.error}</span>
                                 )}
                             </div>
                         ))}
@@ -310,7 +309,12 @@ function ResultsConfirmPanel({
     const [pinNumber, setPinNumber] = useState(detectedPinNumber ?? 1);
     const [step, setStep] = useState(0);
 
-    useEffect(() => { setPinNumber(detectedPinNumber ?? 1); }, [detectedPinNumber]);
+    // A new detected number resets the choice (adjusted during render, no extra pass).
+    const [seenDetected, setSeenDetected] = useState(detectedPinNumber);
+    if (seenDetected !== detectedPinNumber) {
+        setSeenDetected(detectedPinNumber);
+        setPinNumber(detectedPinNumber ?? 1);
+    }
 
     const isLast = step === 1;
     const handleNext = () => {
@@ -398,7 +402,7 @@ function ResultsConfirmPanel({
                                             onClick={() => setPinNumber((n) => Math.max(1, n - 1))}
                                             disabled={pinNumber <= 1}
                                             className={cn(
-                                                "w-7 h-7 rounded-lg border flex items-center justify-center text-sm font-bold transition-all active:scale-95 flex-shrink-0",
+                                                "w-7 h-7 rounded-lg border flex items-center justify-center text-sm font-bold transition-all active:scale-95 shrink-0",
                                                 pinNumber <= 1
                                                     ? "border-border bg-muted/30 text-muted-foreground/40 cursor-not-allowed"
                                                     : "border-border bg-muted hover:bg-muted/80 text-foreground",
@@ -413,14 +417,14 @@ function ResultsConfirmPanel({
                                                 if (!isNaN(p)) setPinNumber(Math.min(200, Math.max(1, p)));
                                             }}
                                             className={cn(
-                                                "w-12 h-7 rounded-lg border text-center text-sm font-semibold bg-muted text-foreground tabular-nums focus:outline-none focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                                "w-12 h-7 rounded-lg border text-center text-sm font-semibold bg-muted text-foreground tabular-nums focus:outline-hidden focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                                                 pinNumber > 1 ? "border-primary/40" : "border-border",
                                             )}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setPinNumber((n) => Math.min(200, n + 1))}
-                                            className="w-7 h-7 rounded-lg border border-border bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center text-sm font-bold transition-all active:scale-95 flex-shrink-0"
+                                            className="w-7 h-7 rounded-lg border border-border bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center text-sm font-bold transition-all active:scale-95 shrink-0"
                                         >
                                             +
                                         </button>
@@ -432,7 +436,7 @@ function ResultsConfirmPanel({
                     }
                     {pinNumber > 1 && (
                         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 w-fit">
-                            <MapPin className="w-3 h-3 text-primary flex-shrink-0" />
+                            <MapPin className="w-3 h-3 text-primary shrink-0" />
                             <span className="text-[11px] font-semibold text-primary">
                                 {pinCount * pinNumber} total pins
                                 <span className="font-normal text-primary/70 ml-1">
@@ -500,15 +504,15 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                 <img
                     src={pin.image}
                     alt={pin.title}
-                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-muted"
+                    className="w-10 h-10 rounded-lg object-cover shrink-0 bg-muted"
                 />
             )}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5">
                     <span className={cn(
-                        "text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0",
+                        "text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0",
                         pin.type === "EVENT"
-                            ? "bg-amber-500/20 text-amber-400"
+                            ? "bg-warning/20 text-warning"
                             : "bg-primary/20 text-primary",
                     )}>
                         {pin.type ?? "LANDMARK"}
@@ -524,13 +528,13 @@ function PinCard({ pin, compact = false }: { pin: Pin; compact?: boolean }) {
                     </p>
                 )}
                 {pin.type === "EVENT" && pin.startDate && (
-                    <p className="text-amber-500/60 text-[11px] mt-0.5">
+                    <p className="text-warning/60 text-[11px] mt-0.5">
                         {formatDate(pin.startDate)}{pin.endDate ? ` → ${formatDate(pin.endDate)}` : ""}
                     </p>
                 )}
                 {!compact && (
                     <div className="flex items-center gap-1 mt-1">
-                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-muted-foreground flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M8 1.5C5.79 1.5 4 3.29 4 5.5c0 3.25 4 9 4 9s4-5.75 4-9c0-2.21-1.79-4-4-4z" />
                             <circle cx="8" cy="5.5" r="1.25" />
                         </svg>
@@ -572,9 +576,9 @@ function ResultsBlock({
             {jobId ? (
                 <JobProgressBar jobId={jobId} onComplete={onJobComplete} />
             ) : confirmed ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span className="text-xs text-emerald-400 font-semibold">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/25">
+                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                    <span className="text-xs text-success font-semibold">
                         Queued {count} pins for drop
                     </span>
                 </div>
@@ -625,7 +629,7 @@ function PinDropConfirmBlock({
                             <span className={cn(
                                 "text-[10px] px-2 py-0.5 rounded-full font-bold",
                                 value === "EVENT"
-                                    ? "bg-amber-500/15 text-amber-400"
+                                    ? "bg-warning/15 text-warning"
                                     : "bg-primary/15 text-primary",
                             )}>
                                 {value}
@@ -645,7 +649,7 @@ function PinDropConfirmBlock({
                 <button
                     onClick={() => onConfirm(pins)}
                     disabled={isDropping}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-success hover:bg-success disabled:opacity-60 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20"
                 >
                     {isDropping
                         ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Dropping…</>
@@ -678,10 +682,10 @@ function ManagementConfirmBlock({
         edit: "Edit", delete: "Hide", pause: "Pause", resume: "Resume",
     };
     const actionColor: Record<string, string> = {
-        edit: "bg-blue-500 hover:bg-blue-400 shadow-blue-500/20",
-        delete: "bg-red-500 hover:bg-red-400 shadow-red-500/20",
-        pause: "bg-amber-500 hover:bg-amber-400 shadow-amber-500/20",
-        resume: "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20",
+        edit: "bg-info hover:bg-info shadow-blue-500/20",
+        delete: "bg-destructive hover:bg-destructive shadow-red-500/20",
+        pause: "bg-warning hover:bg-warning shadow-amber-500/20",
+        resume: "bg-success hover:bg-success shadow-emerald-500/20",
     };
     return (
         <div className="space-y-3">
@@ -718,7 +722,7 @@ function ManagementConfirmBlock({
                 <div className="space-y-1">
                     {targets.map((t, i) => (
                         <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50">
-                            <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                            <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />
                             <span className="text-[12px] text-foreground truncate">{t}</span>
                         </div>
                     ))}
@@ -933,7 +937,7 @@ function MessageBubble({
     return (
         <div className={`flex ${isUser ? "justify-end" : "justify-start"} gap-2.5`}>
             {!isUser && (
-                <div className="w-8 h-8 rounded-full bg-primary-foreground border-2 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-primary/20">
+                <div className="w-8 h-8 rounded-full bg-primary-foreground border-2 flex items-center justify-center shrink-0 mt-1 shadow-lg shadow-primary/20">
                     <Image src="/favicon.ico" alt="Agent" width={32} height={32} className="rounded-full" />
                 </div>
             )}
@@ -985,7 +989,7 @@ function MessageBubble({
             </div>
 
             {isUser && (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-bold flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-bold shrink-0 mt-1">
                     U
                 </div>
             )}
@@ -1030,7 +1034,7 @@ export interface AgentBlockDisplayProps {
     onListConfirm: (msgId: string, selectedIds: string[]) => void;
     onListDismiss: () => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-    inputRef: React.RefObject<HTMLInputElement>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 // ─── AgentBlockDisplay ────────────────────────────────────────────────────────
@@ -1067,7 +1071,7 @@ export default function AgentBlockDisplay({
             {isMinimized && (
                 <button
                     onClick={() => { setIsMinimized(false); setIsOpen(true); }}
-                    className="fixed bottom-12 left-1/2 z-40 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
+                    className="fixed bottom-[calc(5rem+var(--safe-bottom))] right-4 z-40 rounded-full bg-primary px-5 py-2.5 font-hud text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 lg:bottom-6 lg:right-6"
                 >
                     Wadzzo Assistant
                 </button>
@@ -1075,7 +1079,7 @@ export default function AgentBlockDisplay({
 
             {/* ── Input bar ───────────────────────────────────────────────────────── */}
             {!isMinimized && (
-                <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-2xl -translate-x-1/2 px-4">
+                <div className="fixed bottom-[calc(4.5rem+var(--safe-bottom))] left-1/2 z-40 w-full max-w-2xl -translate-x-1/2 px-4 lg:bottom-6">
                     <style>{`
             @keyframes neon-glow {
               0%, 100% { box-shadow: 0 0 5px rgba(34,197,94,.3), 0 0 10px rgba(34,197,94,.2); }
@@ -1083,7 +1087,7 @@ export default function AgentBlockDisplay({
             }
             .neon-bar { animation: neon-glow 3s ease-in-out infinite; border: 2px solid rgba(34,197,94,.5); }
           `}</style>
-                    <div className="neon-bar flex items-center gap-2 rounded-full bg-white p-1 shadow-lg backdrop-blur-sm">
+                    <div className="neon-bar flex items-center gap-2 rounded-full bg-white p-1 shadow-lg backdrop-blur-xs">
                         <input
                             ref={inputRef}
                             type="text"
@@ -1093,12 +1097,12 @@ export default function AgentBlockDisplay({
                             placeholder="Ask me anything…"
 
                             disabled={isLoading || isDropping || isInteractionPending}
-                            className="flex-1 rounded-full bg-white px-5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+                            className="flex-1 rounded-full bg-white px-5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden disabled:opacity-50"
                         />
                         <button
                             onClick={() => onSendMessage(input)}
                             disabled={!input.trim() || isLoading || isInteractionPending}
-                            className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary px-4 py-3 text-primary-foreground transition-all hover:scale-105 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                            className="flex shrink-0 items-center justify-center rounded-full bg-primary px-4 py-3 text-primary-foreground transition-all hover:scale-105 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                         >
                             {isLoading
                                 ? <Loader2 className="h-5 w-5 animate-spin" />
@@ -1107,7 +1111,7 @@ export default function AgentBlockDisplay({
                         </button>
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary/80 px-4 py-3 text-primary-foreground transition-all hover:scale-105 active:scale-95"
+                            className="flex shrink-0 items-center justify-center rounded-full bg-primary/80 px-4 py-3 text-primary-foreground transition-all hover:scale-105 active:scale-95"
                         >
                             <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "" : "rotate-180"}`} />
                         </button>
@@ -1122,9 +1126,9 @@ export default function AgentBlockDisplay({
                     style={{ height: "calc(100vh - 15vh)", maxHeight: "85vh" }}
                 >
                     {/* Header */}
-                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-primary-foreground rounded-t-2xl">
+                    <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-primary-foreground rounded-t-2xl">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-primary-foreground flex items-center justify-center shadow-lg flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary-foreground flex items-center justify-center shadow-lg shrink-0">
                                 <Image src="/favicon.ico" alt="Wadzzo Icon" width={16} height={16} className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">

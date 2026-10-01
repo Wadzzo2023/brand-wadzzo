@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion"
 import { Send } from 'lucide-react'
-import { SubmitHandler, useForm } from "react-hook-form"
+import { type SubmitHandler, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
+import { type z } from "zod"
 import { api } from "~/utils/api"
 import { Button } from "~/components/shadcn/ui/button"
 import { Textarea } from "~/components/shadcn/ui/textarea"
@@ -59,11 +59,11 @@ export function AddReplyComment({
                     <Button
                         type="submit"
                         size="sm"
-                        variant="sidebarAccent"
-                        className="absolute right-2 bottom-2 h-8 w-8 p-0 shadow-sm shadow-foreground"
-                        disabled={commentMutation.isLoading || !contentValue?.trim()}
+                        variant="default"
+                        className="absolute right-2 bottom-2 h-8 w-8 p-0"
+                        disabled={commentMutation.isPending || !contentValue?.trim()}
                     >
-                        {commentMutation.isLoading ? (
+                        {commentMutation.isPending ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                         ) : (
                             <Send size={16} />

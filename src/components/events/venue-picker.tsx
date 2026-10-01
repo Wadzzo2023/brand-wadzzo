@@ -1,9 +1,13 @@
 "use client"
 
-import { APIProvider, Map, Marker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps"
-import { Loader2, MapPin, Search, X } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { X } from "lucide-react"
+import { useEffect, useRef } from "react"
+
+import { MapPicker } from "~/components/map-kit/map-picker"
+import { Button } from "~/components/shadcn/ui/button"
 import { Input } from "~/components/shadcn/ui/input"
+import { env } from "~/env"
+import { Field } from "~/ui/form-page"
 
 export interface Venue {
     venueName: string
@@ -12,148 +16,63 @@ export interface Venue {
     longitude: number | null
 }
 
-/**
- * Venue fields for an event: search a place (Google Places), or click the map
- * to drop the pin anywhere — the address is filled in by reverse geocoding
- * and stays editable, because "Hall B, 2nd floor" is never what Google says.
- */
-export function VenuePicker({ value, onChange }: { value: Venue; onChange: (v: Venue) => void }) {
-    return (
-        <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY!}>
-            <VenuePickerInner value={value} onChange={onChange} />
-        </APIProvider>
-    )
+/** Mapbox reverse geocoding: the best address for a point, if any. */
+async function addressAt(lat: number, lng: number) {
+    const url = new URL("https://api.mapbox.com/search/geocode/v6/reverse")
+    url.searchParams.set("latitude", String(lat))
+    url.searchParams.set("longitude", String(lng))
+    url.searchParams.set("limit", "1")
+    url.searchParams.set("access_token", env.NEXT_PUBLIC_MAPBOX_API)
+    const res = await fetch(url)
+    const data = (await res.json()) as { features?: { properties: { full_address?: string } }[] }
+    return data.features?.[0]?.properties.full_address
 }
 
-function VenuePickerInner({ value, onChange }: { value: Venue; onChange: (v: Venue) => void }) {
-    const places = useMapsLibrary("places")
-    const geocoding = useMapsLibrary("geocoding")
-    const inputRef = useRef<HTMLInputElement>(null)
-    const [resolving, setGeocoding] = useState(false)
+/**
+ * Venue fields for an event: search a place or click the map to drop the pin
+ * anywhere — the address is filled in by reverse geocoding and stays
+ * editable, because "Hall B, 2nd floor" is never what the geocoder says.
+ */
+export function VenuePicker({ value, onChange }: { value: Venue; onChange: (v: Venue) => void }) {
+    // Async geocoding answers must see the newest value, not the one from when they started.
     const latest = useRef(value)
-    latest.current = value
-
-    const hasPin = value.latitude != null && value.longitude != null
-    const pin = hasPin ? { lat: value.latitude!, lng: value.longitude! } : null
-
     useEffect(() => {
-        if (!places || !inputRef.current) return
-        const ac = new places.Autocomplete(inputRef.current, {
-            fields: ["geometry", "name", "formatted_address"],
-        })
-        const listener = ac.addListener("place_changed", () => {
-            const place = ac.getPlace()
-            const loc = place.geometry?.location
-            if (!loc) return
-            onChange({
-                venueName: place.name ?? latest.current.venueName,
-                address: place.formatted_address ?? "",
-                latitude: loc.lat(),
-                longitude: loc.lng(),
-            })
-            if (inputRef.current) inputRef.current.value = ""
-        })
-        return () => listener.remove()
-        // onChange is recreated by the parent each render; `latest` covers it.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [places])
-
-    const dropPin = (lat: number, lng: number) => {
-        onChange({ ...latest.current, latitude: lat, longitude: lng })
-        if (!geocoding) return
-        setGeocoding(true)
-        new geocoding.Geocoder()
-            .geocode({ location: { lat, lng } })
-            .then((res) => {
-                const addr = res.results[0]?.formatted_address
-                if (addr) onChange({ ...latest.current, latitude: lat, longitude: lng, address: addr })
-            })
-            .catch(() => undefined)
-            .finally(() => setGeocoding(false))
-    }
+        latest.current = value
+    }, [value])
+    const pin = value.latitude != null && value.longitude != null ? { lat: value.latitude, lng: value.longitude } : null
 
     return (
-        <div className="space-y-3">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                    ref={inputRef}
-                    placeholder="Search for a venue or address"
-                    className="pl-9"
-                    onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                />
-            </div>
-
-            <div className="relative h-[220px] overflow-hidden rounded-xl border">
-                <Map
-                    defaultCenter={pin ?? { lat: 39.5, lng: -98.35 }}
-                    defaultZoom={pin ? 15 : 3}
-                    gestureHandling="greedy"
-                    disableDefaultUI
-                    zoomControl
-                    clickableIcons={false}
-                    onClick={(e) => {
-                        const ll = e.detail.latLng
-                        if (ll) dropPin(ll.lat, ll.lng)
-                    }}
-                    className="h-full w-full"
-                >
-                    {pin && (
-                        <Marker
-                            position={pin}
-                            draggable
-                            onDragEnd={(e) => {
-                                const ll = e.latLng
-                                if (ll) dropPin(ll.lat(), ll.lng())
-                            }}
-                        />
-                    )}
-                    <FollowPin pin={pin} />
-                </Map>
-                <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-1.5 rounded-lg bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow">
-                    {resolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-                    {pin ? "Drag the pin or click to move it" : "Click the map to drop the venue pin"}
+        <div className="space-y-4">
+            <MapPicker
+                value={pin}
+                showInputs={false}
+                mapClassName="h-64"
+                onPlace={(p) => onChange({ ...latest.current, venueName: latest.current.venueName || p.name, address: p.address ? `${p.name}, ${p.address}` : p.name, latitude: p.lat, longitude: p.lng })}
+                onChange={({ lat, lng }) => {
+                    onChange({ ...latest.current, latitude: lat, longitude: lng })
+                    void addressAt(lat, lng)
+                        .then((addr) => {
+                            // Only fill it if the pin hasn't moved again meanwhile.
+                            if (addr && latest.current.latitude === lat && latest.current.longitude === lng) onChange({ ...latest.current, address: addr })
+                        })
+                        .catch(() => undefined)
+                }}
+            />
+            {pin && (
+                <div className="flex justify-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ ...value, latitude: null, longitude: null })}>
+                        <X /> Remove map pin
+                    </Button>
                 </div>
-                {pin && (
-                    <button
-                        type="button"
-                        onClick={() => onChange({ ...value, latitude: null, longitude: null })}
-                        className="absolute right-2 top-2 flex items-center gap-1 rounded-lg bg-background/90 px-2 py-1 text-xs font-medium shadow hover:bg-background"
-                    >
-                        <X className="h-3 w-3" /> Remove pin
-                    </button>
-                )}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                    placeholder="Venue name (e.g. Riverside Park)"
-                    value={value.venueName}
-                    maxLength={120}
-                    onChange={(e) => onChange({ ...value, venueName: e.target.value })}
-                />
-                <Input
-                    placeholder="Address"
-                    value={value.address}
-                    maxLength={300}
-                    onChange={(e) => onChange({ ...value, address: e.target.value })}
-                />
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Venue name" htmlFor="venue-name">
+                    <Input id="venue-name" value={value.venueName} maxLength={120} placeholder="The Warehouse" onChange={(e) => onChange({ ...value, venueName: e.target.value })} />
+                </Field>
+                <Field label="Address" htmlFor="venue-address">
+                    <Input id="venue-address" value={value.address} maxLength={300} placeholder="Street, city" onChange={(e) => onChange({ ...value, address: e.target.value })} />
+                </Field>
             </div>
         </div>
     )
-}
-
-/** Pans to the pin when it's set from search, without fighting manual pans. */
-function FollowPin({ pin }: { pin: { lat: number; lng: number } | null }) {
-    const map = useMap()
-    const key = pin ? `${pin.lat.toFixed(6)},${pin.lng.toFixed(6)}` : ""
-    const last = useRef("")
-    useEffect(() => {
-        if (!map || !pin || key === last.current) return
-        last.current = key
-        map.panTo(pin)
-        if ((map.getZoom() ?? 0) < 13) map.setZoom(15)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [map, key])
-    return null
 }

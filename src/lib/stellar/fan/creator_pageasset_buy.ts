@@ -1,6 +1,6 @@
 
 import { Asset, Horizon, Keypair, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
-import { SignUserType, WithSing } from "../utils";
+import { type SignUserType, WithSing } from "../utils";
 import { PLATFORM_ASSET, PLATFORM_FEE, STELLAR_URL, TrxBaseFee, TrxBaseFeeInPlatformAsset, networkPassphrase } from "../constant";
 import { env } from "~/env";
 

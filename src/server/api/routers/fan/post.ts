@@ -1,5 +1,8 @@
 import { MediaType, NotificationType } from "@prisma/client";
 import { z } from "zod";
+
+import { MediaInfo, PostSchema } from "~/types/post";
+export { MediaInfo, PostSchema };
 import { StellarAccount } from "~/lib/stellar/marketplace/test/Account";
 
 import {
@@ -7,17 +10,6 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-export const MediaInfo = z.object({
-  url: z.string(),
-  type: z.nativeEnum(MediaType),
-});
-export const PostSchema = z.object({
-  heading: z.string().min(1, { message: "Required" }),
-  content: z.string().min(2, { message: "Minimum 2 characters required." }),
-  subscription: z.string().optional(),
-  medias: z.array(MediaInfo).optional(),
-});
-
 export const CommentSchema = z.object({
   postId: z.number(),
   parentId: z.number().optional(),
@@ -40,9 +32,8 @@ export const postRouter = createTRPCRouter({
           heading: input.heading,
           content: input.content,
           creatorId: ctx.session.user.id,
-          subscriptionId: input.subscription
-            ? Number(input.subscription)
-            : null,
+          // "public" (or anything that isn't a tier id) means no tier.
+          subscriptionId: /^\d+$/.test(input.subscription ?? "") ? Number(input.subscription) : null,
           medias: input.medias
             ? {
               createMany: {
@@ -204,7 +195,7 @@ export const postRouter = createTRPCRouter({
               customPageAssetCodeIssuer: true,
             },
           },
-          subscription: { select: { price: true } },
+          subscription: { select: { price: true, name: true } },
           medias: true,
         },
       });
@@ -215,6 +206,8 @@ export const postRouter = createTRPCRouter({
 
 
       if (post) {
+        // The brand always sees its own posts.
+        if (post.creatorId === userId) return post;
         if (post.subscription) {
           let pageAssetCode: string | undefined;
           let pageAssetIssuer: string | undefined;

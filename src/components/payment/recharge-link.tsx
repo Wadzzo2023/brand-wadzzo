@@ -13,7 +13,7 @@ export default function RechargeLink() {
     if (isFBorGoogle)
         return (
             <Link className="  w-full" href={isFBorGoogle ? "/recharge" : "/"}>
-                <Button className="shadow-sm shadow-black  w-full">Recharge</Button>
+                <Button className="shadow-xs shadow-black  w-full">Recharge</Button>
             </Link>
         );
 }

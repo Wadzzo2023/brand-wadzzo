@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { EnableCors } from "~/server/api-cors";
 import { db } from "~/server/db";
-import { ConsumedLocation } from "~/types/game/location";
+import { type ConsumedLocation } from "~/types/game/location";
 import { avaterIconUrl } from "../brands";
 import { WadzzoCircularIconURL, WadzzoIconURL } from "./index";
 
@@ -12,7 +12,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await EnableCors(req, res);
+  if (await EnableCors(req, res)) return;
 
   const session = await getToken({ req });
 
@@ -106,7 +106,7 @@ export default async function handler(
       auto_collect: location.autoCollect,
       brand_image_url:
         location.locationGroup?.creator.profileUrl ?? avaterIconUrl,
-      circular_image_url: location.creator.circularProfileUrl ?? WadzzoCircularIconURL,
+      circular_image_url: location.locationGroup.creator.circularProfileUrl ?? WadzzoCircularIconURL,
       brand_id: location.locationGroup?.creator.id,
       modal_url: "https://vong.cong/",
       collected: true,

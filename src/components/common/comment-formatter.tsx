@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils"
 import { Button } from "../shadcn/ui/button"
-import { useState } from "react"
+import { useState, type ReactElement } from "react"
 
 interface CommentFormatterProps {
     content: string
@@ -22,7 +22,7 @@ function formatLinks(text: string) {
                     href={match}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-info hover:underline"
                 >
                     {match}
                 </a>
@@ -31,7 +31,7 @@ function formatLinks(text: string) {
             arr.push(part)
         }
         return arr
-    }, [] as (string | JSX.Element)[])
+    }, [] as (string | ReactElement)[])
 }
 
 
