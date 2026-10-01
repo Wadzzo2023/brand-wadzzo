@@ -85,24 +85,18 @@ export default function RedeemView() {
       </div>
       <CodeChecker />
       <Tabs value={tab} onValueChange={setTab}>
-        <div className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
-          <TabsList className="h-auto gap-0 rounded-none border-0 bg-transparent p-0">
-            {(
-              [
-                { id: "rewards", label: "Rewards", icon: Ticket },
-                { id: "history", label: "History", icon: Clock },
-              ] as const
-            ).map((t) => (
-              <TabsTrigger
-                key={t.id}
-                value={t.id}
-                className="relative rounded-none px-4 py-3 after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-              >
-                <t.icon /> {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <TabsList variant="line">
+          {(
+            [
+              { id: "rewards", label: "Rewards", icon: Ticket },
+              { id: "history", label: "History", icon: Clock },
+            ] as const
+          ).map((t) => (
+            <TabsTrigger key={t.id} value={t.id}>
+              <t.icon /> {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         <TabsContent value="rewards" className="mt-5">
           <RewardsTab />
         </TabsContent>

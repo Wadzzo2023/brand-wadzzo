@@ -62,9 +62,7 @@ export function EditAnnouncementPage({ id }: { id: string }) {
   const all = api.events.myAnnouncements.useQuery();
   if (all.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 pt-10 sm:px-6">
-        <FormSkeleton fields={4} />
-      </div>
+      <FormSkeleton sections={2} />
     );
   }
   const announcement = all.data?.find((a) => a.id === id);

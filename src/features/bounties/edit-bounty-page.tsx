@@ -27,9 +27,7 @@ export default function EditBountyPage({ id }: { id: number }) {
   const bounty = api.bounty.Bounty.getBountyByID.useQuery({ BountyId: id }, { enabled: Number.isFinite(id) });
   if (bounty.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 pt-10 sm:px-6">
-        <FormSkeleton fields={4} />
-      </div>
+      <FormSkeleton />
     );
   }
   if (!bounty.data)

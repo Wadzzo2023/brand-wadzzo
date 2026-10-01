@@ -12,7 +12,7 @@ import { Badge } from "~/components/shadcn/ui/badge";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Input } from "~/components/shadcn/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
+import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { usePortalAccess } from "~/components/shell/use-portal-access";
 import { htmlToText } from "~/ui/ai/shared";
@@ -191,23 +191,14 @@ function Profile({ data }: { data: Overview }) {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        {/* Profile-style tabs: underlined, full width, scroll sideways on phones. */}
-        <div className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
-          <TabsList className="h-auto gap-0 rounded-none border-0 bg-transparent p-0">
-            {visible.map((t) => (
-              <TabsTrigger
-                key={t.id}
-                value={t.id}
-                className="relative rounded-none px-4 py-3 after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-              >
-                <t.icon /> {t.label}
-                {t.count !== undefined && (
-                  <span className="rounded-full bg-muted px-1.5 py-px text-xs tabular-nums text-muted-foreground">{t.count}</span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <TabsList variant="line">
+          {visible.map((t) => (
+            <TabsTrigger key={t.id} value={t.id}>
+              <t.icon /> {t.label}
+              {t.count !== undefined && <TabCount n={t.count} />}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         <TabsContent value="pins" className="mt-5">
           <PinsTab pins={data.recentPins} total={data.counts.pins} />
         </TabsContent>

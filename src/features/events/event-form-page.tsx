@@ -91,9 +91,7 @@ export function EditEventPage({ id }: { id: string }) {
   const event = api.events.myEvent.useQuery({ id }, { retry: false });
   if (event.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 pt-10 sm:px-6">
-        <FormSkeleton fields={4} />
-      </div>
+      <FormSkeleton />
     );
   }
   if (!event.data)

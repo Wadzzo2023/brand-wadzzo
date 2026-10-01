@@ -40,9 +40,7 @@ export default function EditPinPage({ id }: { id: string }) {
   const { isAdmin } = usePortalAccess();
   if (pin.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 pt-10 sm:px-6">
-        <FormSkeleton fields={5} />
-      </div>
+      <FormSkeleton />
     );
   }
   if (!pin.data)
