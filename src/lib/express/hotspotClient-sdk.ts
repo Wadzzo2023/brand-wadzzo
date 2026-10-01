@@ -44,6 +44,16 @@ export interface HotspotActionResult {
     error?: string;
 }
 
+export interface UpdateHotspotInput {
+    hotspotStartDate?: string;
+    hotspotEndDate?: string;
+    dropEveryDays?: number;
+    pinDurationDays?: number;
+    autoCollect?: boolean;
+    multiPin?: boolean;
+    scope?: "future_drops" | "all_drops";
+}
+
 export interface CreateHotspotInput {
     title: string;
     description?: string;
@@ -124,6 +134,16 @@ export const hotspotClient = {
             body: JSON.stringify({ creatorId }),
         });
         return handleResponse<HotspotActionResult>(res);
+    },
+
+    /** Change schedule / collection settings; the task server reschedules if the timing changed. */
+    async update(creatorId: string, hotspotId: string, input: UpdateHotspotInput): Promise<HotspotActionResult & { rescheduled: boolean }> {
+        const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}`, {
+            method: "PATCH",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ creatorId, ...input }),
+        });
+        return handleResponse<HotspotActionResult & { rescheduled: boolean }>(res);
     },
 
     async delete(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {

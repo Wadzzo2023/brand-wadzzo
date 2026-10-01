@@ -9,20 +9,22 @@ import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "~/components/shadcn/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { cn } from "~/lib/utils";
 import { useMapInteractionStore } from "~/store/map-stores";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
+import { Avatar } from "~/ui/person";
 import { StatusPill } from "~/ui/status-pill";
 import { api } from "~/utils/api";
 
 const TYPE_LABEL: Record<string, string> = { OTHER: "General", LANDMARK: "Landmark", EVENT: "Event", BOUNTY: "Bounty", EXPERIENCE: "Experience", LAUNCH: "Launch" };
 
 /**
- * A pin on the map, opened from its marker: a side panel with what it is,
- * how it's doing, and what you can do with it. Same panel on the brand's Map
- * and on Admin › All maps.
+ * A pin on the map, opened from its marker, as a profile-style card: the
+ * pin's cover on top, the brand's avatar over it, then title and brand,
+ * the numbers, details and actions. Same card on the brand's Map and on
+ * Admin › All maps.
  */
 export default function PinDetailPanel() {
   const { selectedPinForDetail: pin, closePinDetailModal: close, isPinCut, isPinCopied, setPinCopied, setPinCut, setManual, setDuplicate, setPrevData, openPinDetailModal } =
@@ -98,20 +100,19 @@ export default function PinDetailPanel() {
 
   return (
     <>
-      <Sheet open={open} onOpenChange={(o) => !o && close()}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <Dialog open={open} onOpenChange={(o) => !o && close()}>
+        <DialogContent
+          className="flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-md flex-col gap-0 overflow-hidden p-0 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/40 [&>button:last-child]:p-1 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {/* Header: the pin's image with its state on top. */}
-            <div className="relative aspect-[16/10] bg-muted">
-              {g?.image ? (
+            {/* Cover: the pin's image (else the brand's cover), its state on top. */}
+            <div className="relative h-44 bg-gradient-to-br from-primary/40 via-primary/15 to-muted">
+              {(g?.image ?? g?.creator.coverUrl) && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={g.image} alt="" className="size-full object-cover" />
-              ) : (
-                <div className="flex size-full items-center justify-center text-muted-foreground">
-                  <MapPin className="size-10" />
-                </div>
+                <img src={g?.image ?? g?.creator.coverUrl ?? ""} alt="" className="size-full object-cover" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" aria-hidden />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/25" aria-hidden />
               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                 <StatusPill tone={status.tone} className="bg-card/95 backdrop-blur">
                   {status.label}
@@ -127,13 +128,37 @@ export default function PinDetailPanel() {
                   </StatusPill>
                 )}
               </div>
-              <div className="absolute inset-x-4 bottom-3 text-white">
-                <p className="text-[11px] font-semibold tracking-wider text-white/75 uppercase">{TYPE_LABEL[g?.type ?? "OTHER"] ?? g?.type}</p>
-                <SheetTitle className="mt-0.5 line-clamp-2 font-hud text-xl font-bold text-white">{g?.title ?? "Pin"}</SheetTitle>
-              </div>
             </div>
 
-            <div className="space-y-5 p-4 sm:p-5">
+            {/* Identity: brand avatar over the cover, then the pin's title and its brand. */}
+            <div className="px-5">
+              <div className="-mt-10 flex items-end justify-between gap-3">
+                <Avatar src={g?.creator.profileUrl} name={g?.creator.name ?? g?.title ?? "Brand"} className="relative size-20 border-4 border-background text-2xl shadow-md" />
+                <StatusPill tone="neutral" className="mb-1">
+                  {TYPE_LABEL[g?.type ?? "OTHER"] ?? g?.type}
+                </StatusPill>
+              </div>
+              <DialogTitle className="mt-3 font-hud text-xl leading-tight font-bold">{g?.title ?? "Pin"}</DialogTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {g?.creator.name ? (
+                  <>
+                    by{" "}
+                    {admin ? (
+                      <Link href={`/admin/creators/${g.creatorId}`} onClick={close} className="font-medium text-foreground hover:underline">
+                        {g.creator.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-foreground">{g.creator.name}</span>
+                    )}
+                  </>
+                ) : (
+                  "Your pin"
+                )}
+                {g && ` · created ${formatDistanceToNow(new Date(g.createdAt), { addSuffix: true })}`}
+              </p>
+            </div>
+
+            <div className="space-y-5 p-5 pt-4">
               {/* Numbers first: that's what people open a pin for. */}
               <dl className="grid grid-cols-3 gap-2">
                 <Stat label="Collected" value={pin._count.consumers.toLocaleString()} />
@@ -141,7 +166,7 @@ export default function PinDetailPanel() {
                 <Stat label={start > now ? "Starts in" : end < now ? "Ended" : "Ends in"} value={g ? formatDistanceToNow(start > now ? start : end) : "—"} />
               </dl>
 
-              <SheetDescription asChild>
+              <DialogDescription asChild>
                 <div className="space-y-3 text-sm">
                   {g?.description && <p className="whitespace-pre-line text-foreground">{g.description}</p>}
                   <Row icon={CalendarDays}>{g ? `${format(start, "MMM d, yyyy · p")} → ${format(end, "MMM d, yyyy · p")}` : "—"}</Row>
@@ -170,7 +195,7 @@ export default function PinDetailPanel() {
                     </Row>
                   )}
                 </div>
-              </SheetDescription>
+              </DialogDescription>
 
               {/* How fans collect it — the one setting worth flipping from here. */}
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3.5">
@@ -191,7 +216,7 @@ export default function PinDetailPanel() {
           </div>
 
           {/* Actions: the two common ones as buttons, the rest in the menu. */}
-          <div className="flex items-center gap-2 border-t bg-card px-4 py-3">
+          <div className="flex items-center gap-2 border-t bg-card px-5 py-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">
@@ -225,8 +250,8 @@ export default function PinDetailPanel() {
               </Link>
             </Button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmDelete}

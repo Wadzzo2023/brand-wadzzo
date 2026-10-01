@@ -9,7 +9,7 @@ export type LatLng = { lat: number; lng: number };
 type Pin = {
     locationGroup:
     | (LocationGroup & {
-        creator: { profileUrl: string | null }
+        creator: { profileUrl: string | null; name?: string; coverUrl?: string | null }
     })
     | null
     _count: {

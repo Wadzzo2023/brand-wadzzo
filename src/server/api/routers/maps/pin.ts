@@ -674,7 +674,7 @@ export const pinRouter = createTRPCRouter({
           _count: { select: { consumers: true } },
           locationGroup: {
             include: {
-              creator: { select: { profileUrl: true } },
+              creator: { select: { profileUrl: true, name: true, coverUrl: true } },
               locations: {
                 select: {
                   locationGroup: {
@@ -715,7 +715,7 @@ export const pinRouter = createTRPCRouter({
           _count: { select: { consumers: true } },
           locationGroup: {
             include: {
-              creator: { select: { profileUrl: true } },
+              creator: { select: { profileUrl: true, name: true, coverUrl: true } },
               locations: {
                 select: {
                   locationGroup: {
@@ -758,7 +758,7 @@ export const pinRouter = createTRPCRouter({
         },
         include: {
           _count: { select: { consumers: true } },
-          locationGroup: { include: { creator: { select: { profileUrl: true } } } },
+          locationGroup: { include: { creator: { select: { profileUrl: true, name: true, coverUrl: true } } } },
         },
       });
     }),
