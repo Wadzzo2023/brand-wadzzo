@@ -203,5 +203,10 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
 - Reports done: one shared report for brands (/reports) and admins (/admin/reports, any brand or all), per-pin report at /reports/[id] and /admin/reports/[id]; counted in SQL (`maps.report.*`).
 - Done since: All maps (frames pins once map + data ready, searchable BrandPicker, ?brand=), admin new pin/hotspot use BrandPicker; page-shaped FormSkeleton/PageSkeleton; shared line tabs; colour sweep onto tokens (only intentional black/white overlays, shadcn toast and the install code block keep raw colours).
 - Security fixed: fan.creator.getCreators leaked Creator.storageSecret to any signed-in user → admin-only, id/name/profileUrl.
-- Next: step 2 (41 TS errors, 118 lint errors, ignoreBuildErrors, zod 4, not-found pages), onboarding review, step 8 (connect_wallet / express-wadzzo), remaining security items, full click-through + production build.
+- Zero errors milestone reached: 0 TypeScript errors (tsc --noEmit) and 0 ESLint errors (eslint .); build error suppression disabled.
+- Store edit pages & page asset sales: /stores/[id], /stores/page-asset/new, and /stores/page-asset/[id] converted from dialogs to full FormPages with live preview.
+- Admin pin and hotspot controls: Admins can drop pins/hotspots on behalf of any creator; admins can edit any creator pin at /pins/[id]/edit with automatic back-links to /admin/pins.
+- Dropzone preview fix: S3 extensionless hashes properly classified via endpoint/accept fallbacks.
+- Next: Redeem page redesign (/redeem) with separate full-page layout, DataTable, and activity filters; onboarding review; step 8 (connect_wallet / express-wadzzo).
 - Open question: `maps.pin.getPin` is public and returns collectors; unused in the portal now — restrict or remove (check other apps first).
+
