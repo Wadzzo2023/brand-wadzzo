@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,13 +12,15 @@ import {
   ClipboardCheck,
   Coins,
   FileText,
-  ImageIcon,
+  Globe,
   LinkIcon,
   Loader2,
+  Palette,
   PanelTop,
   Plus,
   Sparkles,
   User,
+  Users,
   XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -38,9 +40,9 @@ import { api } from "~/utils/api";
 type FormData = z.infer<typeof RequestBrandCreateFormSchema>;
 
 const STEPS = [
-  { step: 1, title: "Welcome", desc: "Benefits of becoming an artist" },
+  { step: 1, title: "Welcome", desc: "Why join as a brand" },
   { step: 2, title: "Media", desc: "Profile & cover images" },
-  { step: 3, title: "Details", desc: "Artist name & biography" },
+  { step: 3, title: "Details", desc: "Brand name & biography" },
   { step: 4, title: "Page Asset", desc: "Brand membership token" },
   { step: 5, title: "Vanity URL", desc: "Custom profile link" },
   { step: 6, title: "Review", desc: "Confirm & complete" },
@@ -194,7 +196,7 @@ export default function ArtistOnboarding() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] bg-background py-8 px-4 sm:px-6 lg:px-8">
+    <div className="relative min-h-[calc(100vh-4rem)] bg-background pt-6 pb-28 px-4 sm:px-6 lg:py-8 lg:px-8">
       {/* Confetti Celebration */}
       {showConfetti && (
         <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
@@ -232,7 +234,7 @@ export default function ArtistOnboarding() {
         {/* Main Grid: Left Steps Rail, Right Step Card */}
         <div className="grid gap-8 lg:grid-cols-12">
           {/* Steps Rail */}
-          <aside className="lg:col-span-4">
+          <aside className="hidden lg:block lg:col-span-4">
             <nav className="space-y-1.5 rounded-2xl border border-border bg-card p-3 shadow-xs">
               {STEPS.map((s) => {
                 const isActive = currentStep === s.step;
@@ -280,46 +282,33 @@ export default function ArtistOnboarding() {
           {/* Form Content */}
           <main className="lg:col-span-8">
             <div className="rounded-2xl border border-border bg-card shadow-xs">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="p-6 sm:p-8"
-                >
+              <div key={currentStep} className="p-6 sm:p-8">
                   {/* Step 1: Welcome & Benefits */}
                   {currentStep === 1 && (
                     <div className="space-y-6">
                       <div>
-                        <h2 className="font-hud text-2xl font-bold tracking-tight">Benefits of Becoming an Artist</h2>
+                        <h2 className="font-hud text-2xl font-bold tracking-tight">Why Join as an Brand?</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Join the Wadzzo brand network to drop AR pins, launch collectibles, and monetize with custom page assets.
+                          Our platform empowers you to engage your fans in new and exciting ways.
                         </p>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-3">
                         {[
                           {
-                            icon: ImageIcon,
-                            title: "AR Pin Drops",
-                            desc: "Drop interactive pins and hotspots for fans to discover in physical locations.",
+                            icon: Globe,
+                            title: "Global Reach",
+                            desc: "Place virtual pins at any GPS location, each holding a unique reward.",
                           },
                           {
-                            icon: User,
-                            title: "Build Your Brand",
-                            desc: "Create an official brand profile with follower analytics and activity feed.",
+                            icon: Sparkles,
+                            title: "Recognize your Fans",
+                            desc: "Customize campaigns with brand details, descriptions, and collection limits.",
                           },
                           {
-                            icon: LinkIcon,
-                            title: "Vanity URL",
-                            desc: "Get a custom, easy-to-share web address (web.wadzzo.com/your-name).",
-                          },
-                          {
-                            icon: Coins,
-                            title: "Custom Membership Token",
-                            desc: "Issue or connect your own token on Stellar to power memberships and access tiers.",
+                            icon: Palette,
+                            title: "Creative Freedom",
+                            desc: "Build memorable connections with customers through immersive experiences.",
                           },
                         ].map((b, i) => (
                           <div
@@ -335,14 +324,28 @@ export default function ArtistOnboarding() {
                         ))}
                       </div>
 
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
-                        <div className="flex items-start gap-3">
-                          <Sparkles className="size-5 shrink-0 text-primary mt-0.5" />
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">Ready to start?</p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              Complete the short setup below to submit your brand application. It only takes a couple of minutes.
-                            </p>
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                          <div className="flex items-start gap-3">
+                            <Sparkles className="size-5 shrink-0 text-primary mt-0.5" />
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">Ready to Showcase your brand?</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                Join our growing platform connecting brands with fans
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
+                          <div className="flex items-start gap-3">
+                            <Users className="size-5 shrink-0 text-muted-foreground mt-0.5" />
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">Ready to showcase your talent?</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                Join our growing community of brands and start sharing your creative work today.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -628,12 +631,28 @@ export default function ArtistOnboarding() {
                               uploader={uploadToIpfsUrl}
                               shape="square"
                               value={formData.assetImage}
+                              previewUrl={formData.assetImagePreview}
+                              onBeforeUpload={(file) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  const result = typeof reader.result === "string" ? reader.result : "";
+                                  setFormData((p) => ({
+                                    ...p,
+                                    assetImagePreview: result,
+                                  }));
+                                };
+                                reader.readAsDataURL(file);
+                                return file;
+                              }}
                               onChange={(url) =>
-                                setFormData((p) => ({
-                                  ...p,
-                                  assetImage: url ?? "",
-                                  assetImagePreview: url ?? "",
-                                }))
+                                setFormData((p) => {
+                                  const existingPreview = p.assetImagePreview && p.assetImagePreview.length > 0 ? p.assetImagePreview : url ?? "";
+                                  return {
+                                    ...p,
+                                    assetImage: url ?? "",
+                                    assetImagePreview: url ? existingPreview : "",
+                                  };
+                                })
                               }
                             />
                           </div>
@@ -841,13 +860,35 @@ export default function ArtistOnboarding() {
                               Edit
                             </Button>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {formData.assetType === "new" ? formData.assetName : formData.assetCode}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formData.assetType === "new" ? "New token issued by Wadzzo" : `Issuer: ${formData.issuer.slice(0, 8)}...`}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            {formData.assetType === "new" &&
+                              (() => {
+                                const previewSrc =
+                                  formData.assetImagePreview && formData.assetImagePreview.length > 0
+                                    ? formData.assetImagePreview
+                                    : formData.assetImage && formData.assetImage.length > 0
+                                      ? formData.assetImage
+                                      : null;
+                                if (!previewSrc) return null;
+                                return (
+                                  <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewSrc}
+                                      alt={formData.assetName.length > 0 ? formData.assetName : "Token Artwork"}
+                                      className="size-full object-cover"
+                                    />
+                                  </div>
+                                );
+                              })()}
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {formData.assetType === "new" ? formData.assetName : formData.assetCode}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formData.assetType === "new" ? "New token issued by Wadzzo" : `Issuer: ${formData.issuer.slice(0, 8)}...`}
+                              </p>
+                            </div>
                           </div>
                         </div>
 
@@ -914,9 +955,8 @@ export default function ArtistOnboarding() {
                       )}
                     </Button>
                   </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
+                </div>
+              </div>
           </main>
         </div>
       </div>

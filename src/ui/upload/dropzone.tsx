@@ -16,6 +16,8 @@ export type DropzoneProps = {
   endpoint: EndPointType;
   /** Current file URL (controlled). */
   value?: string | null;
+  /** Optional preview URL / data URL override (e.g. for IPFS CIDs or fast local preview). */
+  previewUrl?: string | null;
   /** Called with the uploaded file's public URL, or undefined when removed. */
   onChange?: (url: string | undefined, file?: { name: string; size: number; type: string }) => void;
   /** Transform or veto a file before upload (e.g. resize). Return undefined to cancel. */
@@ -77,6 +79,7 @@ const kindOf = (typeOrUrl: string, endpoint?: EndPointType, accept?: string): Ki
 export function Dropzone({
   endpoint,
   value,
+  previewUrl,
   onChange,
   onBeforeUpload,
   onUploadingChange,
@@ -137,7 +140,12 @@ export function Dropzone({
     [acceptStr, busy, disabled, hint, onBeforeUpload, onChange, upload, uploader],
   );
 
-  const shown = localPreview ?? (value ? { url: value, type: kindOf(value, endpoint, acceptStr), name: value.split("/").pop() ?? "file" } : null);
+  const preview = previewUrl ?? localPreview?.url;
+  const shown = preview
+    ? { url: preview, type: (localPreview?.type ?? "image") as Kind, name: localPreview?.name ?? value?.split("/").pop() ?? "image" }
+    : value
+      ? { url: value, type: kindOf(value, endpoint, acceptStr), name: value.split("/").pop() ?? "file" }
+      : null;
   const kind = shown ? kindOf(shown.type || shown.url, endpoint, acceptStr) : null;
   const open = () => !disabled && !busy && input.current?.click();
 

@@ -43,7 +43,7 @@ export function usePortalAccess() {
 
   const admin = api.wallate.admin.checkAdmin.useQuery(undefined, { enabled: signedIn, retry: false });
   const creator = api.fan.creator.meCreator.useQuery(undefined, { enabled: signedIn });
-  const approved = creator.data?.approved === true;
+  const approved = Boolean(creator.data?.aprovalSend && creator.data?.approved === true);
   const permission = api.fan.creator.getPermissionData.useQuery(undefined, { enabled: signedIn && approved, retry: false });
 
   const account = api.wallate.acc.getAccountBalance.useQuery(undefined, { enabled: signedIn, retry: false });

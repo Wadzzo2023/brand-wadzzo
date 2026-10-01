@@ -50,14 +50,14 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
   // refuses anything this brand may not do).
   if (creator.isLoading && access.approved) return <>{children}</>;
   const c = creator.data;
-  if (c?.id && c.approved === true) return <>{children}</>;
+  if ((c?.id && c.aprovalSend && c.approved === true) || access.isAdmin) return <>{children}</>;
   return (
     <div className="flex min-h-[70dvh] items-center justify-center px-4 py-10">
-      {c?.aprovalSend && c.approved === null ? (
+      {c?.aprovalSend && (c.approved === null || c.approved === undefined) ? (
         <PendingArtistPage createdAt={c.createdAt} />
-      ) : c?.aprovalSend && c.approved === false ? (
+      ) : c?.approved === false ? (
         <BannedCreatorCard creatorName={c.name} />
-      ) : c && !c.aprovalSend && c.approved !== true ? (
+      ) : c && !c.aprovalSend ? (
         <RequestApprovalCard creatorName={c.name} />
       ) : (
         <JoinArtistPage />
