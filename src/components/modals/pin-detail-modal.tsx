@@ -477,8 +477,7 @@ function PinInfo({
                     <img
                         src={locationGroup.image ?? "/placeholder.svg"}
                         alt={locationGroup.title ?? "Pin image"}
-                        fill
-                        className="object-cover"
+                        className="absolute inset-0 size-full object-cover"
                     />
                 </div>
             )}

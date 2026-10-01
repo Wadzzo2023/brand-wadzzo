@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactElement } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatPostCreatedAt } from "~/utils/format-date"
 import { Comment } from "@prisma/client"
@@ -279,7 +279,7 @@ function formatLinks(text: string) {
             arr.push(part)
         }
         return arr
-    }, [] as (string | JSX.Element)[])
+    }, [] as (string | ReactElement)[])
 }
 
 function CommentFormatter({ content, maxLength = 250, className }: CommentFormatterProps) {

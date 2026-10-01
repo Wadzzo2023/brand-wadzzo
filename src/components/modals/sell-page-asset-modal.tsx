@@ -96,7 +96,6 @@ type SellPageAssetProps = {
 export default function SellPageAssetModal({ isOpen, onClose }: SellPageAssetProps) {
     const session = useSession()
     const [submitLoading, setSubmitLoading] = useState(false)
-    const [pageAsset, setPageAsset] = useState<string | null>(null)
 
     // Add this function inside the component after pageAsset state is declared
     const validateAmountToSell = (value: number) => {
@@ -125,16 +124,10 @@ export default function SellPageAssetModal({ isOpen, onClose }: SellPageAssetPro
         formState: { errors, isValid },
     } = methods
     const pageAssetBalance = api.wallate.acc.getCreatorPageAssetBallances.useQuery(undefined, {
-        onSuccess: (data) => {
-            if (data) {
-                setPageAsset(data.balance)
-            }
-        },
-        onError: (error) => {
-            console.log(error)
-        },
         refetchOnWindowFocus: false,
     })
+    // TanStack Query 5 has no onSuccess on queries: read the balance straight from the result.
+    const pageAsset = pageAssetBalance.data?.balance ?? null
 
     const watchedAmountToSell = watch("amountToSell")
     const watchedPrice = watch("price")

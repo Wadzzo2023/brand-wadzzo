@@ -870,8 +870,7 @@ export default function ArtistOnboarding() {
                                                                                     "/placeholder.svg"
                                                                                 }
                                                                                 alt="Profile preview"
-                                                                                fill
-                                                                                className="object-cover"
+                                                                                className="absolute inset-0 size-full object-cover"
                                                                             />
                                                                             {isUploading &&
                                                                                 activeImageTab === "profile" && (
@@ -1021,8 +1020,7 @@ export default function ArtistOnboarding() {
                                                                                     "/placeholder.svg"
                                                                                 }
                                                                                 alt="Cover preview"
-                                                                                fill
-                                                                                className="object-cover"
+                                                                                className="absolute inset-0 size-full object-cover"
                                                                             />
                                                                             {isUploading &&
                                                                                 activeImageTab === "cover" && (
@@ -1191,8 +1189,7 @@ export default function ArtistOnboarding() {
                                                                             "/placeholder.svg"
                                                                         }
                                                                         alt="Profile"
-                                                                        fill
-                                                                        className="object-cover"
+                                                                        className="absolute inset-0 size-full object-cover"
                                                                     />
                                                                 </motion.div>
                                                             )}
@@ -1210,8 +1207,7 @@ export default function ArtistOnboarding() {
                                                                             "/placeholder.svg"
                                                                         }
                                                                         alt="Cover"
-                                                                        fill
-                                                                        className="object-cover"
+                                                                        className="absolute inset-0 size-full object-cover"
                                                                     />
                                                                 </motion.div>
                                                             )}
@@ -1520,8 +1516,7 @@ export default function ArtistOnboarding() {
                                                                                             "/placeholder.svg"
                                                                                         }
                                                                                         alt="Asset preview"
-                                                                                        fill
-                                                                                        className="object-cover"
+                                                                                        className="absolute inset-0 size-full object-cover"
                                                                                     />
                                                                                     {isUploading && (
                                                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs">
@@ -2009,8 +2004,7 @@ export default function ArtistOnboarding() {
                                                                                 "/placeholder.svg"
                                                                             }
                                                                             alt="Profile"
-                                                                            fill
-                                                                            className="object-cover"
+                                                                            className="absolute inset-0 size-full object-cover"
                                                                         />
                                                                     </div>
                                                                 ) : (
@@ -2041,8 +2035,7 @@ export default function ArtistOnboarding() {
                                                                                 "/placeholder.svg"
                                                                             }
                                                                             alt="Cover"
-                                                                            fill
-                                                                            className="object-cover"
+                                                                            className="absolute inset-0 size-full object-cover"
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -2100,8 +2093,7 @@ export default function ArtistOnboarding() {
                                                                                             "/placeholder.svg"
                                                                                         }
                                                                                         alt="Asset"
-                                                                                        fill
-                                                                                        className="object-cover"
+                                                                                        className="absolute inset-0 size-full object-cover"
                                                                                     />
                                                                                 </div>
                                                                             ) : (

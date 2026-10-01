@@ -155,10 +155,9 @@ export const STAGE_LABEL: Record<AgentStage, string> = {
 
 // ─── Loadable response types ──────────────────────────────────────────────────
 
-const LOADABLE_TYPES = new Set([
-    "pin_list", "report", "collector_report",
-    "collector_loyalty", "location_collectors",
-]);
+const LOADABLE = ["pin_list", "report", "collector_report", "collector_loyalty", "location_collectors"] as const;
+type LoadableType = (typeof LOADABLE)[number];
+const LOADABLE_TYPES = new Set<string>(LOADABLE);
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -274,14 +273,14 @@ export default function AgentChat({ creatorId }: { creatorId?: string }) {
 
         // Find last loadable message and last user query
         let targetMsgId: string | null = null;
-        let loadMoreType: string | null = null;
+        let loadMoreType: LoadableType | null = null;
         let lastQuery = "show my pins";
 
         for (let i = messages.length - 1; i >= 0; i--) {
             const m = messages[i]!;
             if (m.content.kind === "response" && LOADABLE_TYPES.has(m.content.data.type)) {
                 targetMsgId = m.id;
-                loadMoreType = m.content.data.type;
+                loadMoreType = m.content.data.type as LoadableType;
                 break;
             }
         }

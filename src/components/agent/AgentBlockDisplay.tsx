@@ -1030,7 +1030,7 @@ export interface AgentBlockDisplayProps {
     onListConfirm: (msgId: string, selectedIds: string[]) => void;
     onListDismiss: () => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-    inputRef: React.RefObject<HTMLInputElement>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 // ─── AgentBlockDisplay ────────────────────────────────────────────────────────

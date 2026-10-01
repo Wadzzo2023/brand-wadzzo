@@ -487,6 +487,10 @@ export interface ConfirmResponse {
     unaffected: string | null;
     // hotspot edit scope selector
     hotspotEditScope?: HotspotEditScope;
+    // The pin-drop agent's confirm: what to drop, where, and the pin type.
+    what?: string | null;
+    where?: string | null;
+    type?: string | null;
   };
 }
 

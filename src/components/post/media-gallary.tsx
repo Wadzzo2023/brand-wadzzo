@@ -585,8 +585,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                                     <img
                                                         src={currentMedia.thumbnail ?? "/images/logo.png"}
                                                         alt={currentMedia.title ?? "Album Art"}
-                                                        fill
-                                                        className="object-cover"
+                                                        className="absolute inset-0 size-full object-cover"
                                                         sizes="(max-width: 768px) 96px, 192px"
                                                     />
                                                 </motion.div>

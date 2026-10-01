@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils"
 import { Button } from "../shadcn/ui/button"
-import { useState } from "react"
+import { useState, type ReactElement } from "react"
 
 interface CommentFormatterProps {
     content: string
@@ -31,7 +31,7 @@ function formatLinks(text: string) {
             arr.push(part)
         }
         return arr
-    }, [] as (string | JSX.Element)[])
+    }, [] as (string | ReactElement)[])
 }
 
 

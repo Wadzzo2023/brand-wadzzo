@@ -27,7 +27,7 @@ export function EmbedStats({ id }: { id: string }) {
     }
     if (q.isError) return <p className="p-6 text-sm text-destructive">{q.error.message}</p>
 
-    const rows = q.data
+    const rows = q.data ?? []
     const total = (k: (typeof METRICS)[number]["key"]) => rows.reduce((s, r) => s + r[k], 0)
     const views = total("views")
     const taps = total("pinTaps")

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
 import { Canvas, useThree } from "@react-three/fiber"
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader"
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js"
 import { Stage, OrbitControls } from "@react-three/drei"
 import type { Group } from "three"
 import * as THREE from "three"

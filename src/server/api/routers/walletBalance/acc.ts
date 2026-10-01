@@ -21,9 +21,7 @@ import {
   publicProcedure,
 } from "~/server/api/trpc";
 import { getAccSecretFromRubyApi } from "package/connect_wallet/src/lib/stellar/get-acc-secret";
-import { Input } from "~/components/shadcn/ui/input";
 import { Horizon } from "@stellar/stellar-sdk";
-import { ServerApi } from "@stellar/stellar-sdk/lib/horizon";
 import { PLATFORM_ASSET, STELLAR_URL } from "~/lib/stellar/constant";
 
 export const WBalanceRouter = createTRPCRouter({
