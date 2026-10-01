@@ -118,12 +118,15 @@ export default function ArtistOnboarding() {
     },
   });
 
+  const utils = api.useUtils();
+
   // Final submission mutation
   const requestBrand = api.fan.creator.requestForBrandCreation.useMutation({
     onSuccess: () => {
       toast.success("Brand application submitted successfully!");
       setShowConfetti(true);
       setTimeout(() => {
+        void utils.fan.creator.meCreator.invalidate();
         router.push("/pins");
       }, 2000);
     },

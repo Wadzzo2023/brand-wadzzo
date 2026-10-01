@@ -1,10 +1,11 @@
 "use client";
 
-import { ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ConnectWalletButton } from "package/connect_wallet";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { BannedCreatorCard } from "~/components/brand/ban-artist";
 import JoinArtistPage from "~/components/brand/join-artist";
@@ -82,4 +83,38 @@ export function AdminGate({ access, children }: { access: Access; children: Reac
       </div>
     </div>
   );
+}
+
+/**
+ * Onboarding gate: Only accessible if the user hasn't submitted the form yet
+ * or isn't a creator yet (!c?.id && !c?.aprovalSend). If they already submitted or
+ * are already a creator, redirect them to /pins.
+ */
+export function OnboardingGate({ access, children }: { access: Access; children: ReactNode }) {
+  const router = useRouter();
+  const c = access.creator.data;
+  const isSettled = access.creator.isFetched;
+
+  const hasSubmittedOrIsCreator = Boolean(c?.id) || Boolean(c?.aprovalSend);
+
+  useEffect(() => {
+    if (isSettled && hasSubmittedOrIsCreator) {
+      router.replace("/pins");
+    }
+  }, [isSettled, hasSubmittedOrIsCreator, router]);
+
+  if (access.creatorLoading || (access.creator.isLoading && !c)) {
+    return <PageSkeleton />;
+  }
+
+  if (hasSubmittedOrIsCreator) {
+    return (
+      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-center">
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Redirecting to your portal...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

@@ -5,7 +5,7 @@ import { useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { CenteredSpinner } from "~/ui/spinner";
 
-import { AdminGate, CreatorGate, SignInScreen } from "./gates";
+import { AdminGate, CreatorGate, OnboardingGate, SignInScreen } from "./gates";
 import { MobileTabBar, MobileTopBar } from "./mobile-nav";
 import { ADMIN_NAV, BRAND_NAV, isActive } from "./nav";
 import { Sidebar } from "./sidebar";
@@ -15,8 +15,8 @@ const COLLAPSE_KEY = "wadzzo.sidebar.collapsed";
 /** The saved choice only changes through our own toggle, so there's nothing to subscribe to. */
 const subscribeNever = () => () => undefined;
 
-/** Pages a brand can open before approval (settings, and the onboarding wizard that sets up their brand). */
-const UNGATED = ["/settings", "/onboarding"];
+/** Pages a brand can open before approval without submitting onboarding (settings). */
+const UNGATED = ["/settings"];
 
 /**
  * The one layout for the whole portal: sidebar on desktop, top bar + tab bar
@@ -56,10 +56,13 @@ export function PortalShell({ children }: { children: ReactNode }) {
   if (!access.signedIn) return <SignInScreen />;
 
   const isAdminRoute = pathname.startsWith("/admin");
+  const isOnboardingRoute = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const title = [...BRAND_NAV.flatMap((g) => g.items), ...ADMIN_NAV.items].find((i) => isActive(pathname, i))?.label;
 
   const page = isAdminRoute ? (
     <AdminGate access={access}>{children}</AdminGate>
+  ) : isOnboardingRoute ? (
+    <OnboardingGate access={access}>{children}</OnboardingGate>
   ) : UNGATED.some((p) => pathname === p || pathname.startsWith(p + "/")) ? (
     children
   ) : (
