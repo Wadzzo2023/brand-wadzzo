@@ -15,7 +15,6 @@ import {
   networkPassphrase,
 } from "../constant";
 import { type SignUserType, WithSing } from "../utils";
-import { P } from "pino";
 import { getplatformAssetNumberForXLM } from "./get_token_price";
 
 export async function createRedeemXDRAsset({
