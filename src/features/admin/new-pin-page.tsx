@@ -26,6 +26,7 @@ import { Textarea } from "~/components/shadcn/ui/textarea";
 import { cn } from "~/lib/utils";
 import { useSelectCreatorStore } from "~/components/store/creator-selection-store";
 import { api } from "~/utils/api";
+import { BrandPicker } from "~/features/admin/brand-picker";
 import { AiFillCard } from "~/ui/ai/ai-fill";
 import { AiTextButton } from "~/ui/ai/ai-text";
 import { Field, FormPage, FormSection } from "~/ui/form-page";
@@ -165,9 +166,9 @@ export default function AdminNewPinPage() {
   return (
     <FormProvider {...methods}>
       <FormPage
-        title="Admin: Drop a pin"
-        description="Drop a pin on behalf of any creator on the platform. Admin-created pins go live immediately."
-        back={{ href: "/admin/maps", label: "Maps" }}
+        title="New pin for a brand"
+        description="Drop a pin on a brand's behalf. Pins you create as an admin go live right away — no review."
+        back={{ href: "/admin/maps", label: "All maps" }}
         onSubmit={(e) => void onSubmit(e)}
         actions={actions}
         aside={
@@ -191,30 +192,18 @@ export default function AdminNewPinPage() {
         }
       >
         {/* Creator Selection Header Section */}
-        <FormSection title="Target Creator" icon={UserRound} description="Choose which brand or creator this pin belongs to.">
-          <Field label="Brand / Creator" required hint="The selected creator will own this pin and its rewards.">
-            <Select
-              value={selectedCreatorId}
-              onValueChange={(val) => {
-                setSelectedCreatorId(val);
-                const found = creatorsQuery.data?.find((c) => c.id === val);
-                if (found) setStoreCreator(found);
+        <FormSection title="Brand" icon={UserRound} description="Who this pin belongs to.">
+          <Field label="Brand" required hint="The brand owns the pin, sees it on its map, and gives its rewards.">
+            <BrandPicker
+              className="w-full"
+              brands={creatorsQuery.data}
+              value={selectedCreator}
+              loading={creatorsQuery.isPending}
+              onChange={(b) => {
+                setSelectedCreatorId(b.id);
+                setStoreCreator(b);
               }}
-            >
-              <SelectTrigger className="bg-card">
-                <div className="flex items-center gap-2 truncate">
-                  <UserRound className="size-4 shrink-0 text-primary" />
-                  <SelectValue placeholder="Select a brand..." />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {creatorsQuery.data?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name || c.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </Field>
         </FormSection>
 

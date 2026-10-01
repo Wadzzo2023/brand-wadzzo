@@ -36,6 +36,7 @@ import { AiTextButton } from "~/ui/ai/ai-text";
 import { fromLocal } from "~/ui/ai/shared";
 import { Field, FormPage, FormSection } from "~/ui/form-page";
 import { api } from "~/utils/api";
+import { BrandPicker } from "~/features/admin/brand-picker";
 
 type HotspotForm = z.infer<typeof createHotspotFormSchema>;
 
@@ -84,7 +85,7 @@ export default function AdminNewHotspotPage() {
         <EmptyState
           icon={Hexagon}
           title="Draw the area first"
-          description="On the Admin Maps page, choose Draw hotspot and outline where pins should drop."
+          description="On All maps, choose Draw hotspot and outline where pins should drop."
           action={
             <Button asChild>
               <Link href="/admin/maps?draw=1">Draw on the map</Link>
@@ -229,9 +230,9 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
   return (
     <FormProvider {...(methods as unknown as ReturnType<typeof useForm<CreatePinType>>)}>
       <FormPage
-        title="Admin: New hotspot"
-        description="An area that keeps dropping pins on a schedule on behalf of a creator. Each drop lands somewhere inside it."
-        back={{ href: "/admin/maps", label: "Maps" }}
+        title="New hotspot for a brand"
+        description="An area that keeps dropping pins on a schedule, on a brand's behalf. Each drop lands somewhere inside it."
+        back={{ href: "/admin/maps", label: "All maps" }}
         onSubmit={(e) => void onSubmit(e)}
         actions={actions}
         aside={
@@ -278,30 +279,18 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
         }
       >
         {/* Creator Selection Header Section */}
-        <FormSection title="Target Creator" icon={UserRound} description="Choose which brand or creator this hotspot belongs to.">
-          <Field label="Brand / Creator" required hint="The selected creator will own this hotspot and its drops.">
-            <Select
-              value={selectedCreatorId}
-              onValueChange={(val) => {
-                setSelectedCreatorId(val);
-                const found = creatorsQuery.data?.find((c) => c.id === val);
-                if (found) setStoreCreator(found);
+        <FormSection title="Brand" icon={UserRound} description="Who this hotspot belongs to.">
+          <Field label="Brand" required hint="The brand owns the hotspot and every pin it drops.">
+            <BrandPicker
+              className="w-full"
+              brands={creatorsQuery.data}
+              value={selectedCreator}
+              loading={creatorsQuery.isPending}
+              onChange={(b) => {
+                setSelectedCreatorId(b.id);
+                setStoreCreator(b);
               }}
-            >
-              <SelectTrigger className="bg-card">
-                <div className="flex items-center gap-2 truncate">
-                  <UserRound className="size-4 shrink-0 text-primary" />
-                  <SelectValue placeholder="Select a brand..." />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {creatorsQuery.data?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name || c.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </Field>
         </FormSection>
 

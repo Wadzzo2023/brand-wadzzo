@@ -30,6 +30,7 @@ import { SignUser } from "~/lib/stellar/utils";
 import { BLANK_KEYWORD } from "~/lib/utils";
 import { createCircularImage } from "~/server/circular-image";
 import {
+  adminProcedure,
   createTRPCRouter,
   creatorProcedure,
   protectedProcedure,
@@ -409,11 +410,13 @@ export const creatorRouter = createTRPCRouter({
         nextCursor,
       };
     }),
-  getCreators: protectedProcedure.query(async ({ input, ctx }) => {
-    const items = await ctx.db.creator.findMany({
+  // Admin brand pickers. Never return whole rows: Creator holds storageSecret.
+  getCreators: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db.creator.findMany({
       where: { approved: { equals: true } },
+      select: { id: true, name: true, profileUrl: true },
+      orderBy: { name: "asc" },
     });
-    return items;
   }),
 
   // getLatest: protectedProcedure.query(({ ctx }) => {

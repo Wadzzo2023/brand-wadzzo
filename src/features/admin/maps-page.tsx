@@ -1,15 +1,15 @@
 "use client";
 
 import { PinType } from "@prisma/client";
-import { Hexagon, Plus, UserRound } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Hexagon, Loader2, MapPinOff, Plus } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 
 import AgentChat from "~/components/agent/AgentChat";
 import { BaseMap, WORLD_VIEW } from "~/components/map-kit/base-map";
 import { DrawTool } from "~/components/map-kit/draw-tool";
-import { type DrawShape, type StoredFeature } from "~/components/map-kit/geo";
+import { toMapboxFeature, type DrawShape, type StoredFeature } from "~/components/map-kit/geo";
 import { HotspotLayer } from "~/components/map-kit/hotspot-layer";
 import { PinMarker } from "~/components/map-kit/pin-marker";
 import { PlaceSearch } from "~/components/map-kit/place-search";
@@ -18,177 +18,124 @@ import CopyCutPinModal from "~/components/modals/copy-cut-pin-modal";
 import HotspotDetailModal from "~/components/modals/hotspot-details-modal";
 import PinDetailAndActionsModal from "~/components/modals/pin-detail-modal";
 import { Button } from "~/components/shadcn/ui/button";
-import { Label } from "~/components/shadcn/ui/label";
-import { Skeleton } from "~/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
+import { useSelectCreatorStore, type SelectedCreator } from "~/components/store/creator-selection-store";
 import { useCopyCutModalStore } from "~/store/copy-cut-modal-store";
 import { useHotspotDraft } from "~/store/hotspot-draft";
-import { useSelectCreatorStore } from "~/components/store/creator-selection-store";
 import { useMapInteractionStore, useNearbyPinsStore } from "~/store/map-stores";
-import { getPinIcon } from "~/utils/map-helpers";
 import { api } from "~/utils/api";
+import { getPinIcon } from "~/utils/map-helpers";
+
+import { BrandPicker } from "./brand-picker";
 
 /**
- * Admin › Maps (Mapbox).
- * Allows admins to select any creator, inspect all pins & hotspots,
- * draw new hotspots, drop pins, and manage geolocation with modern Mapbox HUD styling.
+ * Admin › All maps: any brand's pins and hotspots on the map. Pick a brand,
+ * then drop a pin (click the map), draw a hotspot, or open a pin to manage it
+ * — the same tools a brand has on its own Map, on the brand's behalf.
+ * The chosen brand is kept in the URL (?brand=…) so links and Back keep it.
  */
 export default function AdminMapsPage() {
   const router = useRouter();
+  const pathname = usePathname() ?? "/admin/maps";
   const search = useSearchParams();
   const map = useRef<MapRef>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const [showExpired, setShowExpired] = useState(false);
   const [drawing, setDrawing] = useState(() => search?.get("draw") === "1");
-  const [drawShape, setDrawShape] = useState<DrawShape>(() => {
+  const [drawShape] = useState<DrawShape>(() => {
     const s = search?.get("shape");
     return s === "polygon" || s === "rectangle" || s === "circle" ? s : "polygon";
   });
   const [hotspotId, setHotspotId] = useState<string | null>(null);
 
-  // Clear query params if draw mode was activated from URL
-  useEffect(() => {
-    if (search?.get("draw") === "1") {
-      router.replace("/admin/maps", { scroll: false });
-    }
-  }, [search, router]);
-
-  const {
-    setPosition,
-    openPinDetailModal,
-    isPinCopied,
-    isPinCut,
-    setIsAutoCollect,
-  } = useMapInteractionStore();
-
+  const { setPosition, openPinDetailModal, isPinCopied, isPinCut, setIsAutoCollect } = useMapInteractionStore();
   const openCopyCut = useCopyCutModalStore((s) => s.setIsOpen);
   const setDraft = useHotspotDraft((s) => s.set);
   const { adminPins, setAdminPins, clearAdminPins, filterNearbyPins } = useNearbyPinsStore();
-  const { data: selectedCreator, setData: setSelectedCreator } = useSelectCreatorStore();
+  const { data: stored, setData: setStored } = useSelectCreatorStore();
 
-  // Queries
-  const creatorsQuery = api.fan.creator.getCreators.useQuery();
-  const pinsQuery = api.maps.pin.getCreatorPins.useQuery(
-    {
-      creator_id: selectedCreator?.id ?? "",
-      showExpired,
-    },
-    {
-      enabled: Boolean(selectedCreator?.id),
-    },
-  );
+  // ── Which brand: ?brand= → last picked → first brand ────────────────────
+  const brands = api.fan.creator.getCreators.useQuery(undefined, { refetchOnWindowFocus: false });
+  const urlBrand = search?.get("brand");
+  const brand = brands.data?.find((b) => b.id === urlBrand) ?? (stored && brands.data?.find((b) => b.id === stored.id)) ?? brands.data?.[0];
 
-  const hotspotsQuery = api.maps.pin.getCreatorHotspots.useQuery(
-    {
-      creatorId: selectedCreator?.id ?? "",
-    },
-    {
-      enabled: Boolean(selectedCreator?.id),
-    },
-  );
-
-  // Auto-select first creator if none is selected
+  const pickBrand = (b: SelectedCreator) => {
+    setStored(b);
+    router.replace(`${pathname}?brand=${encodeURIComponent(b.id)}`, { scroll: false });
+  };
   useEffect(() => {
-    if (!selectedCreator && creatorsQuery.data && creatorsQuery.data.length > 0) {
-      const first = creatorsQuery.data[0];
-      if (first) setSelectedCreator(first);
-    }
-  }, [selectedCreator, creatorsQuery.data, setSelectedCreator]);
+    if (brand && stored?.id !== brand.id) setStored(brand);
+  }, [brand, stored?.id, setStored]);
 
-  // Sync pins to nearby store
+  // "Redraw" links open straight into drawing; drop the flag from the URL.
   useEffect(() => {
-    if (pinsQuery.isLoading) {
-      setAdminPins([]);
-      return;
-    }
-    if (pinsQuery.data) {
-      setAdminPins(pinsQuery.data);
-    } else {
-      setAdminPins([]);
-    }
-  }, [pinsQuery.data, pinsQuery.isLoading, setAdminPins]);
+    if (search?.get("draw") !== "1") return;
+    router.replace(brand ? `${pathname}?brand=${encodeURIComponent(brand.id)}` : pathname, { scroll: false });
+  }, [search, router, pathname, brand]);
+
+  // ── Data ─────────────────────────────────────────────────────────────────
+  const pins = api.maps.pin.getCreatorPins.useQuery({ creator_id: brand?.id ?? "", showExpired }, { enabled: Boolean(brand), refetchOnWindowFocus: false });
+  const hotspots = api.maps.pin.getCreatorHotspots.useQuery({ creatorId: brand?.id ?? "" }, { enabled: Boolean(brand), refetchOnWindowFocus: false });
 
   useEffect(() => {
-    return () => {
-      clearAdminPins();
-    };
-  }, [clearAdminPins]);
+    setAdminPins(pins.data ?? []);
+  }, [pins.data, setAdminPins]);
+  useEffect(() => clearAdminPins, [clearAdminPins]);
 
   const refreshInView = useCallback(() => {
     const b = map.current?.getBounds();
-    if (b) {
-      filterNearbyPins(
-        { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() },
-        "admin",
-      );
-    }
+    if (b) filterNearbyPins({ north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }, "admin");
   }, [filterNearbyPins]);
-
   useEffect(refreshInView, [adminPins, refreshInView]);
 
-  // Center on pins when creator changes
-  const lastFittedCreator = useRef<string | null>(null);
+  // Frame the brand's pins + hotspots once per brand, as soon as both the map and the data are ready.
+  const framed = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedCreator || lastFittedCreator.current === selectedCreator.id || !map.current) return;
+    if (!mapReady || !brand || framed.current === brand.id || !pins.data || !hotspots.data || !map.current) return;
+    framed.current = brand.id;
+    const points = [
+      ...pins.data.map((p) => [p.longitude, p.latitude] as const),
+      ...hotspots.data.flatMap(
+        (h) => toMapboxFeature(h.geoJson as Parameters<typeof toMapboxFeature>[0])?.geometry.coordinates[0]?.map(([lng, lat]) => [lng!, lat!] as const) ?? [],
+      ),
+    ];
+    if (!points.length) return;
+    const lngs = points.map((p) => p[0]);
+    const lats = points.map((p) => p[1]);
+    map.current.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: { top: 90, bottom: 60, left: 60, right: 360 }, maxZoom: 15, duration: 700 },
+    );
+  }, [mapReady, brand, pins.data, hotspots.data]);
 
-    if (pinsQuery.data && pinsQuery.data.length > 0) {
-      lastFittedCreator.current = selectedCreator.id;
-      const points = pinsQuery.data.map((p) => [p.longitude, p.latitude] as const);
-      const lngs = points.map((p) => p[0]);
-      const lats = points.map((p) => p[1]);
-      map.current.fitBounds(
-        [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)],
-        ],
-        { padding: 100, maxZoom: 15, duration: 800 },
-      );
-    }
-  }, [selectedCreator, pinsQuery.data]);
-
-  const flyTo = (c: { lat: number; lng: number }, zoom = 15) => {
-    map.current?.flyTo({ center: [c.lng, c.lat], zoom, duration: 700 });
-  };
+  const flyTo = (c: { lat: number; lng: number }, zoom = 15) => map.current?.flyTo({ center: [c.lng, c.lat], zoom, duration: 700 });
+  const brandQuery = brand ? `creatorId=${encodeURIComponent(brand.id)}` : "";
 
   const onMapClick = (lat: number, lng: number) => {
     if (drawing) return;
-
     if (isPinCopied || isPinCut) {
       setPosition({ lat, lng });
       openCopyCut(true);
       return;
     }
-
-    const creatorParam = selectedCreator ? `&creatorId=${selectedCreator.id}` : "";
-    router.push(`/admin/pins/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}${creatorParam}`);
-  };
-
-  const handleManualPinClick = () => {
-    const creatorParam = selectedCreator ? `?creatorId=${selectedCreator.id}` : "";
-    router.push(`/admin/pins/new${creatorParam}`);
-  };
-
-  const handleStartDraw = (shape: DrawShape = "polygon") => {
-    setDrawShape(shape);
-    setDrawing(true);
+    router.push(`/admin/pins/new?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}${brandQuery && `&${brandQuery}`}`);
   };
 
   const onDrawn = useCallback(
     (feature: StoredFeature, shape: DrawShape) => {
       setDraft(feature, shape);
       setDrawing(false);
-      const creatorParam = selectedCreator ? `?creatorId=${selectedCreator.id}` : "";
-      router.push(`/admin/pins/hotspots/new${creatorParam}`);
+      router.push(`/admin/pins/hotspots/new${brandQuery && `?${brandQuery}`}`);
     },
-    [router, selectedCreator, setDraft],
+    [router, brandQuery, setDraft],
   );
+
+  const loading = Boolean(brand) && (pins.isPending || hotspots.isPending);
+  const nothing = Boolean(brand) && !loading && !pins.data?.length && !hotspots.data?.length;
 
   return (
     <div className="relative h-[calc(100dvh-3.5rem-4rem-var(--safe-bottom))] w-full overflow-hidden lg:h-dvh">
@@ -196,28 +143,19 @@ export default function AdminMapsPage() {
         ref={map}
         controlsPosition="bottom-left"
         initialViewState={WORLD_VIEW}
-        onClick={(e) => {
-          const m = map.current;
-          if (
-            !drawing &&
-            m?.getLayer("hotspot-fill") &&
-            m.queryRenderedFeatures(e.point, { layers: ["hotspot-fill"] }).length
-          ) {
-            return;
-          }
-          onMapClick(e.lngLat.lat, e.lngLat.lng);
+        onLoad={() => {
+          setMapReady(true);
+          refreshInView();
         }}
         onMoveEnd={refreshInView}
-        onLoad={refreshInView}
+        onClick={(e) => {
+          const m = map.current;
+          if (!drawing && m?.getLayer("hotspot-fill") && m.queryRenderedFeatures(e.point, { layers: ["hotspot-fill"] }).length) return;
+          onMapClick(e.lngLat.lat, e.lngLat.lng);
+        }}
         cursor={drawing ? "crosshair" : isPinCopied || isPinCut ? "copy" : "pointer"}
       >
-        {hotspotsQuery.data && (
-          <HotspotLayer
-            hotspots={hotspotsQuery.data}
-            onSelect={drawing ? undefined : setHotspotId}
-          />
-        )}
-
+        {hotspots.data && <HotspotLayer hotspots={hotspots.data} onSelect={drawing ? undefined : setHotspotId} />}
         {!drawing &&
           adminPins.map((pin) => {
             const g = pin.locationGroup;
@@ -244,98 +182,53 @@ export default function AdminMapsPage() {
               />
             );
           })}
-
-        {drawing && (
-          <DrawTool
-            initialShape={drawShape}
-            onDone={onDrawn}
-            onCancel={() => setDrawing(false)}
-          />
-        )}
+        {drawing && <DrawTool initialShape={drawShape} onDone={onDrawn} onCancel={() => setDrawing(false)} />}
       </BaseMap>
 
-      {/* Floating HUD Toolbar */}
+      {/* Toolbar — same order as the brand's Map: context, search, filter … actions. */}
       {!drawing && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start gap-2 lg:inset-x-4 lg:top-4">
-          {/* Creator Selector */}
-          <div className="pointer-events-auto w-56 sm:w-64">
-            {creatorsQuery.isLoading ? (
-              <Skeleton className="h-10 w-full rounded-md border bg-card/95 shadow-sm backdrop-blur-sm" />
-            ) : (
-              <Select
-                value={selectedCreator?.id}
-                onValueChange={(val) => {
-                  const found = creatorsQuery.data?.find((c) => c.id === val);
-                  if (found) setSelectedCreator(found);
-                }}
-              >
-                <SelectTrigger className="h-10 border bg-card/95 font-hud text-xs shadow-sm backdrop-blur-sm">
-                  <div className="flex items-center gap-2 truncate">
-                    <UserRound className="size-4 shrink-0 text-primary" />
-                    <SelectValue placeholder="Select a brand..." />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {creatorsQuery.data?.map((creator) => (
-                    <SelectItem key={creator.id} value={creator.id} className="text-xs">
-                      {creator.name || creator.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
+          <BrandPicker className="pointer-events-auto w-56 sm:w-64" brands={brands.data} value={brand} onChange={pickBrand} loading={brands.isPending} />
           <PlaceSearch className="pointer-events-auto w-full sm:w-72" onSelect={(p) => flyTo(p, 14)} />
-
-          <div className="pointer-events-auto flex h-10 items-center gap-2 rounded-lg border bg-card/95 px-3 shadow-sm backdrop-blur-sm">
-            <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
-            <Label htmlFor="show-expired" className="text-xs font-medium">
-              Show expired
-            </Label>
-          </div>
-
+          <label className="pointer-events-auto flex h-10 cursor-pointer items-center gap-2 rounded-lg border bg-card/95 px-3 text-xs font-medium shadow-sm backdrop-blur-sm">
+            <Switch checked={showExpired} onCheckedChange={setShowExpired} aria-label="Show expired pins" />
+            Show expired
+          </label>
           <div className="pointer-events-auto ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="shadow-sm"
-              onClick={() => handleStartDraw("polygon")}
-            >
-              <Hexagon className="size-4" />
-              <span className="hidden sm:inline">Draw hotspot</span>
+            <Button variant="outline" className="bg-card/95 shadow-sm backdrop-blur-sm" onClick={() => setDrawing(true)} disabled={!brand}>
+              <Hexagon /> <span className="hidden sm:inline">Draw hotspot</span>
             </Button>
-            <Button className="shadow-sm" onClick={handleManualPinClick}>
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">Create Pin</span>
+            <Button className="shadow-sm" onClick={() => router.push(`/admin/pins/new${brandQuery && `?${brandQuery}`}`)} disabled={!brand}>
+              <Plus /> <span className="hidden sm:inline">New pin</span>
             </Button>
           </div>
         </div>
       )}
 
-      {/* Paste mode banner */}
-      {(isPinCopied || isPinCut) && !drawing && (
-        <div className="absolute left-1/2 top-28 z-10 -translate-x-1/2 rounded-full bg-primary px-4 py-1.5 font-hud text-xs font-semibold text-primary-foreground shadow-lg sm:top-20">
-          Click the map to {isPinCut ? "move" : "paste"} the pin
+      {/* Status line under the toolbar: loading, nothing yet, or paste mode. */}
+      {!drawing && (loading || nothing || isPinCopied || isPinCut) && (
+        <div className="pointer-events-none absolute top-[7.5rem] left-1/2 z-10 -translate-x-1/2 sm:top-16">
+          {isPinCopied || isPinCut ? (
+            <span className="rounded-full bg-primary px-4 py-1.5 font-hud text-xs font-semibold text-primary-foreground shadow-lg">Click the map to {isPinCut ? "move" : "paste"} the pin</span>
+          ) : loading ? (
+            <span className="inline-flex items-center gap-2 rounded-full border bg-card/95 px-3.5 py-1.5 text-xs shadow-md backdrop-blur-sm">
+              <Loader2 className="size-3.5 animate-spin text-primary" /> Loading {brand?.name}&rsquo;s pins…
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border bg-card/95 px-3.5 py-1.5 text-xs shadow-md backdrop-blur-sm">
+              <MapPinOff className="size-3.5 text-muted-foreground" />
+              {brand?.name} has no {showExpired ? "expired" : "live"} pins — click the map to drop one.
+            </span>
+          )}
         </div>
       )}
 
-      {/* In-view pins list */}
-      {!drawing && (
-        <NearbyLocationsPanel
-          className="absolute right-4 top-20 z-10"
-          onSelectPlace={(c) => flyTo(c)}
-        />
-      )}
+      {!drawing && <NearbyLocationsPanel className="absolute top-20 right-4 z-10" onSelectPlace={(c) => flyTo(c)} />}
 
-      {/* Modals & Agent */}
       <PinDetailAndActionsModal />
       <CopyCutPinModal />
-      <HotspotDetailModal
-        isOpen={Boolean(hotspotId)}
-        setIsOpen={(o: boolean) => !o && setHotspotId(null)}
-        hotspotId={hotspotId}
-      />
-      {selectedCreator && <AgentChat creatorId={selectedCreator.id} />}
+      <HotspotDetailModal isOpen={Boolean(hotspotId)} setIsOpen={(o: boolean) => !o && setHotspotId(null)} hotspotId={hotspotId} />
+      {brand && <AgentChat creatorId={brand.id} />}
     </div>
   );
 }
