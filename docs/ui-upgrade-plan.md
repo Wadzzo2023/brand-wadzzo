@@ -213,5 +213,10 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
   1. `admin.users.sendEmail` open relay closed (restricted to `adminProcedure`).
   2. `/api/file` (Pinata IPFS upload) protected with `getServerAuthSession`.
   3. `maps.pin.getPin` restricted to `creatorProcedure` with `assertOwnerOrAdmin`, and sensitive fan PII collector lists replaced with `totalConsumers` count.
-- Next: Dead code cleanup approval; onboarding review; final click-through & bundle size measurement.
+- Onboarding review completed:
+  - Focused layout in `PortalShell` for `/onboarding` (suppressed sidebar to avoid double-rail layout; suppressed mobile tab bar to avoid dead links on phones before approval).
+  - Clean top bar with Wadzzo logo and `UserMenu` (theme switcher, wallet address, sign out).
+  - `OnboardingGate` verified: redirects already-approved creators to `/pins` (or `/admin/creators`).
+  - Added `vitest.config.ts` excluding submodules; created `tests/onboarding.test.ts` validating payload schemas and edge cases (all 17 unit tests passing).
+- Next: Dead code cleanup approval; final click-through & bundle size measurement (Step 10).
 
