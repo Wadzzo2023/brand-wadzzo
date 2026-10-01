@@ -34,7 +34,7 @@ export function BannedCreatorCard({ creatorName }: BannedCreatorCardProps) {
             <Separator />
 
             <CardFooter className="pt-4 flex flex-col gap-2">
-                <Button className="w-full shadow-sm " size="lg" asChild >
+                <Button className="w-full shadow-xs " size="lg" asChild >
                     <Link href="/contact" >
                         <Mail className="mr-2 h-4 w-4" />
                         Contact Support

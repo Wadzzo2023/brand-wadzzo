@@ -60,10 +60,10 @@ export function AddReplyComment({
                         type="submit"
                         size="sm"
                         variant="sidebarAccent"
-                        className="absolute right-2 bottom-2 h-8 w-8 p-0 shadow-sm shadow-foreground"
-                        disabled={commentMutation.isLoading || !contentValue?.trim()}
+                        className="absolute right-2 bottom-2 h-8 w-8 p-0 shadow-xs shadow-foreground"
+                        disabled={commentMutation.isPending || !contentValue?.trim()}
                     >
-                        {commentMutation.isLoading ? (
+                        {commentMutation.isPending ? (
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                         ) : (
                             <Send size={16} />

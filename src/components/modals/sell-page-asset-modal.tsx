@@ -483,10 +483,10 @@ function EnhanceDescriptionButton({ className }: { className?: string }) {
 
             size="sm"
             onClick={handleEnhance}
-            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isLoading}
+            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isPending}
             className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10  rounded-full`}
         >
-            {enhanceDescriptionMutation.isLoading ? (
+            {enhanceDescriptionMutation.isPending ? (
                 <>
                     <Loader className="w-3 h-3 animate-spin" />
 

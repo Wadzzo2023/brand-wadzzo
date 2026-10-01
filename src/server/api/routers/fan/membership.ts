@@ -215,8 +215,10 @@ export const membershipRouter = createTRPCRouter({
           name: input.name,
           price: input.price,
         },
+        // Only the brand's own tier.
         where: {
           id: input.id,
+          creatorId: ctx.session.user.id,
         },
       });
     }),

@@ -8,7 +8,9 @@ import {
   UserRole,
 } from "@prisma/client"; // Assuming you are using Prisma
 import { getAccSecretFromRubyApi } from "package/connect_wallet/src/lib/stellar/get-acc-secret";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { assertOwnerOrAdmin } from "~/server/api/access";
 import { sortOptionEnum } from "~/types/bounty/bounty-type";
 import {
   checkXDRSubmitted,
@@ -606,12 +608,18 @@ export const BountyRoute = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      return await ctx.db.bountySubmission.findUnique({
+      const submission = await ctx.db.bountySubmission.findUnique({
         where: { id: input.submissionId },
         include: {
           medias: true,
+          bounty: { select: { creatorId: true } },
         },
       });
+      if (!submission) return null;
+      // The submitter, the bounty's brand, or an admin.
+      await assertOwnerOrAdmin(ctx, submission.userId, submission.bounty.creatorId);
+      const { bounty: _bounty, ...rest } = submission;
+      return rest;
     }),
   getBountyAttachmentByUserId: protectedProcedure
     .input(
@@ -737,6 +745,8 @@ export const BountyRoute = createTRPCRouter({
               BountyWinner: true,
             },
           },
+          creatorId: true,
+          priceInBand: true,
           totalWinner: true,
           priceInXLM: true,
           currentWinnerCount: true,
@@ -745,6 +755,15 @@ export const BountyRoute = createTRPCRouter({
       if (!winners) {
         throw new Error("Bounty not found");
       }
+      // Only the bounty's brand (or an admin) pays out, only to someone who
+      // submitted and hasn't won yet, and the amount comes from the bounty.
+      await assertOwnerOrAdmin(ctx, winners.creatorId);
+      const [submitted, alreadyWon] = await Promise.all([
+        ctx.db.bountySubmission.findFirst({ where: { bountyId: input.BountyId, userId: userPubKey }, select: { id: true } }),
+        ctx.db.bountyWinner.findFirst({ where: { bountyId: input.BountyId, userId: userPubKey }, select: { id: true } }),
+      ]);
+      if (!submitted) throw new TRPCError({ code: "BAD_REQUEST", message: "This user hasn't submitted to the bounty" });
+      if (alreadyWon) throw new TRPCError({ code: "BAD_REQUEST", message: "This user is already a winner" });
 
       if (winners.currentWinnerCount === winners.totalWinner) {
         throw new Error(
@@ -760,7 +779,7 @@ export const BountyRoute = createTRPCRouter({
       } else {
         return await SendBountyBalanceToWinner({
           recipientID: userPubKey,
-          prize: input.prize / winners.totalWinner,
+          prize: winners.priceInBand / winners.totalWinner,
         });
       }
     }),
@@ -798,6 +817,12 @@ export const BountyRoute = createTRPCRouter({
       if (bounty.creatorId !== ctx.session.user.id) {
         throw new Error("You are not the owner of this bounty");
       }
+      const [submitted, alreadyWon] = await Promise.all([
+        ctx.db.bountySubmission.findFirst({ where: { bountyId: input.BountyId, userId: input.userId }, select: { id: true } }),
+        ctx.db.bountyWinner.findFirst({ where: { bountyId: input.BountyId, userId: input.userId }, select: { id: true } }),
+      ]);
+      if (!submitted) throw new TRPCError({ code: "BAD_REQUEST", message: "This user hasn't submitted to the bounty" });
+      if (alreadyWon) throw new TRPCError({ code: "BAD_REQUEST", message: "This user is already a winner" });
       await ctx.db.bounty.update({
         where: {
           id: input.BountyId,
@@ -856,6 +881,7 @@ export const BountyRoute = createTRPCRouter({
         where: {
           id: input.submissionId,
         },
+        select: { bounty: { select: { creatorId: true } } },
       });
       if (!submission) {
         throw new Error("Submission not found");
@@ -866,7 +892,7 @@ export const BountyRoute = createTRPCRouter({
           id: ctx.session.user.id,
         },
       });
-      const isOwner = input.creatorId === ctx.session.user.id;
+      const isOwner = submission.bounty.creatorId === ctx.session.user.id;
 
       if (!isOwner && !isUserIsAdmin) {
         throw new Error(
@@ -897,7 +923,6 @@ export const BountyRoute = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const userPubKey = ctx.session.user.id;
       const hasBountyWinner = await ctx.db.bountyWinner.findFirst({
         where: {
           bountyId: input.bountyId,
@@ -915,15 +940,18 @@ export const BountyRoute = createTRPCRouter({
       if (!bounty) {
         throw new Error("Bounty not found");
       }
+      // The refund always goes back to the bounty's brand, for the bounty's
+      // own prize, and only the brand or an admin can ask for it.
+      await assertOwnerOrAdmin(ctx, bounty.creatorId);
       if (bounty.priceInXLM) {
         return await SendBountyBalanceToUserAccountViaXLM({
-          userPubKey: input.creatorId ? input.creatorId : userPubKey,
+          userPubKey: bounty.creatorId,
           prizeInXLM: bounty.priceInXLM,
         });
       } else
         return await SendBountyBalanceToUserAccount({
-          userPubKey: input.creatorId ? input.creatorId : userPubKey,
-          prize: input.prize,
+          userPubKey: bounty.creatorId,
+          prize: bounty.priceInBand,
         });
     }),
 
@@ -1155,6 +1183,9 @@ export const BountyRoute = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
+      const owner = await ctx.db.bounty.findUnique({ where: { id: input.BountyId }, select: { creatorId: true } });
+      if (!owner) throw new TRPCError({ code: "NOT_FOUND", message: "Bounty not found" });
+      await assertOwnerOrAdmin(ctx, owner.creatorId);
       const submissions = await ctx.db.bountySubmission.findMany({
         where: {
           bountyId: input.BountyId,
@@ -1537,6 +1568,8 @@ export const BountyRoute = createTRPCRouter({
       if (!bounty) {
         throw new Error("Bounty not found");
       }
+      // Only the fan in this thread, the bounty's brand, or an admin.
+      await assertOwnerOrAdmin(ctx, input.userId, bounty.creatorId);
 
       // Fetch the doubts between the user and creator
       const bountyDoubts = await ctx.db.bountyDoubt.findMany({

@@ -38,7 +38,7 @@ export default function AssetView({ code, thumbnail, isNFT = true, isPinned = fa
                 {/* Concert image */}
                 <CardContent className="p-2 min-h-full max-h-full">
                     <div className="relative overflow-hidden rounded-md group">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
+                        <div className="absolute inset-0 bg-linear-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
                         <img
                             src={thumbnail ?? "/images/logo.png"}
                             alt="Concert stage with lights"
@@ -58,7 +58,7 @@ export default function AssetView({ code, thumbnail, isNFT = true, isPinned = fa
                                         repeatType: "loop"
                                     }}
                                 >
-                                    <Badge variant="secondary" className="bg-black/50 backdrop-blur-sm text-white border border-yellow-400">
+                                    <Badge variant="secondary" className="bg-black/50 backdrop-blur-xs text-white border border-yellow-400">
                                         <Gem className="w-3 h-3 mr-1 text-yellow-400" /> NFT
                                     </Badge>
                                 </motion.div>
@@ -83,8 +83,8 @@ export default function AssetView({ code, thumbnail, isNFT = true, isPinned = fa
                         </div>
 
                         {/* Info section */}
-                        <div className="flex items-center gap-2 rounded-lg bg-primary shadow-sm shadow-secondary relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-secondary/10 to-transparent -translate-x-full animate-shimmer"></div>
+                        <div className="flex items-center gap-2 rounded-lg bg-primary shadow-xs shadow-secondary relative overflow-hidden">
+                            <div className="absolute inset-0 bg-linear-to-r from-transparent via-secondary/10 to-transparent -translate-x-full animate-shimmer"></div>
                             <div className="p-3 relative z-10">
                                 <div className="text-xs text-muted-foreground">Asset Type</div>
                                 <div className="font-medium flex items-center">

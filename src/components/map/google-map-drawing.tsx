@@ -299,7 +299,7 @@ export function GoogleMapDrawing({ onSelectionChange, mapElement, onClose, map }
                         <div className="flex flex-col items-center justify-center gap-2">
                             <Button
                                 onClick={() => { setActiveMode('polygon'); setPoints([]); }}
-                                variant={activeMode === 'polygon' ? 'default' : 'outline'}
+                                variant={activeMode === 'polygon' ? 'default' : 'outline-solid'}
                                 className="gap-2 w-full"
                                 size="sm"
                             >
@@ -307,7 +307,7 @@ export function GoogleMapDrawing({ onSelectionChange, mapElement, onClose, map }
                             </Button>
                             <Button
                                 onClick={() => { setActiveMode('rectangle'); setPoints([]); }}
-                                variant={activeMode === 'rectangle' ? 'default' : 'outline'}
+                                variant={activeMode === 'rectangle' ? 'default' : 'outline-solid'}
                                 className="gap-2 w-full"
                                 size="sm"
                             >
@@ -315,7 +315,7 @@ export function GoogleMapDrawing({ onSelectionChange, mapElement, onClose, map }
                             </Button>
                             <Button
                                 onClick={() => { setActiveMode('circle'); setPoints([]); }}
-                                variant={activeMode === 'circle' ? 'default' : 'outline'}
+                                variant={activeMode === 'circle' ? 'default' : 'outline-solid'}
                                 className="gap-2 w-full"
                                 size="sm"
                             >

@@ -133,7 +133,7 @@ export function ListBlock({ message, items, action, onConfirm, onDismiss }: List
                         >
                             {/* Checkbox */}
                             <div className={cn(
-                                "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                                "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
                                 isChecked ? "bg-primary border-primary" : "border-muted-foreground bg-transparent"
                             )}>
                                 {isChecked && (

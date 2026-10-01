@@ -34,7 +34,7 @@ export default function ViewBountyComment({
 
   return (
     <div className="relative">
-      <div className={clsx("flex items-start justify-between w-full text-sm", isDeleting && "blur-sm")}>
+      <div className={clsx("flex items-start justify-between w-full text-sm", isDeleting && "blur-xs")}>
         <div className="flex w-full gap-2">
           <div className="h-auto w-auto rounded-full">
             <CustomAvatar
@@ -137,7 +137,7 @@ function CommentContextMenu({
         <ContextMenu
           handleDelete={handleDelete}
 
-          isLoading={deletePost.isLoading}
+          isLoading={deletePost.isPending}
         />
       </div>
     );

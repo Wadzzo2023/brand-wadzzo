@@ -90,7 +90,7 @@ export function MapHeader({
                                 >
                                     <Input
                                         placeholder="Search locations, brands..."
-                                        className="h-12 w-full border-0 bg-transparent pl-12 pr-4 text-gray-900 placeholder:text-gray-500 focus:ring-0 focus:outline-none rounded-2xl"
+                                        className="h-12 w-full border-0 bg-transparent pl-12 pr-4 text-gray-900 placeholder:text-gray-500 focus:ring-0 focus:outline-hidden rounded-2xl"
                                     />
                                 </CustomMapControl>
                             </div>

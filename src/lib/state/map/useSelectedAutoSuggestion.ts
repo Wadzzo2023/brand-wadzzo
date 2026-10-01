@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
 interface AutoSuggestionStore {
-  selectedPlace: google.maps.LatLngLiteral | null;
-  setSelectedPlace: (place: google.maps.LatLngLiteral | null) => void;
+  selectedPlace: { lat: number; lng: number } | null;
+  setSelectedPlace: (place: { lat: number; lng: number } | null) => void;
 }
 export const useSelectedAutoSuggestion = create<AutoSuggestionStore>((set) => ({
   selectedPlace: null,

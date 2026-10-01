@@ -12,7 +12,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await EnableCors(req, res);
+  if (await EnableCors(req, res)) return;
   const session = await getSession({ req });
 
   // Check if the user is authenticated

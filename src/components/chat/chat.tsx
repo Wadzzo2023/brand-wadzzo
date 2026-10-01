@@ -126,7 +126,7 @@ const Chat = ({ bountyId }: { bountyId: number }) => {
                             />
                         </div>
                     </div>
-                    <TabsList className="lg:flex h-[calc(100vh-30vh)]  hidden flex-col items-start justify-start gap-2 overflow-auto px-2">
+                    <TabsList className="lg:flex h-[70vh]  hidden flex-col items-start justify-start gap-2 overflow-auto px-2">
                         {filteredDoubts?.length === 0 ? (
                             <div className="flex h-full w-full items-center justify-center">
                                 <p className="text-center text-lg font-medium text-muted-foreground">No chats available</p>
@@ -137,7 +137,7 @@ const Chat = ({ bountyId }: { bountyId: number }) => {
                                     key={item.id}
                                     value={item.id.toString()}
                                     onClick={() => setSelectedDoubt(item)}
-                                    className="flex w-full shadow-sm shadow-slate-300 items-center  justify-start gap-3 rounded-sm p-2 hover:bg-accent"
+                                    className="flex w-full shadow-xs shadow-slate-300 items-center  justify-start gap-3 rounded-sm p-2 hover:bg-accent"
                                 >
                                     <CustomAvatar url={item.user.image} className="h-10 w-10" winnerCount={item.winnerCount} />
                                     <div className="flex flex-col items-start overflow-hidden">
@@ -259,7 +259,7 @@ const ChatItem = ({ item }: { item: BountyDoubtListItem }) => {
                 </div>
             </CardHeader>
             <CardContent className="flex-1 p-0">
-                <ScrollArea className="h-[calc(100vh-30vh)] relative">
+                <ScrollArea className="h-[70vh] relative">
                     <div className="flex flex-col gap-4 p-4 ">
                         {messages?.map((message, index) => (
                             <div
@@ -359,7 +359,7 @@ const ChatItem = ({ item }: { item: BountyDoubtListItem }) => {
                         <Input
                             id="message"
                             placeholder="Type your message..."
-                            className="w-full shadow-sm shadow-slate-300"
+                            className="w-full shadow-xs shadow-slate-300"
                             autoComplete="off"
                             value={input}
                             onChange={(event) => setInput(event.target.value)}
@@ -367,10 +367,10 @@ const ChatItem = ({ item }: { item: BountyDoubtListItem }) => {
                         <Button
                             type="submit"
                             size="icon"
-                            className="shadow-sm shadow-black"
-                            disabled={loading || input.trim().length === 0 || NewMessageMutation.isLoading}
+                            className="shadow-xs shadow-black"
+                            disabled={loading || input.trim().length === 0 || NewMessageMutation.isPending}
                         >
-                            {NewMessageMutation.isLoading ? (
+                            {NewMessageMutation.isPending ? (
                                 <motion.div
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}

@@ -122,7 +122,7 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
 
             className=""
         >
-            <Card className={cn("overflow-hidden   border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow", deletePostId === post.id && "animate-pulse border-red-300")}>
+            <Card className={cn("overflow-hidden   border-gray-200 dark:border-gray-800 shadow-xs hover:shadow-md transition-shadow", deletePostId === post.id && "animate-pulse border-red-300")}>
                 <CardHeader className="p-4 pb-0">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -209,10 +209,10 @@ export default function PostCard({ post, creator, likeCount, commentCount, locke
                             size="sm"
                             className={cn("flex-1 gap-2", liked && "text-red-500 dark:text-red-400 font-medium")}
                             onClick={toggleLike}
-                            disabled={deleteLike.isLoading ?? likeMutation.isLoading}
+                            disabled={deleteLike.isPending ?? likeMutation.isPending}
                         >
                             {
-                                likeMutation.isLoading ?? deleteLike.isLoading ? (
+                                likeMutation.isPending ?? deleteLike.isPending ? (
                                     <div className="flex items-center justify-center gap-2">
                                         <Loader2 className="h-4 w-4 animate-spin" />
 

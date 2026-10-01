@@ -118,7 +118,7 @@ export default function QRCodeModal({ isOpen, onClose, qrItem }: QRCodeModalProp
                                         <CardDescription>Scan this code to view the content</CardDescription>
                                     </CardHeader>
                                     <CardContent className="flex flex-col items-center space-y-4">
-                                        <div className="bg-white p-4 rounded-lg shadow-sm border">
+                                        <div className="bg-white p-4 rounded-lg shadow-xs border">
                                             <QRCode
                                                 id="qr-code-svg"
                                                 value={qrData}
@@ -328,7 +328,7 @@ export default function QRCodeModal({ isOpen, onClose, qrItem }: QRCodeModalProp
                                 <CardDescription>This is what users will see when they scan the QR code</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-lg">
+                                <div className="bg-linear-to-br from-blue-50 to-indigo-100 p-6 rounded-lg">
                                     <div className="space-y-6">
                                         <div>
                                             <h3 className="text-2xl font-bold">{qrItem.title}</h3>

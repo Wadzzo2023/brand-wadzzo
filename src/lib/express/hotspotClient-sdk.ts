@@ -11,9 +11,8 @@
 // Note: GET routes pass creatorId as a query param (no body on GET).
 //       POST/DELETE routes pass creatorId in the JSON body.
 
-import { EXPRESS_SERVER_URL } from "../common";
+import { taskServerUrl } from "./server-url";
 
-const TASK_SERVER_URL = (EXPRESS_SERVER_URL).replace(/\/$/, "");
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -85,7 +84,7 @@ export const hotspotClient = {
         creatorId: string,
         input: CreateHotspotInput
     ): Promise<{ hotspotId: string }> {
-        const res = await fetch(`${TASK_SERVER_URL}/hotspots`, {
+        const res = await fetch(`${taskServerUrl()}/hotspots`, {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ ...input, creatorId }),  // creatorId in body — ownership scoping
@@ -96,13 +95,13 @@ export const hotspotClient = {
     // ── Read (creatorId as query param — no body on GET) ──────────────────────
 
     async list(creatorId: string): Promise<{ hotspots: HotspotSummary[] }> {
-        const url = `${TASK_SERVER_URL}/hotspots?creatorId=${encodeURIComponent(creatorId)}`;
+        const url = `${taskServerUrl()}/hotspots?creatorId=${encodeURIComponent(creatorId)}`;
         const res = await fetch(url, { headers: JSON_HEADERS });
         return handleResponse<{ hotspots: HotspotSummary[] }>(res);
     },
 
     async get(creatorId: string, hotspotId: string): Promise<HotspotDetail> {
-        const url = `${TASK_SERVER_URL}/hotspots/${hotspotId}?creatorId=${encodeURIComponent(creatorId)}`;
+        const url = `${taskServerUrl()}/hotspots/${hotspotId}?creatorId=${encodeURIComponent(creatorId)}`;
         const res = await fetch(url, { headers: JSON_HEADERS });
         return handleResponse<HotspotDetail>(res);
     },
@@ -110,7 +109,7 @@ export const hotspotClient = {
     // ── Schedule control (creatorId in body) ──────────────────────────────────
 
     async pause(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
-        const res = await fetch(`${TASK_SERVER_URL}/hotspots/${hotspotId}/pause`, {
+        const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/pause`, {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ creatorId }),
@@ -119,7 +118,7 @@ export const hotspotClient = {
     },
 
     async resume(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
-        const res = await fetch(`${TASK_SERVER_URL}/hotspots/${hotspotId}/resume`, {
+        const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/resume`, {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ creatorId }),
@@ -128,7 +127,7 @@ export const hotspotClient = {
     },
 
     async delete(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
-        const res = await fetch(`${TASK_SERVER_URL}/hotspots/${hotspotId}`, {
+        const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}`, {
             method: "DELETE",
             headers: JSON_HEADERS,
             body: JSON.stringify({ creatorId }),
@@ -141,7 +140,7 @@ export const hotspotClient = {
         creatorId: string,
         hotspotId: string
     ): Promise<{ ok: boolean; result?: unknown; reason?: string }> {
-        const res = await fetch(`${TASK_SERVER_URL}/hotspots/${hotspotId}/drop`, {
+        const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/drop`, {
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({ creatorId }),

@@ -347,7 +347,7 @@ export default function CreateAdminPinModal() {
                                                         <Input
                                                             id="title"
                                                             {...register("title")}
-                                                            className="bg-input border-border focus:ring-ring"
+                                                            className="bg-card border-border focus:ring-ring"
                                                             placeholder="Enter a catchy title for your pin"
                                                         />
                                                         {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
@@ -360,7 +360,7 @@ export default function CreateAdminPinModal() {
                                                         <Textarea
                                                             id="description"
                                                             {...register("description")}
-                                                            className="bg-input border-border focus:ring-ring min-h-[100px] resize-none"
+                                                            className="bg-card border-border focus:ring-ring min-h-[100px] resize-none"
                                                             placeholder="Describe what makes this pin special..."
                                                         />
                                                         <EnhanceDescriptionButton className="absolute bottom-2 right-4" />
@@ -379,7 +379,7 @@ export default function CreateAdminPinModal() {
                                                                 control={control}
                                                                 render={({ field }) => (
                                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                                        <SelectTrigger className="bg-input border-border">
+                                                                        <SelectTrigger className="bg-card border-border">
                                                                             <SelectValue placeholder="Choose Pin Type" />
                                                                         </SelectTrigger>
                                                                         <SelectContent>
@@ -401,7 +401,7 @@ export default function CreateAdminPinModal() {
                                                             <Input
                                                                 id="url"
                                                                 {...register("url")}
-                                                                className="bg-input border-border focus:ring-ring"
+                                                                className="bg-card border-border focus:ring-ring"
                                                                 placeholder="https://example.com"
                                                             />
                                                             {errors.url && <p className="text-destructive text-sm">{errors.url.message}</p>}
@@ -460,7 +460,7 @@ export default function CreateAdminPinModal() {
                                                                                 const v = e.target.value
                                                                                 field.onChange(v ? new Date(v) : undefined)
                                                                             }}
-                                                                            className="bg-input border-border focus:ring-ring"
+                                                                            className="bg-card border-border focus:ring-ring"
                                                                         />
                                                                     )}
                                                                 />
@@ -482,7 +482,7 @@ export default function CreateAdminPinModal() {
                                                                                 const v = e.target.value
                                                                                 field.onChange(v ? new Date(v) : undefined)
                                                                             }}
-                                                                            className="bg-input border-border focus:ring-ring "
+                                                                            className="bg-card border-border focus:ring-ring "
                                                                         />
                                                                     )}
                                                                 />
@@ -661,11 +661,11 @@ export default function CreateAdminPinModal() {
                                 <Button
                                     type="button"
                                     onClick={() => onSubmit(getValues())}
-                                    disabled={addPinM.isLoading || remainingBalance < 0}
+                                    disabled={addPinM.isPending || remainingBalance < 0}
                                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
-                                    {addPinM.isLoading && <Loader className="animate-spin mr-2 w-4 h-4" />}
-                                    {addPinM.isLoading ? "Creating Pin..." : "Create Pin"}
+                                    {addPinM.isPending && <Loader className="animate-spin mr-2 w-4 h-4" />}
+                                    {addPinM.isPending ? "Creating Pin..." : "Create Pin"}
                                 </Button>
                             )}
                         </div>
@@ -784,7 +784,7 @@ function CollectionInputs({
                             }}
                             defaultValue={NO_ASSET.toString()}
                         >
-                            <SelectTrigger className="bg-input border-border">
+                            <SelectTrigger className="bg-card border-border">
                                 <SelectValue placeholder="Choose Token" />
                             </SelectTrigger>
                             <SelectContent>
@@ -815,7 +815,7 @@ function CollectionInputs({
                         id="radius"
                         min={0}
                         {...register("radius", { valueAsNumber: true })}
-                        className="bg-input border-border focus:ring-ring"
+                        className="bg-card border-border focus:ring-ring"
                         placeholder="50"
                     />
                     {errors.radius && <p className="text-destructive text-sm">{errors.radius.message}</p>}
@@ -830,7 +830,7 @@ function CollectionInputs({
                         id="pinNumber"
                         min={1}
                         {...register("pinNumber", { valueAsNumber: true })}
-                        className="bg-input border-border focus:ring-ring"
+                        className="bg-card border-border focus:ring-ring"
                         placeholder="1"
                     />
                     {errors.pinNumber && <p className="text-destructive text-sm">{errors.pinNumber.message}</p>}
@@ -846,7 +846,7 @@ function CollectionInputs({
                     id="pinCollectionLimit"
                     min={0}
                     {...register("pinCollectionLimit", { valueAsNumber: true })}
-                    className="bg-input border-border focus:ring-ring"
+                    className="bg-card border-border focus:ring-ring"
                     placeholder="Enter collection limit"
                 />
                 {selectedToken && (
@@ -881,7 +881,7 @@ function ManualCoordinatesInput({ manual, position }: ManualCoordinatesInputProp
     const { register, formState: { errors } } = useFormContext<z.infer<typeof createAdminPinFormSchema>>()
     if (manual) {
         return (
-            <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+            <Card className="border-l-4 border-l-blue-500 bg-linear-to-r from-blue-50/50 to-purple-50/50">
                 <CardContent className="p-4">
                     <div className="flex items-center space-x-2 mb-4">
                         <MapPin className="w-4 h-4 text-blue-600" />
@@ -925,7 +925,7 @@ function ManualCoordinatesInput({ manual, position }: ManualCoordinatesInputProp
     }
 
     return (
-        <Card className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/50 to-blue-50/50">
+        <Card className="border-l-4 border-l-green-500 bg-linear-to-r from-green-50/50 to-blue-50/50">
             <CardContent className="p-4">
                 <div className="flex items-center space-x-2 mb-3">
                     <MapPin className="w-4 h-4 text-green-600" />
@@ -1058,7 +1058,7 @@ function TiersOptions({ creatorId }: { creatorId: string }) {
                                 field.onChange(value)
                             }}
                         >
-                            <SelectTrigger className="bg-input border-border">
+                            <SelectTrigger className="bg-card border-border">
                                 <SelectValue placeholder="Choose Tier" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1112,10 +1112,10 @@ function EnhanceDescriptionButton({ className }: { className?: string }) {
 
             size="sm"
             onClick={handleEnhance}
-            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isLoading}
+            disabled={!description || description.trim().length === 0 || enhanceDescriptionMutation.isPending}
             className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10  rounded-full`}
         >
-            {enhanceDescriptionMutation.isLoading ? (
+            {enhanceDescriptionMutation.isPending ? (
                 <>
                     <Loader className="w-3 h-3 animate-spin" />
 
@@ -1221,16 +1221,16 @@ function TagsSection({ creatorId }: { creatorId?: string }) {
                             value={newTagInput}
                             onChange={(e) => setNewTagInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleCreateTag())}
-                            className="bg-input border-border"
+                            className="bg-card border-border"
                         />
                         <Button
                             type="button"
                             size="sm"
                             variant="outline"
                             onClick={handleCreateTag}
-                            disabled={!newTagInput.trim() || createTagM.isLoading}
+                            disabled={!newTagInput.trim() || createTagM.isPending}
                         >
-                            {createTagM.isLoading ? <Loader className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            {createTagM.isPending ? <Loader className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
                             New Tag
                         </Button>
                     </div>
@@ -1240,10 +1240,10 @@ function TagsSection({ creatorId }: { creatorId?: string }) {
                         size="sm"
                         variant="outline"
                         onClick={handleAiGenerate}
-                        disabled={!title || aiGenerateM.isLoading}
+                        disabled={!title || aiGenerateM.isPending}
                         className="border-primary/40 text-primary hover:bg-primary/10"
                     >
-                        {aiGenerateM.isLoading
+                        {aiGenerateM.isPending
                             ? <Loader className="w-3 h-3 animate-spin mr-1" />
                             : <Wand2 className="w-3 h-3 mr-1" />}
                         AI Tags

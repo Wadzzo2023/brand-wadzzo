@@ -254,10 +254,10 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                         </div>
 
                         {/* Sidebar Header */}
-                        <div className="hidden md:block p-4 border-b border-border/40 flex-shrink-0">
+                        <div className="hidden md:block p-4 border-b border-border/40 shrink-0">
                             <Button
                                 onClick={() => setShowNewSessionInput(!showNewSessionInput)}
-                                className="w-full h-10 rounded-lg flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                                className="w-full h-10 rounded-lg flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 shadow-xs hover:shadow-md"
                                 disabled={isCreatingSession}
                             >
                                 <Plus className="h-4 w-4" />
@@ -266,10 +266,10 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                         </div>
 
                         {/* Mobile New Chat Button */}
-                        <div className="md:hidden p-3 border-b border-border/40 flex-shrink-0">
+                        <div className="md:hidden p-3 border-b border-border/40 shrink-0">
                             <Button
                                 onClick={() => setShowNewSessionInput(!showNewSessionInput)}
-                                className="w-full h-9 rounded-lg flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 shadow-sm hover:shadow-md text-xs"
+                                className="w-full h-9 rounded-lg flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-200 shadow-xs hover:shadow-md text-xs"
                                 disabled={isCreatingSession}
                             >
                                 <Plus className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
 
                         {/* New Session Input */}
                         {showNewSessionInput && (
-                            <div className="p-3 md:p-4 border-b border-border/40 flex-shrink-0 space-y-2 bg-muted/50">
+                            <div className="p-3 md:p-4 border-b border-border/40 shrink-0 space-y-2 bg-muted/50">
                                 <Input
                                     placeholder="Chat title..."
                                     value={newSessionTitle}
@@ -330,7 +330,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                             <div
                                                 key={session.id}
                                                 className={`group p-2 md:p-3 rounded-lg cursor-pointer transition-all duration-200 ${currentSessionId === session.id
-                                                    ? "bg-primary/15 border border-primary/30 shadow-sm"
+                                                    ? "bg-primary/15 border border-primary/30 shadow-xs"
                                                     : "hover:bg-muted/60 border border-transparent hover:border-border/50"
                                                     } ${isDeleting ? "opacity-50 pointer-events-none" : ""}`}
                                                 onClick={() => {
@@ -359,7 +359,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                className="h-6 md:h-7 w-6 md:w-7 p-0 opacity-0 group-hover:opacity-100 flex-shrink-0 rounded-md hover:bg-muted"
+                                                                className="h-6 md:h-7 w-6 md:w-7 p-0 opacity-0 group-hover:opacity-100 shrink-0 rounded-md hover:bg-muted"
                                                                 onClick={(e) => e.stopPropagation()}
                                                                 disabled={isDeleting}
                                                             >
@@ -409,17 +409,17 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                     {/* Main Chat Area */}
                     <div className="flex-1 flex flex-col overflow-hidden bg-background">
                         {currentSessionId && currentSession ? (
-                            <div className="px-3 md:px-6 py-2 md:py-4 border-b border-border/40 flex items-center justify-between bg-card/50 backdrop-blur-sm gap-2">
+                            <div className="px-3 md:px-6 py-2 md:py-4 border-b border-border/40 flex items-center justify-between bg-card/50 backdrop-blur-xs gap-2">
                                 <div className="flex items-center gap-2 md:gap-3 min-w-0">
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowSidebar(!showSidebar)}
-                                        className="md:hidden h-8 w-8 p-0 flex-shrink-0"
+                                        className="md:hidden h-8 w-8 p-0 shrink-0"
                                     >
                                         <Menu className="h-4 w-4" />
                                     </Button>
-                                    <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                                    <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
                                         <Sparkles className="h-4 md:h-5 w-4 md:w-5 text-primary" />
                                     </div>
                                     <div className="min-w-0">
@@ -427,16 +427,16 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                         <p className="text-xs text-muted-foreground hidden md:block">AI-powered analytics</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-1 md:gap-2 shrink-0">
                                     {messages.length > 0 && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={clearChat}
                                             className="h-8 md:h-9 w-8 md:w-9 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all duration-200"
-                                            disabled={clearSessionMutation.isLoading}
+                                            disabled={clearSessionMutation.isPending}
                                         >
-                                            {clearSessionMutation.isLoading ? (
+                                            {clearSessionMutation.isPending ? (
                                                 <Loader2 className="h-3.5 md:h-4 w-3.5 md:w-4 animate-spin" />
                                             ) : (
                                                 <Trash2 className="h-3.5 md:h-4 w-3.5 md:w-4" />
@@ -454,17 +454,17 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                 </div>
                             </div>
                         ) : (
-                            <div className="px-3 md:px-6 py-2 md:py-4 border-b border-border/40 flex items-center justify-between bg-card/50 backdrop-blur-sm gap-2">
+                            <div className="px-3 md:px-6 py-2 md:py-4 border-b border-border/40 flex items-center justify-between bg-card/50 backdrop-blur-xs gap-2">
                                 <div className="flex items-center gap-2 md:gap-3 min-w-0">
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowSidebar(!showSidebar)}
-                                        className="md:hidden h-8 w-8 p-0 flex-shrink-0"
+                                        className="md:hidden h-8 w-8 p-0 shrink-0"
                                     >
                                         <Menu className="h-4 w-4" />
                                     </Button>
-                                    <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                                    <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
                                         <Sparkles className="h-4 md:h-5 w-4 md:w-5 text-primary" />
                                     </div>
                                     <div className="min-w-0">
@@ -476,7 +476,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                     variant="ghost"
                                     size="sm"
                                     onClick={closeChat}
-                                    className="h-8 md:h-9 w-8 md:w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all duration-200 flex-shrink-0"
+                                    className="h-8 md:h-9 w-8 md:w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all duration-200 shrink-0"
                                 >
                                     <X className="h-3.5 md:h-4 w-3.5 md:w-4" />
                                 </Button>
@@ -490,7 +490,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                     {!currentSessionId ? (
                                         <div className="flex items-center justify-center h-full text-center py-12 md:py-16">
                                             <div className="space-y-3 md:space-y-4 px-4">
-                                                <div className="h-12 md:h-16 w-12 md:w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto shadow-sm">
+                                                <div className="h-12 md:h-16 w-12 md:w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto shadow-xs">
                                                     <MessageCircle className="h-6 md:h-8 w-6 md:w-8 text-primary" />
                                                 </div>
                                                 <div className="space-y-2">
@@ -506,7 +506,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                     ) : messages.length === 0 ? (
                                         <div className="flex items-center justify-center h-full text-center py-12 md:py-16">
                                             <div className="space-y-3 md:space-y-4 px-4">
-                                                <div className="h-12 md:h-16 w-12 md:w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto shadow-sm">
+                                                <div className="h-12 md:h-16 w-12 md:w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto shadow-xs">
                                                     <MessageCircle className="h-6 md:h-8 w-6 md:w-8 text-primary" />
                                                 </div>
                                                 <div className="space-y-2">
@@ -554,7 +554,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
 
                         {/* Selected Pins Display */}
                         {selectedPinObjects.length > 0 && (
-                            <div className="px-3 md:px-6 py-2 md:py-3 border-t border-border/40 bg-card/50 backdrop-blur-sm">
+                            <div className="px-3 md:px-6 py-2 md:py-3 border-t border-border/40 bg-card/50 backdrop-blur-xs">
                                 <p className="text-xs text-muted-foreground mb-2">Selected pins:</p>
                                 <div className="flex flex-wrap gap-2">
                                     {selectedPinObjects.map((pin) => (
@@ -565,7 +565,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                             <span className="text-foreground font-medium truncate max-w-xs md:max-w-none">{pin.title}</span>
                                             <button
                                                 onClick={() => removePinFromSelection(pin.id)}
-                                                className="ml-0.5 md:ml-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                                                className="ml-0.5 md:ml-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                                             >
                                                 ×
                                             </button>
@@ -577,10 +577,10 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
 
                         {/* Pins Selector Modal */}
                         {showPinSelector && (
-                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center z-50 animate-in fade-in duration-200">
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end md:items-center justify-center z-50 animate-in fade-in duration-200">
                                 <div className="bg-background/95 backdrop-blur-xl border border-white/10 rounded-t-2xl md:rounded-2xl w-[95vw] md:w-96 max-h-[70vh] md:max-h-[60vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom-8 md:zoom-in-95 duration-300">
                                     {/* Modal Header */}
-                                    <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-primary/5 to-transparent">
+                                    <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between shrink-0 bg-linear-to-r from-primary/5 to-transparent">
                                         <h3 className="font-semibold text-sm text-foreground">Select Pins</h3>
                                         <button
                                             onClick={() => setShowPinSelector(false)}
@@ -604,7 +604,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                                         onClick={() => togglePinSelection(pin.id)}
                                                         style={{ animationDelay: `${index * 50}ms` }}
                                                         className={`w-full text-left p-3 rounded-xl text-sm transition-all duration-300 animate-in fade-in slide-in-from-left-4 ${selectedPins.includes(pin.id)
-                                                            ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02] border border-primary/20"
+                                                            ? "bg-linear-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02] border border-primary/20"
                                                             : "bg-white/5 hover:bg-white/10 text-foreground border border-white/5 hover:border-white/20 hover:scale-[1.01]"
                                                             }`}
                                                     >
@@ -617,7 +617,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                                                 </div>
                                                             </div>
                                                             {selectedPins.includes(pin.id) && (
-                                                                <div className="w-5 h-5 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 animate-in zoom-in duration-200">
+                                                                <div className="w-5 h-5 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 animate-in zoom-in duration-200">
                                                                     <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse" />
                                                                 </div>
                                                             )}
@@ -631,7 +631,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                     </ScrollArea>
 
                                     {/* Modal Footer */}
-                                    <div className="px-3 py-3 border-t border-white/10 flex-shrink-0 flex gap-2 bg-gradient-to-t from-background/50 to-transparent backdrop-blur-sm">
+                                    <div className="px-3 py-3 border-t border-white/10 shrink-0 flex gap-2 bg-linear-to-t from-background/50 to-transparent backdrop-blur-xs">
                                         <Button
 
                                             className="flex-1 text-xs bg-primary border-white/10 transition-all duration-200"
@@ -650,11 +650,11 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                         )}
 
                         {/* Input Area */}
-                        <div className="px-2 md:px-6 py-2 md:py-4 border-t border-border/40 bg-card/50 backdrop-blur-sm">
+                        <div className="px-2 md:px-6 py-2 md:py-4 border-t border-border/40 bg-card/50 backdrop-blur-xs">
                             <div className="flex gap-2 md:gap-3">
                                 <Button
                                     size="sm"
-                                    className="flex-shrink-0 h-9 md:h-10 w-9 md:w-10 p-0 rounded-lg"
+                                    className="shrink-0 h-9 md:h-10 w-9 md:w-10 p-0 rounded-lg"
                                     onClick={() => setShowPinSelector(!showPinSelector)}
                                     disabled={!currentSessionId}
                                 >
@@ -671,7 +671,7 @@ export function PinAgentChatBox({ creatorId, isOpen, closeChat }: CreatorChatBox
                                 <Button
                                     onClick={handleSendMessage}
                                     size="sm"
-                                    className="flex-shrink-0 h-9 md:h-10 w-9 md:w-10 p-0 rounded-lg"
+                                    className="shrink-0 h-9 md:h-10 w-9 md:w-10 p-0 rounded-lg"
                                     disabled={isLoading || isCreatingSession || !inputValue.trim()}
                                 >
                                     {isLoading ? <Loader2 className="h-4 md:h-5 w-4 md:w-5 animate-spin" /> : <Send className="h-4 md:h-5 w-4 md:w-5" />}

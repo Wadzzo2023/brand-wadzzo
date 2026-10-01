@@ -537,8 +537,8 @@ const QrCodeCreate = ({
                 <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button type="submit" disabled={createQRItem.isLoading}>
-                    {createQRItem.isLoading ? "Creating..." : "Create QR Item"}
+                <Button type="submit" disabled={createQRItem.isPending}>
+                    {createQRItem.isPending ? "Creating..." : "Create QR Item"}
                 </Button>
             </div>
         </form>

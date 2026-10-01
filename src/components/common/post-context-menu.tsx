@@ -23,7 +23,7 @@ export function PostContextMenu({
         return (
             <ContextMenu
                 handleDelete={handleDelete}
-                isLoading={deletePost.isLoading}
+                isLoading={deletePost.isPending}
             />
         );
     }

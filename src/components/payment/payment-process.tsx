@@ -133,7 +133,7 @@ export default function PaymentProcessItem({
 
     return (
         <div className="w-full mx-auto">
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-xs">
                 <CardContent className="p-6 space-y-6">
                     {/* Header */}
                     <div className="text-center space-y-1">
@@ -260,7 +260,7 @@ function PaymentOptions({
                 size="sm"
                 className={clsx(
                     "w-full justify-center",
-                    selected ? "scale-102 shadow-sm " : ""
+                    selected ? "scale-102 shadow-xs " : ""
                 )}
             >
                 {text}
@@ -304,7 +304,7 @@ export function MethodDetails({
     submitLoading,
     paymentSuccess,
 }: MethodDetailsProps) {
-    if (xdrMutation.isLoading) {
+    if (xdrMutation.isPending) {
         return (
             <div className="flex justify-center py-4">
                 <Loader className="h-5 w-5 animate-spin" />

@@ -575,7 +575,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
                                     )}
 
                                     {currentMedia.type === "MUSIC" && (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-200 to-gray-100 p-4">
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-gray-200 to-gray-100 p-4">
                                             <div className="relative w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 mb-4">
                                                 <motion.div
                                                     animate={{ rotate: isPlaying ? 360 : 0 }}
@@ -787,7 +787,7 @@ function MediaGalleryContent({ media, initialIndex = 0, autoPlay = false, onClos
             {!isFullscreen && media.length > 1 && (
                 <div className="flex flex-col  absolute h-full gap-2 overflow-x-auto bg-gray-200 p-2 z-10 items-center justify-start">
                     {media.map((item, index) => (
-                        <div key={item.id} className="flex-shrink-0  ">
+                        <div key={item.id} className="shrink-0  ">
                             <button
                                 onClick={() => setCurrentIndex(index)}
                                 className={cn(

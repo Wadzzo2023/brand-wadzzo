@@ -1,6 +1,10 @@
 import { create } from "zustand"
 import type { Location, LocationGroup, PinType } from "@prisma/client"
 
+/** Visible map area (same fields Google used, so the store logic is unchanged). */
+export type MapBounds = { north: number; south: number; east: number; west: number };
+export type LatLng = { lat: number; lng: number };
+
 /// Define Pin type for clarity and consistency with Prisma schema
 type Pin = {
     locationGroup:
@@ -47,7 +51,7 @@ interface NearbyPinsState {
     setAdminPins: (pins: Pin[]) => void
     setAllPins: (pins: Pin[]) => void
     setNearbyPins: (pins: Pin[]) => void
-    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral, source?: "my" | "admin") => void
+    filterNearbyPins: (center: MapBounds, source?: "my" | "admin") => void
     clearAdminPins: () => void
 }
 
@@ -89,7 +93,7 @@ export const useNearbyPinsStore = create<NearbyPinsState>((set, get) => ({
         }
     },
 
-    filterNearbyPins: (center: google.maps.LatLngBoundsLiteral, source?: "my" | "admin") => {
+    filterNearbyPins: (center: MapBounds, source?: "my" | "admin") => {
         const { myPins, adminPins, allPins, nearbyPins } = get()
         // Use the appropriate source pins for filtering
         const sourcePins = source === "my" ? myPins : source === "admin" ? adminPins : allPins
@@ -137,8 +141,8 @@ interface IMapInteractionStore {
     closeCreatePinModal: () => void
     manual: boolean
     setManual: (value: boolean) => void
-    position: google.maps.LatLngLiteral | undefined
-    setPosition: (pos: google.maps.LatLngLiteral | undefined) => void
+    position: LatLng | undefined
+    setPosition: (pos: LatLng | undefined) => void
     prevData?: IPin
     setPrevData: (value?: IPin) => void
     duplicate: boolean

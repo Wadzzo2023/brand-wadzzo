@@ -45,14 +45,14 @@ export function AddBountyReplyComment({
           <div className="flex w-full  items-center gap-2">
             <Textarea
               {...register("content")}
-              className="w-full  border  shadow-sm shadow-slate-300"
+              className="w-full  border  shadow-xs shadow-slate-300"
             />
             <Button
-              disabled={ReplyMutation.isLoading || !contentValue?.trim()}
-              className="flex items-center gap-1 shadow-sm shadow-black"
+              disabled={ReplyMutation.isPending || !contentValue?.trim()}
+              className="flex items-center gap-1 shadow-xs shadow-black"
               type="submit"
             >
-              {ReplyMutation.isLoading && (
+              {ReplyMutation.isPending && (
                 <span className="loading loading-spinner" />
               )}
               <Send size={14} /> Reply

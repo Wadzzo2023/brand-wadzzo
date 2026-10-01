@@ -118,7 +118,7 @@ export function ReportBlock({
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                     {statusBreakdown.map((s) => (
                         <div key={s.label} className="flex items-center gap-1.5">
-                            <div className={cn("w-2 h-2 rounded-full flex-shrink-0", s.color)} />
+                            <div className={cn("w-2 h-2 rounded-full shrink-0", s.color)} />
                             <span className="text-[10px] text-muted-foreground">
                                 {s.label}{" "}
                                 <span className="font-semibold text-foreground">{s.count}</span>
@@ -143,7 +143,7 @@ export function ReportBlock({
                                     <div className="flex items-center gap-2">
                                         <span
                                             className={cn(
-                                                "text-[11px] font-black w-5 flex-shrink-0 tabular-nums",
+                                                "text-[11px] font-black w-5 shrink-0 tabular-nums",
                                                 i === 0
                                                     ? "text-amber-400"
                                                     : i === 1
@@ -158,7 +158,7 @@ export function ReportBlock({
                                         <p className="text-[12px] font-semibold text-foreground truncate flex-1">
                                             {p.title}
                                         </p>
-                                        <span className="text-[11px] font-bold text-primary flex-shrink-0">
+                                        <span className="text-[11px] font-bold text-primary shrink-0">
                                             {p.claimRate}
                                         </span>
                                     </div>

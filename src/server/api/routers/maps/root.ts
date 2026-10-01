@@ -1,5 +1,6 @@
 import { createTRPCRouter } from "~/server/api/trpc";
 import { pinRouter } from "./pin";
+import { reportRouter } from "./report";
 import { trxRouter } from "./trx";
 
 /**
@@ -9,6 +10,7 @@ import { trxRouter } from "./trx";
  */
 export const mapsRouter = createTRPCRouter({
   pin: pinRouter,
+  report: reportRouter,
   trx: trxRouter,
 });
 

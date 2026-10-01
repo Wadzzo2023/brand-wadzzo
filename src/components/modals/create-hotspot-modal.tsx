@@ -1,5 +1,6 @@
 "use client"
 
+import { SurfaceContent } from "~/ui/surface";
 import { type ChangeEvent, useEffect, useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, FormProvider, type SubmitHandler, useForm, useFormContext } from "react-hook-form"
@@ -18,7 +19,7 @@ import { Textarea } from "~/components/shadcn/ui/textarea"
 import { Button } from "~/components/shadcn/ui/button"
 import { useCreatorStorageAcc } from "~/lib/state/wallete/stellar-balances"
 import { api } from "~/utils/api"
-import { BADWORDS } from "~/utils/banned-word"
+import { createHotspotFormSchema } from "~/types/hotspot"
 import { PinType } from "@prisma/client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../shadcn/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "../shadcn/ui/card"
@@ -36,42 +37,14 @@ type AssetType = {
     thumbnail: string
 }
 
-export type HotspotShape = "circle" | "rectangle" | "polygon"
+export type { HotspotShape } from "~/types/hotspot"
+import type { HotspotShape } from "~/types/hotspot"
+export { createHotspotFormSchema }
 
 export const PAGE_ASSET_NUM = -10
 export const NO_ASSET = -99
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
-
-export const createHotspotFormSchema = z.object({
-    // Pin fields
-    description: z.string().optional(),
-    title: z
-        .string()
-        .min(3, "Title must be at least 3 characters long")
-        .refine(
-            (value) => !BADWORDS.some((word) => value.toLowerCase().includes(word.toLowerCase())),
-            { message: "Input contains banned words." },
-        ),
-    image: z.string().url().optional(),
-    url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
-    autoCollect: z.boolean().default(false),
-    token: z.number().optional(),
-    tokenAmount: z.number().nonnegative().optional(),
-    pinNumber: z.number().nonnegative().min(1, "Number of pins must be at least 1").default(1),
-    pinCollectionLimit: z.number().min(0).default(0),
-    tier: z.string().optional(),
-    multiPin: z.boolean().default(false),
-    type: z.nativeEnum(PinType).default(PinType.OTHER),
-
-    // Hotspot-specific fields
-    hotspotShape: z.enum(["circle", "rectangle", "polygon"]).default("polygon"),
-    dropEveryDays: z.number().min(1, "Must be at least 1 day").default(1),
-    pinDurationDays: z.number().min(1, "Must be at least 1 day").default(3),
-    hotspotStartDate: z.date(),
-    hotspotEndDate: z.date(),
-    geoJson: z.custom<GeoJSON.Feature | null>((val) => val === null || typeof val === "object").optional(),
-})
 
 type CreateHotspotType = z.infer<typeof createHotspotFormSchema>
 
@@ -85,6 +58,8 @@ interface CreateHotspotModalProps {
     hotspotData: GeoJSON.Feature | null
     /** Shape type selected by the user on the map */
     shape?: HotspotShape
+    /** Render as a page section instead of a dialog. */
+    asPage?: boolean
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,6 +77,7 @@ function formatDateForInput(date: Date) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CreateHotspotModal({
+    asPage = false,
     creatorId,
     isOpen,
     setIsOpen,
@@ -234,9 +210,9 @@ export default function CreateHotspotModal({
     }[getValues("hotspotShape") ?? "circle"]
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
+        <Dialog open={isOpen} onOpenChange={handleClose} modal={!asPage}>
+            <SurfaceContent page={asPage} className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader className={asPage ? "sr-only" : ""}>
                     <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
                         <Hexagon className="w-6 h-6 text-primary" />
                         Create Hotspot
@@ -321,7 +297,7 @@ export default function CreateHotspotModal({
                                                                 onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                                                     field.onChange(e.target.value ? new Date(e.target.value) : undefined)
                                                                 }}
-                                                                className="bg-input border-border focus:ring-ring"
+                                                                className="bg-card border-border focus:ring-ring"
                                                             />
                                                         )}
                                                     />
@@ -342,7 +318,7 @@ export default function CreateHotspotModal({
                                                                 onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                                                     field.onChange(e.target.value ? new Date(e.target.value) : undefined)
                                                                 }}
-                                                                className="bg-input border-border focus:ring-ring"
+                                                                className="bg-card border-border focus:ring-ring"
                                                             />
                                                         )}
                                                     />
@@ -362,7 +338,7 @@ export default function CreateHotspotModal({
                                                                 value={String(field.value)}
                                                                 onValueChange={(v) => field.onChange(Number(v))}
                                                             >
-                                                                <SelectTrigger className="bg-input border-border">
+                                                                <SelectTrigger className="bg-card border-border">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -396,7 +372,7 @@ export default function CreateHotspotModal({
                                                                 value={String(field.value)}
                                                                 onValueChange={(v) => field.onChange(Number(v))}
                                                             >
-                                                                <SelectTrigger className="bg-input border-border">
+                                                                <SelectTrigger className="bg-card border-border">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -444,7 +420,7 @@ export default function CreateHotspotModal({
                                                     <Input
                                                         id="title"
                                                         {...register("title")}
-                                                        className="bg-input border-border focus:ring-ring"
+                                                        className="bg-card border-border focus:ring-ring"
                                                         placeholder="Enter a title for pins in this hotspot"
                                                     />
                                                     {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
@@ -455,7 +431,7 @@ export default function CreateHotspotModal({
                                                     <Textarea
                                                         id="description"
                                                         {...register("description")}
-                                                        className="bg-input border-border focus:ring-ring min-h-[100px] resize-none"
+                                                        className="bg-card border-border focus:ring-ring min-h-[100px] resize-none"
                                                         placeholder="Describe what makes this hotspot special..."
                                                     />
                                                     <EnhanceDescriptionButton className="absolute bottom-2 right-2" />
@@ -472,7 +448,7 @@ export default function CreateHotspotModal({
                                                             control={control}
                                                             render={({ field }) => (
                                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                                    <SelectTrigger className="bg-input border-border">
+                                                                    <SelectTrigger className="bg-card border-border">
                                                                         <SelectValue placeholder="Choose Pin Type" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -492,7 +468,7 @@ export default function CreateHotspotModal({
                                                         <Input
                                                             id="url"
                                                             {...register("url")}
-                                                            className="bg-input border-border focus:ring-ring"
+                                                            className="bg-card border-border focus:ring-ring"
                                                             placeholder="https://example.com"
                                                         />
                                                         {errors.url && <p className="text-destructive text-sm">{errors.url.message}</p>}
@@ -731,11 +707,11 @@ export default function CreateHotspotModal({
                             <Button
                                 type="button"
                                 onClick={() => onSubmit(getValues())}
-                                disabled={addHotspotM.isLoading || remainingBalance < 0}
+                                disabled={addHotspotM.isPending || remainingBalance < 0}
                                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                             >
-                                {addHotspotM.isLoading && <Loader className="animate-spin mr-2 w-4 h-4" />}
-                                {addHotspotM.isLoading ? "Creating Hotspot..." : "Create Hotspot"}
+                                {addHotspotM.isPending && <Loader className="animate-spin mr-2 w-4 h-4" />}
+                                {addHotspotM.isPending ? "Creating Hotspot..." : "Create Hotspot"}
                             </Button>
                         )}
                     </div>
@@ -746,7 +722,7 @@ export default function CreateHotspotModal({
                         <p className="text-destructive text-sm">{addHotspotM.error.message}</p>
                     </div>
                 )}
-            </DialogContent>
+            </SurfaceContent>
         </Dialog>
     )
 }
@@ -860,7 +836,7 @@ function CollectionInputs({
                             }}
                             defaultValue={NO_ASSET.toString()}
                         >
-                            <SelectTrigger className="bg-input border-border">
+                            <SelectTrigger className="bg-card border-border">
                                 <SelectValue placeholder="Choose Token" />
                             </SelectTrigger>
                             <SelectContent>
@@ -887,7 +863,7 @@ function CollectionInputs({
                     id="pinNumber"
                     min={1}
                     {...register("pinNumber", { valueAsNumber: true })}
-                    className="bg-input border-border focus:ring-ring"
+                    className="bg-card border-border focus:ring-ring"
                     placeholder="1"
                 />
                 {errors.pinNumber && <p className="text-destructive text-sm">{errors.pinNumber.message}</p>}
@@ -901,7 +877,7 @@ function CollectionInputs({
                     id="pinCollectionLimit"
                     min={0}
                     {...register("pinCollectionLimit", { valueAsNumber: true })}
-                    className="bg-input border-border focus:ring-ring"
+                    className="bg-card border-border focus:ring-ring"
                     placeholder="0 = unlimited"
                 />
                 {selectedToken && (
@@ -940,7 +916,7 @@ function TiersOptions() {
                     control={control}
                     render={({ field }) => (
                         <Select onValueChange={field.onChange}>
-                            <SelectTrigger className="bg-input border-border">
+                            <SelectTrigger className="bg-card border-border">
                                 <SelectValue placeholder="Choose Tier" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1014,10 +990,10 @@ function EnhanceDescriptionButton({ className }: { className?: string }) {
                 if (!description?.trim()) { toast.error("Please enter a description first"); return }
                 enhanceMutation.mutate({ description: description.trim() })
             }}
-            disabled={!description || description.trim().length === 0 || enhanceMutation.isLoading}
+            disabled={!description || description.trim().length === 0 || enhanceMutation.isPending}
             className={`${className} h-6 w-6 px-2 text-xs gap-1 hover:bg-primary/10 rounded-full`}
         >
-            {enhanceMutation.isLoading
+            {enhanceMutation.isPending
                 ? <Loader className="w-3 h-3 animate-spin" />
                 : <Wand2 className="w-3 h-3" />}
         </Button>

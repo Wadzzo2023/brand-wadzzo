@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import dynamic from "next/dynamic";
-import "react-quill/dist/quill.snow.css";
+import "react-quill-new/dist/quill.snow.css";
 
 interface EditorProps {
     onChange: (value: string) => void;
@@ -24,14 +24,19 @@ const modules = {
 
 }
 
+// Created once: making it inside render gives a new component every render,
+// which remounts Quill, fires onChange, re-renders the form — an endless loop.
+const ReactQuill = dynamic(() => import("react-quill-new"), {
+    ssr: false,
+    loading: () => <div className="h-[150px] rounded-lg border bg-card skeleton" />,
+});
+
 export const Editor = ({
     onChange,
     value,
     className,
     placeholder,
 }: EditorProps) => {
-    const ReactQuill = dynamic(() => import("react-quill"));
-
     return (
         <div className="quill-editor-wrapper">
             <ReactQuill

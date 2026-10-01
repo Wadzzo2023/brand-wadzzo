@@ -34,7 +34,7 @@ export function HotspotTrendBlock({ data }: Props) {
                     </p>
                 </div>
                 <span className={cn(
-                    "text-[11px] font-bold px-2.5 py-1 rounded-full border flex-shrink-0",
+                    "text-[11px] font-bold px-2.5 py-1 rounded-full border shrink-0",
                     trendCfg.color, trendCfg.bg,
                 )}>
                     {trendCfg.label}
@@ -106,7 +106,7 @@ export function HotspotTrendBlock({ data }: Props) {
                             )}
                         >
                             <span className={cn(
-                                "text-[11px] font-black w-7 flex-shrink-0",
+                                "text-[11px] font-black w-7 shrink-0",
                                 isPeak ? "text-amber-400" : "text-muted-foreground",
                             )}>
                                 #{drop.dropNumber}
@@ -120,7 +120,7 @@ export function HotspotTrendBlock({ data }: Props) {
                                 </p>
                             </div>
                             <span className={cn(
-                                "text-[12px] font-bold flex-shrink-0",
+                                "text-[12px] font-bold shrink-0",
                                 isPeak ? "text-amber-400" : "text-foreground",
                             )}>
                                 {drop.claimRate}
@@ -139,7 +139,7 @@ export function HotspotTrendBlock({ data }: Props) {
             {/* ── Insight ────────────────────────────────────────────────────── */}
             {insight && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <span className="text-base shrink-0">💡</span>
                     <p className="text-[12px] text-primary leading-relaxed">{insight}</p>
                 </div>
             )}

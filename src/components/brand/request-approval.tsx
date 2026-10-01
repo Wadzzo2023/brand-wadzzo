@@ -22,7 +22,7 @@ export default function RequestApprovalCard({ creatorName }: { creatorName: stri
     })
 
     return (
-        <div className="mx-4 flex w-full max-w-md flex-col items-center rounded-2xl border bg-card p-8 text-center shadow-sm">
+        <div className="mx-4 flex w-full max-w-md flex-col items-center rounded-2xl border bg-card p-8 text-center shadow-xs">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                 <ShieldCheck className="h-6 w-6 text-primary" />
             </div>
@@ -31,8 +31,8 @@ export default function RequestApprovalCard({ creatorName }: { creatorName: stri
                 {creatorName}, your brand account is set up but hasn&apos;t been sent for review yet. Once an
                 admin approves it you can create pins, events and bounties.
             </p>
-            <Button className="mt-6" onClick={() => request.mutate()} disabled={request.isLoading}>
-                {request.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button className="mt-6" onClick={() => request.mutate()} disabled={request.isPending}>
+                {request.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Request approval
             </Button>
         </div>

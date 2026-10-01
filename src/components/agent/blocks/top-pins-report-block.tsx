@@ -61,7 +61,7 @@ export function TopPinsReportBlock({ data }: Props) {
                             onClick={() => toggle(idx)}
                             className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors"
                         >
-                            <span className={cn("text-[13px] font-black w-6 flex-shrink-0 tabular-nums", medalColor)}>
+                            <span className={cn("text-[13px] font-black w-6 shrink-0 tabular-nums", medalColor)}>
                                 #{item.rank}
                             </span>
 
@@ -77,7 +77,7 @@ export function TopPinsReportBlock({ data }: Props) {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[13px] font-bold text-primary">{item.stats.claimRate}</span>
                                 {isExpanded
                                     ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -137,7 +137,7 @@ export function TopPinsReportBlock({ data }: Props) {
                                                 key={i}
                                                 className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border bg-muted/30"
                                             >
-                                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary flex-shrink-0 overflow-hidden">
+                                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0 overflow-hidden">
                                                     {c.image
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         ? <img src={c.image} className="w-6 h-6 object-cover" alt={c.name} />
@@ -149,7 +149,7 @@ export function TopPinsReportBlock({ data }: Props) {
                                                     <p className="text-[10px] text-muted-foreground">{fmt(c.claimedAt)}</p>
                                                 </div>
                                                 <span className={cn(
-                                                    "text-[10px] px-1.5 py-0.5 rounded border font-semibold flex-shrink-0",
+                                                    "text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0",
                                                     c.isRedeemed
                                                         ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
                                                         : "bg-muted text-muted-foreground border-border",

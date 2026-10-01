@@ -42,7 +42,7 @@ export function EmbedStats({ id }: { id: string }) {
                         <button
                             key={d}
                             onClick={() => setDays(d)}
-                            className={cn("rounded-lg px-3 py-1 text-sm", days === d ? "bg-background font-medium shadow" : "text-muted-foreground")}
+                            className={cn("rounded-lg px-3 py-1 text-sm", days === d ? "bg-background font-medium shadow-sm" : "text-muted-foreground")}
                         >
                             {d} days
                         </button>

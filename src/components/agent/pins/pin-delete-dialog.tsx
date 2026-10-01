@@ -46,7 +46,7 @@ export function PinDeleteDialog({
                             key={t.id}
                             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/5 border border-red-500/20"
                         >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
                             <div className="flex flex-col min-w-0">
                                 <span className="text-[12px] font-semibold text-foreground truncate">
                                     {t.title}

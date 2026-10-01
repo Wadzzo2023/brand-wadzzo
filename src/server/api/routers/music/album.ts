@@ -132,7 +132,7 @@ export const albumRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: adminProcedure
     .input(AlbumFormShema)
 
     .mutation(async ({ input, ctx }) => {
@@ -140,7 +140,7 @@ export const albumRouter = createTRPCRouter({
       await ctx.db.album.create({ data: { name, coverImgUrl, description } });
     }),
 
-  update: protectedProcedure
+  update: adminProcedure
     .input(AlbumFormShema)
     .mutation(async ({ input, ctx }) => {
       if (input.id) {

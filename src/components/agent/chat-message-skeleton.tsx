@@ -4,7 +4,7 @@ export function ChatMessageSkeleton() {
     return (
         <div className="flex gap-3 mb-4">
             {/* Avatar skeleton */}
-            <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+            <Skeleton className="h-8 w-8 rounded-full shrink-0" />
 
             {/* Message content skeleton */}
             <div className="flex-1 space-y-2 max-w-xl">

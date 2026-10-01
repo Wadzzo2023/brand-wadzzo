@@ -2,7 +2,7 @@ import { Skeleton } from "~/components/shadcn/ui/skeleton"
 
 export default function LoadingPostCard() {
     return (
-        <div className="overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm rounded-lg">
+        <div className="overflow-hidden border border-gray-200 dark:border-gray-800 shadow-xs rounded-lg">
             {/* Card Header */}
             <div className="p-4 pb-0">
                 <div className="flex items-start justify-between">

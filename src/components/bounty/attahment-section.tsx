@@ -36,11 +36,11 @@ const AttachmentSection: React.FC<AttachmentSectionProps> = ({ title, attachment
 
             <div className="space-y-4">
                 {attachments.map((attachment, idx) => (
-                    <div key={idx} className="rounded-md  p-4 shadow-sm">
+                    <div key={idx} className="rounded-md  p-4 shadow-xs">
                         <div className="flex justify-between">
                             <h3 className="mb-2 text-lg font-medium">{attachment.name}</h3>
                             <Button
-                                className="shadow-sm shadow-black"
+                                className="shadow-xs shadow-black"
                                 variant="outline" onClick={() => handleDownload(attachment.name, attachment.url)}>
                                 {loading ? <div role="status">
                                     <svg aria-hidden="true" className="inline w-4 h-4 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">

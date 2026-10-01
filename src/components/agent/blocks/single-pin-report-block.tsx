@@ -75,7 +75,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                                     <span className="text-[10px] text-muted-foreground">{step.label}</span>
                                 </div>
                                 {i < arr.length - 1 && (
-                                    <span className="text-muted-foreground text-[10px] flex-shrink-0">→</span>
+                                    <span className="text-muted-foreground text-[10px] shrink-0">→</span>
                                 )}
                             </div>
                         ))}
@@ -113,7 +113,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
                                     <span className="text-[12px] font-bold text-primary">{loc.claimRate}</span>
                                     {onViewLocationCollectors && loc.totalClaimed > 0 && (
                                         <button
@@ -147,7 +147,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                                 key={i}
                                 className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-muted/30"
                             >
-                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary flex-shrink-0 overflow-hidden">
+                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0 overflow-hidden">
                                     {c.image
                                         // eslint-disable-next-line @next/next/no-img-element
                                         ? <img src={c.image} className="w-7 h-7 object-cover" alt={c.name} />
@@ -159,7 +159,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
                                     <p className="text-[10px] text-muted-foreground">{fmt(c.claimedAt)}</p>
                                 </div>
                                 <span className={cn(
-                                    "text-[10px] px-1.5 py-0.5 rounded border font-semibold flex-shrink-0",
+                                    "text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0",
                                     c.isRedeemed
                                         ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
                                         : "bg-muted text-muted-foreground border-border",
@@ -175,7 +175,7 @@ export function SinglePinReportBlock({ data, onViewLocationCollectors }: Props) 
             {/* ── LLM insight ────────────────────────────────────────────────── */}
             {insights && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <span className="text-base shrink-0">💡</span>
                     <p className="text-[12px] text-primary leading-relaxed">{insights}</p>
                 </div>
             )}

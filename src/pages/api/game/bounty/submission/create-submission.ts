@@ -2,7 +2,6 @@ import { NotificationType } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { getSession } from "next-auth/react";
-import NextCors from "nextjs-cors";
 
 import { z } from "zod";
 import { SubmissionMediaInfo } from "~/lib/play/upload-submission";
@@ -16,7 +15,7 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse,
 ) {
-    await EnableCors(req, res);
+    if (await EnableCors(req, res)) return;
 
     const session = await getToken({ req });
 

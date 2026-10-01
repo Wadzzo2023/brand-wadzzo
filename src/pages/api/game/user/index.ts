@@ -8,7 +8,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await EnableCors(req, res);
+  if (await EnableCors(req, res)) return;
   try {
     const session = await getSession({ req });
     console.log(session);

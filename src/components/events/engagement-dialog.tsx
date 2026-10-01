@@ -118,14 +118,14 @@ function Comments({ target }: { target: Target }) {
                                         : setConfirm(c.id)
                                 }
                                 onBlur={() => setConfirm(null)}
-                                disabled={remove.isLoading}
+                                disabled={remove.isPending}
                                 className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
                             >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 {confirm === c.id && <span className="text-destructive">Remove?</span>}
                             </button>
                         </p>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-muted-foreground">{c.content}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">{c.content}</p>
                     </div>
                 </li>
             ))}

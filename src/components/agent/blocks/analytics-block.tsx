@@ -57,7 +57,7 @@ export function AnalyticsBlock({ data }: { data: AnalyticsData }) {
             {/* ── Insights ──────────────────────────────────────────────────────── */}
             {data.insights && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <span className="text-base shrink-0">💡</span>
                     <p className="text-[12px] text-primary leading-relaxed">{data.insights}</p>
                 </div>
             )}

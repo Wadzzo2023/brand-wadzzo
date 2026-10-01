@@ -53,7 +53,8 @@ export function PaymentChoose({
   XLM_EQUIVALENT: number;
   handleConfirm: () => void;
   loading: boolean;
-  trigger: React.ReactNode;
+  /** Omit to open it yourself with usePaymentMethodStore().setIsOpen(true). */
+  trigger?: React.ReactNode;
   beforeTrigger?: () => Promise<boolean>;
   costBreakdown?: CostBreakdownItem[];
 }) {
@@ -75,7 +76,7 @@ export function PaymentChoose({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
         onInteractOutside={(e) => {
           e.preventDefault();
@@ -114,7 +115,7 @@ export function PaymentChoose({
                 ) : (
                   <Coins className="mr-3 h-6 w-6" />
                 )}
-                <div className="flex-grow">
+                <div className="grow">
                   <div className="font-medium">
                     Pay with {PLATFORM_ASSET.code}
                   </div>
@@ -138,7 +139,7 @@ export function PaymentChoose({
                 className="flex flex-1 cursor-pointer items-center"
               >
                 <DollarSign className="mr-3 h-6 w-6" />
-                <div className="flex-grow">
+                <div className="grow">
                   <div className="font-medium">Pay with XLM</div>
                   <div className="text-sm text-gray-500">
                     Use Stellar Lumens
@@ -191,7 +192,7 @@ export function PaymentChoose({
           <Button
             onClick={handleConfirm}
             disabled={loading}
-            className="w-full  shadow-sm shadow-foreground"
+            className="w-full  shadow-xs shadow-foreground"
           >
             {loading && <Loader2 className="mr-2 animate-spin" />}
             Confirm Payment

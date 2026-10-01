@@ -215,7 +215,7 @@ function CommentContextMenu({ commentorId, commentId }: { commentorId: string; c
             <ContextMenu
                 bg="bg-base-300"
                 handleDelete={handleDelete}
-                isLoading={deleteComment.isLoading}
+                isLoading={deleteComment.isPending}
             />
         )
     }

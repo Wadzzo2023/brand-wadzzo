@@ -22,7 +22,7 @@ export default function ViewReplyBountyComment({
 
   return (
     <div className="relative">
-      <div className={clsx("flex items-start justify-between gap-4 text-sm", isDeleting && "blur-sm")}>
+      <div className={clsx("flex items-start justify-between gap-4 text-sm", isDeleting && "blur-xs")}>
         <div className="flex w-full gap-2">
           <div className="h-auto w-auto rounded-full">
             <CustomAvatar className="h-12 w-12" url={comment.user.image} />
@@ -85,7 +85,7 @@ function CommentContextMenu({
   }
 
   if (data?.user && data.user.id === commentatorId) {
-    return <ContextMenu handleDelete={handleDelete} isLoading={deletePost.isLoading} />
+    return <ContextMenu handleDelete={handleDelete} isLoading={deletePost.isPending} />
   }
 
   return null

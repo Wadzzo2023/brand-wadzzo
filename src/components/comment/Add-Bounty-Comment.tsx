@@ -49,16 +49,16 @@ export function AddBountyComment({ bountyId }: { bountyId: number }) {
           <div className="flex items-center  gap-2">
             <Textarea
               {...register("content")}
-              className="w-full  border  shadow-sm shadow-slate-300"
+              className="w-full  border  shadow-xs shadow-slate-300"
             />
             <Button
               disabled={
-                createBountyCommentMutation.isLoading || !contentValue?.trim()
+                createBountyCommentMutation.isPending || !contentValue?.trim()
               }
-              className="flex items-center gap-1 shadow-sm shadow-black"
+              className="flex items-center gap-1 shadow-xs shadow-black"
               type="submit"
             >
-              {createBountyCommentMutation.isLoading ? (
+              {createBountyCommentMutation.isPending ? (
                 <Spinner
                   size='small'
                   className="text-black" />

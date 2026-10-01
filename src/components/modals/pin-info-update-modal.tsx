@@ -335,8 +335,8 @@ export function PinInfoUpdateModal({ isOpen, onClose, pinData }: PinInfoUpdateMo
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={update.isLoading}>
-                            {update.isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" disabled={update.isPending}>
+                            {update.isPending && <Loader className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
                         </Button>
                     </DialogFooter>

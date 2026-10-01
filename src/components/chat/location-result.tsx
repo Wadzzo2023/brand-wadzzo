@@ -72,12 +72,12 @@ export function LocationResults({ locations, title }: LocationResultsProps) {
                     return (
                         <div
                             key={location.id || idx}
-                            className="bg-white/[0.03] border border-white/[0.08] rounded-lg p-3
-                 hover:bg-white/[0.06] hover:border-indigo-500/30 transition-all duration-200"
+                            className="bg-white/3 border border-white/8 rounded-lg p-3
+                 hover:bg-white/6 hover:border-indigo-500/30 transition-all duration-200"
                         >
                             {/* Title with number */}
                             <div className="flex items-start gap-2 mb-1.5">
-                                <span className="text-indigo-400 font-bold text-sm flex-shrink-0 min-w-5">
+                                <span className="text-indigo-400 font-bold text-sm shrink-0 min-w-5">
                                     {idx + 1}.
                                 </span>
                                 <div className="flex-1 min-w-0">
@@ -100,7 +100,7 @@ export function LocationResults({ locations, title }: LocationResultsProps) {
                             {/* Coordinates */}
                             {coordsStr && (
                                 <div className="flex items-center gap-2 ml-6 mb-2">
-                                    <code className="bg-white/[0.04] px-2 py-1 rounded text-xs text-[#a1a1a6] font-mono">
+                                    <code className="bg-white/4 px-2 py-1 rounded text-xs text-[#a1a1a6] font-mono">
                                         {coordsStr}
                                     </code>
                                     <button
@@ -134,7 +134,7 @@ export function LocationResults({ locations, title }: LocationResultsProps) {
                     onClick={() => setExpanded(!expanded)}
                     className="w-full flex items-center justify-center gap-2 py-2 px-3 mt-3
             text-xs font-semibold text-indigo-400 hover:text-indigo-300
-            bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.08]
+            bg-white/2 hover:bg-white/4 border border-white/8
             rounded-lg transition-all"
                 >
                     {expanded ? "Show Less" : `Show ${locations.length - displayLimit} More`}

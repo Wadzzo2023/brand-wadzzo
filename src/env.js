@@ -6,6 +6,8 @@ export const env = createEnv({
    * Specify your server-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars.
    */ server: {
+    /** The Express task server (package/express-wadzzo). Required outside production. */
+    EXPRESS_SERVER_URL: z.string().url().optional(),
     DATABASE_URL: z
       .string()
       .url()
@@ -81,6 +83,7 @@ export const env = createEnv({
    * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
    * middlewares) or client-side so we need to destruct manually.
    */ runtimeEnv: {
+    EXPRESS_SERVER_URL: process.env.EXPRESS_SERVER_URL,
     NEXT_PUBLIC_SITE: process.env.NEXT_PUBLIC_SITE,
     NEXT_PUBLIC_PLATFORM_CREATOR_TERM:
       process.env.NEXT_PUBLIC_PLATFORM_CREATOR_TERM,

@@ -60,7 +60,7 @@ export function HotspotDropRow({
                         </p>
                         <button
                             onClick={onEditCancel}
-                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         >
                             ✕ Close
                         </button>

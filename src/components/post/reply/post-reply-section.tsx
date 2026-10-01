@@ -60,7 +60,7 @@ function CommentContextMenu({
     const handleDelete = () => deletePost.mutate(commentId)
 
     if (data?.user && data.user.id === commentorId) {
-        return <ContextMenu bg="bg-base-300" handleDelete={handleDelete} isLoading={deletePost.isLoading} />
+        return <ContextMenu bg="bg-base-300" handleDelete={handleDelete} isLoading={deletePost.isPending} />
     }
 
     return null

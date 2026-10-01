@@ -19,7 +19,7 @@ import { addrShort } from "~/utils/utils";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import clsx from "clsx";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import {
     Card,
     CardContent,
@@ -344,9 +344,9 @@ export function EditForm({
                     type="submit"
                     form="edit-asset-form"
                     className="w-full  shadow-foreground"
-                    disabled={update.isLoading || !isDirty}
+                    disabled={update.isPending || !isDirty}
                 >
-                    {update.isLoading ? (
+                    {update.isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Updating...

@@ -131,7 +131,7 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                             transition={{ duration: 0.3 }}
                             className="overflow-hidden rounded-xl"
                         >
-                            <DialogHeader className="border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4">
+                            <DialogHeader className="border-b border-gray-100 bg-linear-to-r from-indigo-50 to-purple-50 px-6 py-4">
                                 <DialogTitle className="text-center text-xl font-bold text-gray-800">Share on Social Media</DialogTitle>
                             </DialogHeader>
 
@@ -185,7 +185,7 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
                                     </div>
 
                                     <input
-                                        className="w-full bg-transparent py-3 px-2 text-sm text-gray-700 outline-none"
+                                        className="w-full bg-transparent py-3 px-2 text-sm text-gray-700 outline-hidden"
                                         type="text"
                                         readOnly
                                         value={fullUrl}

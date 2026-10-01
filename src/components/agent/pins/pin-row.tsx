@@ -54,7 +54,7 @@ function Checkbox({ checked, onChange, color = "primary", isSlate }: {
             disabled={isSlate}
             onClick={onChange}
             className={cn(
-                "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
                 isSlate && "cursor-not-allowed border-muted-foreground/30 bg-transparent",
                 checked
                     ? color === "red"
