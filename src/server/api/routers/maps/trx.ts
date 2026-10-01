@@ -20,7 +20,7 @@ export const trxRouter = createTRPCRouter({
         where: { id: input.locationId },
         include: {
           locationGroup: {
-            include: { creator: { include: { pageAsset: true } }, asset: true },
+            include: { creator: { include: { pageAsset: true }, omit: { storageSecret: false } }, asset: true },
           },
         },
       });

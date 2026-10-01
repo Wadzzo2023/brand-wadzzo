@@ -156,6 +156,7 @@ export const creatorRouter = createTRPCRouter({
         include: {
           pageAsset: true,
         },
+        omit: { storageSecret: false }, // signs with the storage account below
       });
 
       // storageAlready created

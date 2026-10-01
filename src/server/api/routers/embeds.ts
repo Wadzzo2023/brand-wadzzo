@@ -1,4 +1,5 @@
-import { EmbedGesture, EmbedPinSource, EmbedTheme, PinType, type PrismaClient } from "@prisma/client";
+import { EmbedGesture, EmbedPinSource, EmbedTheme, PinType } from "@prisma/client";
+import type { Db } from "~/server/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -67,13 +68,13 @@ export const EmbedInput = z.object({
     }),
 });
 
-async function creatorIdOf(db: PrismaClient, userId: string) {
+async function creatorIdOf(db: Db, userId: string) {
   const c = await db.creator.findUnique({ where: { id: userId }, select: { id: true } });
   if (!c) throw new TRPCError({ code: "FORBIDDEN", message: "Only brands can create map embeds" });
   return c.id;
 }
 
-async function own(db: PrismaClient, creatorId: string, id: string) {
+async function own(db: Db, creatorId: string, id: string) {
   const row = await db.mapEmbed.findFirst({ where: { id, creatorId } });
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Embed not found" });
   return row;

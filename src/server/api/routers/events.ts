@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createTRPCRouter, creatorProcedure } from "~/server/api/trpc";
-import type { PrismaClient } from "@prisma/client";
+import type { Db } from "~/server/db";
 
 /**
  * Creator side of Events & Announcements. Fans see them in wadzzoAR and the
@@ -68,7 +68,7 @@ export const AnnouncementInput = z
     message: "Add the link the button opens",
   });
 
-async function creatorIdOf(db: PrismaClient, userId: string) {
+async function creatorIdOf(db: Db, userId: string) {
   const creator = await db.creator.findUnique({ where: { id: userId }, select: { id: true } });
   if (!creator) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Only brands can post events" });
@@ -78,7 +78,7 @@ async function creatorIdOf(db: PrismaClient, userId: string) {
 
 /** Linked pins and bounties must be the brand's own. */
 async function assertOwnLinks(
-  db: PrismaClient,
+  db: Db,
   creatorId: string,
   pinIds: string[],
   bountyIds: number[],
@@ -97,13 +97,13 @@ async function assertOwnLinks(
   }
 }
 
-async function ownEvent(db: PrismaClient, creatorId: string, id: string) {
+async function ownEvent(db: Db, creatorId: string, id: string) {
   const row = await db.creatorEvent.findFirst({ where: { id, creatorId }, select: { id: true } });
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
   return row;
 }
 
-async function ownAnnouncement(db: PrismaClient, creatorId: string, id: string) {
+async function ownAnnouncement(db: Db, creatorId: string, id: string) {
   const row = await db.creatorAnnouncement.findFirst({ where: { id, creatorId }, select: { id: true } });
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Announcement not found" });
   return row;

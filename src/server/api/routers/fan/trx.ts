@@ -63,6 +63,7 @@ export const trxRouter = createTRPCRouter({
 
       const creator = await ctx.db.creator.findUniqueOrThrow({
         where: { id: creatorId },
+        omit: { storageSecret: false }, // signs with the storage account
       });
 
       const creatorStorageSec = creator.storageSecret;
@@ -334,6 +335,7 @@ export const trxRouter = createTRPCRouter({
       const creator = await db.creator.findUniqueOrThrow({
         where: { id: creatorId },
         include: { pageAsset: true },
+        omit: { storageSecret: false }, // signs with the storage account
       });
       const { storageSecret } = creator;
 
