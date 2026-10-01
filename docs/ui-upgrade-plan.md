@@ -201,5 +201,7 @@ Test account: Fyron (GAP4E5…EZH) on the **dev DB** (`ep-winter-art`), granted 
 - Shared UI kit in `src/ui/`: DataTable, StatusPill, Person/Avatar, Toolbar (SearchInput, FilterChips), StatCard, tone-* utilities in globals.css. New pages use these, not hard-coded colours.
 - Admin done: Creators, Users, Admins, creator/user detail, Pin review (grouped by brand, filters for submitted/live dates, area, locations, type, brand; sort; bulk approve/reject/delete; preview drawer; keyboard; undo; per-location edit/delete).
 - Reports done: one shared report for brands (/reports) and admins (/admin/reports, any brand or all), per-pin report at /reports/[id] and /admin/reports/[id]; counted in SQL (`maps.report.*`).
-- Next: All maps, admin new pin/hotspot review, global token sweep, Reports analytics leftovers, onboarding, step 2 (41 TS errors, 118 lint errors, ignoreBuildErrors, zod 4), step 8, security items, click-through.
+- Done since: All maps (frames pins once map + data ready, searchable BrandPicker, ?brand=), admin new pin/hotspot use BrandPicker; page-shaped FormSkeleton/PageSkeleton; shared line tabs; colour sweep onto tokens (only intentional black/white overlays, shadcn toast and the install code block keep raw colours).
+- Security fixed: fan.creator.getCreators leaked Creator.storageSecret to any signed-in user → admin-only, id/name/profileUrl.
+- Next: step 2 (41 TS errors, 118 lint errors, ignoreBuildErrors, zod 4, not-found pages), onboarding review, step 8 (connect_wallet / express-wadzzo), remaining security items, full click-through + production build.
 - Open question: `maps.pin.getPin` is public and returns collectors; unused in the portal now — restrict or remove (check other apps first).
