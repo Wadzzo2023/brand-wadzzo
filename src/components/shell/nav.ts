@@ -31,6 +31,7 @@ import {
 export type NavItem = {
   href: string;
   label: string;
+  shortLabel?: string;
   icon: LucideIcon;
   gated?: boolean;
   /** Extra path prefixes that count as "this section" (merged/old routes). */
@@ -46,9 +47,9 @@ export const BRAND_NAV: NavGroup[] = [
     label: "Drops",
     items: [
       { href: "/pins", label: "Map", icon: Map, exclude: ["/pins/manage"] },
-      { href: "/pins/manage", label: "Pin management", icon: MapPin },
+      { href: "/pins/manage", label: "Pin management", shortLabel: "Pins", icon: MapPin },
       { href: "/events", label: "Events", icon: CalendarDays },
-      { href: "/embeds", label: "Website Map", icon: Code2 },
+      { href: "/embeds", label: "Website Map", shortLabel: "Embeds", icon: Code2 },
     ],
   },
   {
@@ -81,9 +82,9 @@ export const ADMIN_NAV: NavGroup = {
     { href: "/admin/creators", label: "Creators", icon: UserCheck },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/admins", label: "Admins", icon: Shield },
-    { href: "/admin/pins", label: "Pin review", icon: MapPin },
-    { href: "/admin/maps", label: "All maps", icon: Map },
-    { href: "/admin/reports", label: "Collection reports", icon: Flag },
+    { href: "/admin/pins", label: "Pin review", shortLabel: "Review", icon: MapPin },
+    { href: "/admin/maps", label: "All maps", shortLabel: "Maps", icon: Map },
+    { href: "/admin/reports", label: "Collection reports", shortLabel: "Reports", icon: Flag },
   ],
 };
 

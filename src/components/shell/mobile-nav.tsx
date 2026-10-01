@@ -57,11 +57,11 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
           {left.map((t) => (
             <Tab key={t.href} item={t} active={isActive(pathname, t)} />
           ))}
-          <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-1 min-w-0 items-center justify-center">
             <button
               type="button"
               onClick={() => setSheet("create")}
-              className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm transition-transform active:scale-95"
+              className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-95"
               aria-label="Create"
             >
               <Plus className="size-6" />
@@ -73,11 +73,16 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
           <button
             type="button"
             onClick={() => setSheet("more")}
-            className={cn("flex flex-1 flex-col items-center justify-center gap-1", moreActive ? "text-primary" : "text-muted-foreground")}
+            className={cn(
+              "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
+              moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            )}
             aria-label="More sections"
           >
-            <MoreHorizontal className="size-5" />
-            <span className="font-hud text-[10px] font-semibold uppercase tracking-wider">More</span>
+            <MoreHorizontal className="size-5 shrink-0" />
+            <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+              More
+            </span>
           </button>
         </div>
       </nav>
@@ -88,7 +93,7 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
           <DrawerHeader className="text-left">
             <DrawerTitle className="font-hud">Create</DrawerTitle>
           </DrawerHeader>
-          <div className="grid grid-cols-2 gap-2 overflow-y-auto px-4 pb-2">
+          <div className="grid grid-cols-2 gap-2 overflow-y-auto px-4 pb-4">
             {CREATE_ACTIONS.filter(allowed).map((a) => {
               const Icon = a.icon;
               return (
@@ -116,7 +121,7 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
           <DrawerHeader className="text-left">
             <DrawerTitle className="font-hud">All sections</DrawerTitle>
           </DrawerHeader>
-          <div className="space-y-4 overflow-y-auto px-4 pb-2">
+          <div className="space-y-4 overflow-y-auto px-4 pb-4">
             <WalletBalance />
             {moreGroups.map((g) => (
               <div key={g.label}>
@@ -136,7 +141,7 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
                         )}
                       >
                         <Icon className="size-5" />
-                        <span className="text-xs font-medium leading-tight">{i.label}</span>
+                        <span className="text-xs font-medium leading-tight">{i.shortLabel ?? i.label}</span>
                       </Link>
                     );
                   })}
@@ -152,14 +157,20 @@ export function MobileTabBar({ isAdmin, navPermission }: { isAdmin: boolean; nav
 
 function Tab({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
+  const label = item.shortLabel ?? item.label;
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={cn("flex flex-1 flex-col items-center justify-center gap-1", active ? "text-primary" : "text-muted-foreground")}
+      className={cn(
+        "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+      )}
     >
-      <Icon className="size-5" />
-      <span className="font-hud text-[10px] font-semibold uppercase tracking-wider">{item.label}</span>
+      <Icon className="size-5 shrink-0" />
+      <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+        {label}
+      </span>
     </Link>
   );
 }
