@@ -12,15 +12,12 @@ import {
   ClipboardCheck,
   Coins,
   FileText,
-  Globe,
   LinkIcon,
   Loader2,
-  Palette,
   PanelTop,
   Plus,
   Sparkles,
   User,
-  Users,
   XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -40,12 +37,11 @@ import { api } from "~/utils/api";
 type FormData = z.infer<typeof RequestBrandCreateFormSchema>;
 
 const STEPS = [
-  { step: 1, title: "Welcome", desc: "Why join as a brand" },
-  { step: 2, title: "Media", desc: "Profile & cover images" },
-  { step: 3, title: "Details", desc: "Brand name & biography" },
-  { step: 4, title: "Page Asset", desc: "Brand membership token" },
-  { step: 5, title: "Vanity URL", desc: "Custom profile link" },
-  { step: 6, title: "Review", desc: "Confirm & complete" },
+  { step: 1, title: "Media", desc: "Profile & cover images" },
+  { step: 2, title: "Details", desc: "Brand name & biography" },
+  { step: 3, title: "Page Asset", desc: "Brand membership token" },
+  { step: 4, title: "Vanity URL", desc: "Custom profile link" },
+  { step: 5, title: "Review", desc: "Confirm & complete" },
 ] as const;
 
 const CONFETTI_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
@@ -140,12 +136,10 @@ export default function ArtistOnboarding() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return true;
-      case 2:
         return !!formData.profileUrl;
-      case 3:
+      case 2:
         return formData.displayName.trim().length >= 1 && formData.displayName.trim().length <= 99;
-      case 4:
+      case 3:
         if (formData.assetType === "new") {
           const validName = /^[a-zA-Z]{4,12}$/.test(formData.assetName.trim());
           return validName && !!formData.assetImage;
@@ -154,14 +148,14 @@ export default function ArtistOnboarding() {
           const validIssuer = /^G[A-Z2-7]{55}$/.test(formData.issuer.trim());
           return validCode && validIssuer && isTrusted;
         }
-      case 5:
+      case 4:
         return (
           !!formData.vanityUrl &&
           formData.vanityUrl.trim().length > 0 &&
           isVanityUrlAvailable === true &&
           !isCheckingVanityUrl
         );
-      case 6:
+      case 5:
         return true;
       default:
         return false;
@@ -169,7 +163,7 @@ export default function ArtistOnboarding() {
   };
 
   const handleNext = () => {
-    if (currentStep < 6) {
+    if (currentStep < 5) {
       setCurrentStep((prev) => prev + 1);
     } else {
       const payload: FormData = {
@@ -283,77 +277,8 @@ export default function ArtistOnboarding() {
           <main className="lg:col-span-8">
             <div className="rounded-2xl border border-border bg-card shadow-xs">
               <div key={currentStep} className="p-6 sm:p-8">
-                  {/* Step 1: Welcome & Benefits */}
+                  {/* Step 1: Media Upload */}
                   {currentStep === 1 && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="font-hud text-2xl font-bold tracking-tight">Why Join as an Brand?</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Our platform empowers you to engage your fans in new and exciting ways.
-                        </p>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        {[
-                          {
-                            icon: Globe,
-                            title: "Global Reach",
-                            desc: "Place virtual pins at any GPS location, each holding a unique reward.",
-                          },
-                          {
-                            icon: Sparkles,
-                            title: "Recognize your Fans",
-                            desc: "Customize campaigns with brand details, descriptions, and collection limits.",
-                          },
-                          {
-                            icon: Palette,
-                            title: "Creative Freedom",
-                            desc: "Build memorable connections with customers through immersive experiences.",
-                          },
-                        ].map((b, i) => (
-                          <div
-                            key={i}
-                            className="group relative rounded-xl border border-border bg-muted/20 p-5 transition-colors hover:border-primary/40 hover:bg-muted/40"
-                          >
-                            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                              <b.icon className="size-5" />
-                            </div>
-                            <h3 className="mt-3 font-semibold text-foreground">{b.title}</h3>
-                            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{b.desc}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
-                          <div className="flex items-start gap-3">
-                            <Sparkles className="size-5 shrink-0 text-primary mt-0.5" />
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">Ready to Showcase your brand?</p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                Join our growing platform connecting brands with fans
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
-                          <div className="flex items-start gap-3">
-                            <Users className="size-5 shrink-0 text-muted-foreground mt-0.5" />
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">Ready to showcase your talent?</p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                Join our growing community of brands and start sharing your creative work today.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Media Upload */}
-                  {currentStep === 2 && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="font-hud text-2xl font-bold tracking-tight">Brand Media</h2>
@@ -451,8 +376,8 @@ export default function ArtistOnboarding() {
                     </div>
                   )}
 
-                  {/* Step 3: Details */}
-                  {currentStep === 3 && (
+                  {/* Step 2: Details */}
+                  {currentStep === 2 && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="font-hud text-2xl font-bold tracking-tight">Artist Details</h2>
@@ -505,6 +430,7 @@ export default function ArtistOnboarding() {
                             <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">Preview</p>
                             <div className="relative mx-auto size-20 overflow-hidden rounded-full border border-border bg-card shadow-xs">
                               {formData.profileUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={formData.profileUrl}
                                   alt="Preview avatar"
@@ -528,8 +454,8 @@ export default function ArtistOnboarding() {
                     </div>
                   )}
 
-                  {/* Step 4: Page Asset */}
-                  {currentStep === 4 && (
+                  {/* Step 3: Page Asset */}
+                  {currentStep === 3 && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="font-hud text-2xl font-bold tracking-tight">Page Asset (Membership Token)</h2>
@@ -733,8 +659,8 @@ export default function ArtistOnboarding() {
                     </div>
                   )}
 
-                  {/* Step 5: Vanity URL */}
-                  {currentStep === 5 && (
+                  {/* Step 4: Vanity URL */}
+                  {currentStep === 4 && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="font-hud text-2xl font-bold tracking-tight">Choose Your Vanity URL</h2>
@@ -810,8 +736,8 @@ export default function ArtistOnboarding() {
                     </div>
                   )}
 
-                  {/* Step 6: Review & Complete */}
-                  {currentStep === 6 && (
+                  {/* Step 5: Review & Complete */}
+                  {currentStep === 5 && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="font-hud text-2xl font-bold tracking-tight">Review Application</h2>
@@ -828,13 +754,19 @@ export default function ArtistOnboarding() {
                               <User className="size-4 text-primary" />
                               Brand Identity
                             </h3>
-                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)} className="h-7 text-xs">
-                              Edit
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)} className="h-7 text-xs">
+                                Media
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)} className="h-7 text-xs">
+                                Details
+                              </Button>
+                            </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="relative size-12 overflow-hidden rounded-full border border-border bg-card">
                               {formData.profileUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src={formData.profileUrl} alt="Avatar" className="size-full object-cover" />
                               ) : (
                                 <User className="size-full p-2 text-muted-foreground" />
@@ -856,7 +788,7 @@ export default function ArtistOnboarding() {
                               <Coins className="size-4 text-primary" />
                               Page Asset
                             </h3>
-                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="h-7 text-xs">
+                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(3)} className="h-7 text-xs">
                               Edit
                             </Button>
                           </div>
@@ -899,7 +831,7 @@ export default function ArtistOnboarding() {
                               <LinkIcon className="size-4 text-primary" />
                               Public Vanity Link
                             </h3>
-                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(5)} className="h-7 text-xs">
+                            <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="h-7 text-xs">
                               Edit
                             </Button>
                           </div>
@@ -945,7 +877,7 @@ export default function ArtistOnboarding() {
                           <Loader2 className="size-4 animate-spin" />
                           Submitting...
                         </>
-                      ) : currentStep === 6 ? (
+                      ) : currentStep === 5 ? (
                         "Submit Application"
                       ) : (
                         <>
