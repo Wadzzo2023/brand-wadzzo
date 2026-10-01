@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 
@@ -10,6 +11,7 @@ import { MobileTabBar, MobileTopBar } from "./mobile-nav";
 import { ADMIN_NAV, BRAND_NAV, isActive } from "./nav";
 import { Sidebar } from "./sidebar";
 import { usePortalAccess } from "./use-portal-access";
+import { UserMenu } from "./user-menu";
 
 const COLLAPSE_KEY = "wadzzo.sidebar.collapsed";
 /** The saved choice only changes through our own toggle, so there's nothing to subscribe to. */
@@ -57,12 +59,35 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isOnboardingRoute = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+
+  if (isOnboardingRoute) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 sm:px-8">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+              <Image src="/images/loading.png" alt="" width={20} height={20} className="object-contain" />
+            </span>
+            <span className="leading-tight">
+              <span className="block font-hud text-base font-bold tracking-tight">Wadzzo</span>
+              <span className="block font-hud text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Brand Onboarding
+              </span>
+            </span>
+          </div>
+          <UserMenu compact />
+        </header>
+        <main className="min-w-0 flex-1">
+          <OnboardingGate access={access}>{children}</OnboardingGate>
+        </main>
+      </div>
+    );
+  }
+
   const title = [...BRAND_NAV.flatMap((g) => g.items), ...ADMIN_NAV.items].find((i) => isActive(pathname, i))?.label;
 
   const page = isAdminRoute ? (
     <AdminGate access={access}>{children}</AdminGate>
-  ) : isOnboardingRoute ? (
-    <OnboardingGate access={access}>{children}</OnboardingGate>
   ) : UNGATED.some((p) => pathname === p || pathname.startsWith(p + "/")) ? (
     children
   ) : (
