@@ -3,7 +3,6 @@ import {
   adminProcedure,
   createTRPCRouter,
   protectedProcedure,
-  publicProcedure,
 } from "~/server/api/trpc";
 
 import { createTransport, type Transporter } from "nodemailer";
@@ -110,7 +109,7 @@ export const userRouter = createTRPCRouter({
   deleteAPost: adminProcedure.input(z.number()).mutation(({ ctx, input }) => {
     return ctx.db.post.delete({ where: { id: input } });
   }),
-  sendEmail: publicProcedure
+  sendEmail: adminProcedure
     .input(
       z.object({
         userEmail: z.string(),

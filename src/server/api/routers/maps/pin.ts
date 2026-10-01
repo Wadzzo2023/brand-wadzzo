@@ -571,47 +571,43 @@ export const pinRouter = createTRPCRouter({
       return locationGroup;
     }),
 
-  getPin: publicProcedure.input(z.string()).query(async ({ ctx, input }) => {
+  getPin: creatorProcedure.input(z.string()).query(async ({ ctx, input }) => {
     const pin = await ctx.db.location.findUnique({
       where: { id: input },
       include: {
         locationGroup: {
           include: {
-            creator: { select: { name: true, profileUrl: true } },
+            creator: { select: { id: true, name: true, profileUrl: true } },
             locations: {
-              include: {
-                consumers: {
-                  include: {
-                    user: { select: { name: true, email: true, id: true } },
-                  },
-                },
+              select: {
+                _count: { select: { consumers: true } },
               },
             },
           },
         },
       },
     });
-    if (!pin) throw new Error("Pin not found");
+    if (!pin) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
+    if (!pin.locationGroup) throw new TRPCError({ code: "NOT_FOUND", message: "Location group not found" });
+
+    await assertOwnerOrAdmin(ctx, pin.locationGroup.creatorId);
+
+    const totalConsumers =
+      pin.locationGroup.locations.reduce((n, l) => n + l._count.consumers, 0);
 
     return {
       id: pin.id,
-      title: pin.locationGroup?.title,
-      description: pin.locationGroup?.description,
-      image: pin.locationGroup?.image,
-      startDate: pin.locationGroup?.startDate,
-      endDate: pin.locationGroup?.endDate,
-      url: pin.locationGroup?.link,
+      title: pin.locationGroup.title,
+      description: pin.locationGroup.description,
+      image: pin.locationGroup.image,
+      startDate: pin.locationGroup.startDate,
+      endDate: pin.locationGroup.endDate,
+      url: pin.locationGroup.link,
       autoCollect: pin.autoCollect,
       latitude: pin.latitude,
       longitude: pin.longitude,
-      consumers:
-        pin.locationGroup?.locations.flatMap((location) =>
-          location.consumers.map((consumer) => ({
-            pubkey: consumer.user.id,
-            name: consumer.user.name ?? "Unknown",
-            consumptionDate: consumer.createdAt,
-          }))
-        ) ?? [],
+      totalConsumers,
+      consumers: [],
     };
   }),
 

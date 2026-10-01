@@ -4,6 +4,7 @@ import fs from "fs";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { env } from "~/env";
+import { getServerAuthSession } from "~/server/auth";
 
 const pinata = new PinataClient({ pinataJWTKey: env.PINATA_JWT });
 
@@ -34,6 +35,11 @@ function parse(req: NextApiRequest) {
 
 /** POST: upload one file to IPFS (Pinata) and return its hash. GET: the latest pin. */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = await getServerAuthSession({ req, res });
+  if (!session) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   if (req.method === "POST") {
     try {
       const files = await parse(req);
