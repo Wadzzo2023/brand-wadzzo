@@ -521,6 +521,11 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
                 <MapIcon /> View on map
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/pins/hotspots/${h.id}/edit`}>
+                <Pencil /> Edit hotspot
+              </Link>
+            </DropdownMenuItem>
             {!ended && (
               <DropdownMenuItem className="sm:hidden" onClick={() => toggleActive.mutate({ id: h.id })}>
                 {h.isActive ? <Pause /> : <Play />} {h.isActive ? "Pause" : "Resume"}

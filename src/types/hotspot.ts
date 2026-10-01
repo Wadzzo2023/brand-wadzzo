@@ -35,5 +35,28 @@ export const createHotspotFormSchema = z.object({
     hotspotStartDate: z.date(),
     hotspotEndDate: z.date(),
     geoJson: z.custom<Feature | null>((val) => val === null || typeof val === "object").optional(),
-})
+});
+
+export const updateHotspotFormSchema = z.object({
+    title: z
+        .string()
+        .min(3, "Title must be at least 3 characters long")
+        .max(120, "Title must be at most 120 characters")
+        .refine(
+            (value) => !BADWORDS.some((word) => value.toLowerCase().includes(word.toLowerCase())),
+            { message: "Input contains banned words." },
+        ),
+    description: z.string().max(2000, "Description must be at most 2000 characters").optional().or(z.literal("")),
+    image: z.string().url("Please enter a valid image URL").optional().or(z.literal("")),
+    url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+    type: z.nativeEnum(PinType).default(PinType.OTHER),
+    limit: z.number().int().min(0).default(0),
+    autoCollect: z.boolean().default(false),
+    multiPin: z.boolean().default(false),
+    dropEveryDays: z.number().min(1, "Must be at least 1 day").default(1),
+    pinDurationDays: z.number().min(1, "Must be at least 1 day").default(3),
+    hotspotStartDate: z.date(),
+    hotspotEndDate: z.date(),
+    scope: z.enum(["future_drops", "all_drops"]).default("future_drops"),
+});
 

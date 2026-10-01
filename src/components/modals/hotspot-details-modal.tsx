@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarClock, Hexagon, Loader2, MapPin, Pause, Play, Repeat, Timer, Trash2, Users } from "lucide-react";
+import { CalendarClock, Hexagon, Loader2, MapPin, Pause, Pencil, Play, Repeat, Timer, Trash2, Users } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Layer, Source, type MapRef } from "react-map-gl/mapbox";
@@ -134,16 +135,21 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
                 </div>
               ) : (
                 <div className="flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/pins/hotspots/${hotspotId}/edit`} onClick={() => close(false)}>
+                      <Pencil className="size-3.5" /> Edit
+                    </Link>
+                  </Button>
                   {h.isActive ? (
-                    <Button variant="outline" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && pause.mutate({ hotspotId })}>
+                    <Button variant="outline" size="sm" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && pause.mutate({ hotspotId })}>
                       {pause.isPending ? <Loader2 className="animate-spin" /> : <Pause />} Pause drops
                     </Button>
                   ) : (
-                    <Button className="flex-1" disabled={busy || ended} onClick={() => hotspotId && resume.mutate({ hotspotId })}>
+                    <Button size="sm" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && resume.mutate({ hotspotId })}>
                       {resume.isPending ? <Loader2 className="animate-spin" /> : <Play />} Resume drops
                     </Button>
                   )}
-                  <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmDelete(true)}>
                     <Trash2 /> Delete
                   </Button>
                 </div>
