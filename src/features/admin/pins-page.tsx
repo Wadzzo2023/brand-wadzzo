@@ -25,6 +25,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast, { type Toast } from "react-hot-toast";
 
+import { PinQRDownloadAllButton, pinQRBulkActions, useDropQRs } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
@@ -674,10 +675,16 @@ function PinRow({
   const end = new Date(g.endDate);
   const count = g._count.locations;
 
+  // Bulk QR work for this drop. One hook per row, so the spinner on the download
+  // button and the disabled state on both menu items always agree.
+  const bulkQR = useDropQRs({ locationGroupId: g.id });
+
   const menu: RowAction[] = [
     { label: "Preview", icon: Eye, onSelect: onOpen },
     { label: "Edit pin", icon: Pencil, href: `/pins/${g.id}/edit` },
     { label: expanded ? "Hide locations" : "Show locations", icon: MapPin, onSelect: onToggle },
+    // A drop with no live locations has no code to hand out, so no entry point.
+    ...(count > 0 ? pinQRBulkActions(bulkQR, count) : []),
     ...(showBrand ? [{ label: "View brand", icon: ExternalLink, href: `/admin/creators/${g.creator.id}` }] : []),
     { label: "Delete pin", icon: Trash2, destructive: true, separator: true, disabled: busy, onSelect: onDelete },
   ];
@@ -724,6 +731,7 @@ function PinRow({
           </span>
         </button>
         <Decision view={view} busy={busy} onReject={onReject} onApprove={onApprove} onUnapprove={onUnapprove} />
+        {count > 0 && <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={count} />}
         <RowMenu items={menu} />
       </div>
       {expanded && <Locations groupId={g.id} title={g.title} />}

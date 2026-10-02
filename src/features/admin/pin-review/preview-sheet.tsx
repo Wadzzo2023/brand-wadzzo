@@ -1,12 +1,13 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { Check as CheckIcon, ChevronDown, ChevronUp, Link2, MapPin, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { Check as CheckIcon, ChevronDown, ChevronUp, Link2, MapPin, Pencil, QrCode, RotateCcw, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Marker } from "react-map-gl/mapbox";
 
 import { BaseMap } from "~/components/map-kit/base-map";
+import { PinQRDialog } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "~/components/shadcn/ui/sheet";
 import { ErrorState } from "~/ui/error-state";
@@ -78,6 +79,7 @@ function Body({
 }) {
   const q = api.maps.pin.getReviewGroup.useQuery(id, { refetchOnWindowFocus: false });
   const g = q.data;
+  const [qrOpen, setQrOpen] = useState(false);
 
   return (
     <>
@@ -166,6 +168,27 @@ function Body({
                     </a>
                   </Item>
                 )}
+                {/* The code a brand prints for this drop, so it's visible during
+                    review rather than only after approval — the question "can a
+                    fan actually collect this off a sticker?" is answerable here.
+                    Opens the same dialog the map uses, on the first location. */}
+                {g.locations[0] && (
+                  <Item label="QR code" wide>
+                    <button
+                      type="button"
+                      onClick={() => setQrOpen(true)}
+                      className="-my-1 flex w-full items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-accent"
+                    >
+                      <QrCode className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">
+                        Preview the code
+                        {g.locations.length > 1 && (
+                          <span className="text-muted-foreground"> · {plural(g.locations.length, "code")}</span>
+                        )}
+                      </span>
+                    </button>
+                  </Item>
+                )}
               </dl>
 
               {g.locations.length > 0 && (
@@ -205,6 +228,21 @@ function Body({
           </>
         ) : null}
       </div>
+
+      {g?.locations[0] && (
+        <PinQRDialog
+          open={qrOpen}
+          onOpenChange={setQrOpen}
+          target={{
+            locationId: g.locations[0].id,
+            locationGroupId: g.id,
+            title: g.title,
+            brandName: g.creator.name ?? "Wadzzo",
+            brandImageUrl: g.creator.profileUrl,
+            pinCount: g.multiPin ? g.locations.length : null,
+          }}
+        />
+      )}
 
       {/* Decision bar: secondary actions left, the decision right — same order as the list rows. */}
       {g && (

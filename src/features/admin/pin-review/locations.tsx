@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
+import { PinQRButton } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
 import { env } from "~/env";
 import { cn } from "~/lib/utils";
@@ -131,6 +132,14 @@ export function Locations({ groupId, title, variant = "inline" }: { groupId: str
                     </StatusPill>
                   )}
                   <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">{l._count.consumers.toLocaleString()} collected</span>
+                  <PinQRButton
+                    target={{
+                      locationId: l.id,
+                      locationGroupId: groupId,
+                      title,
+                      pinCount: ids.length,
+                    }}
+                  />
                   <Button variant="ghost" size="icon-sm" asChild>
                     <Link href={`/pins/${l.id}/edit`} aria-label={`Edit location ${i + 1}`} title="Edit location">
                       <Pencil />

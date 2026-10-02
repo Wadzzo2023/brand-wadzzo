@@ -1,12 +1,13 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { BarChart3, CalendarDays, Copy, CopyPlus, ExternalLink, Link2, Loader2, type MapPin, Navigation, Pencil, Scissors, Trash2, Users, Zap } from "lucide-react";
+import { BarChart3, CalendarDays, Copy, CopyPlus, ExternalLink, Link2, Loader2, type MapPin, Navigation, Pencil, QrCode, Scissors, Trash2, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
+import { PinQRDialog } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Switch } from "~/components/shadcn/ui/switch";
@@ -31,6 +32,7 @@ export default function PinDetailPanel() {
   const router = useRouter();
   const admin = (usePathname() ?? "").startsWith("/admin");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [now] = useState(() => Date.now());
 
   const utils = api.useUtils();
@@ -216,7 +218,8 @@ export default function PinDetailPanel() {
 
           {/* Actions, all on view: quick tools on top, the two main ones below. */}
           <div className="space-y-2.5 border-t bg-card px-5 py-3.5">
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
+              <ToolButton icon={QrCode} label="QR" hint="Print a code fans can scan" onClick={() => setQrOpen(true)} />
               <ToolButton icon={CopyPlus} label="Duplicate" hint="New pin from this one" busy={duplicate.isPending} onClick={() => duplicate.mutate(pin.id)} />
               <ToolButton icon={Copy} label="Copy" hint="Paste it somewhere else" onClick={copyForPaste} />
               <ToolButton icon={Scissors} label="Move" hint="Click a new spot" onClick={cutForMove} />
@@ -247,6 +250,22 @@ export default function PinDetailPanel() {
         busy={remove.isPending}
         onConfirm={() => remove.mutate({ id: pin.id })}
       />
+
+      {/* The QR dialog renders nothing until it has a group, so a pin whose
+          drop has since been deleted just doesn't open it. */}
+      {g && (
+        <PinQRDialog
+          open={qrOpen}
+          onOpenChange={setQrOpen}
+          target={{
+            locationId: pin.id,
+            locationGroupId: g.id,
+            title: g.title,
+            brandName: g.creator.name ?? "Wadzzo",
+            brandImageUrl: g.creator.profileUrl,
+          }}
+        />
+      )}
     </>
   );
 }

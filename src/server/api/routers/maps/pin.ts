@@ -11,6 +11,7 @@
 
 import { ItemPrivacy } from "@prisma/client";
 import { PinType } from "@prisma/client";
+import type { db as PrismaDb } from "~/server/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { assertOwnerOrAdmin, isAdmin as checkIsAdmin } from "~/server/api/access";
@@ -18,6 +19,7 @@ import { createOptimizedImage } from "~/server/image-optimizer";
 import { createHotspotFormSchema } from "~/types/hotspot";
 import { updateMapFormSchema } from "~/types/pin-edit";
 import { hotspotClient } from "~/lib/express/hotspotClient-sdk";
+import { buildPinScanUrl, renderPinQR } from "~/lib/qr-generator";
 
 import {
   adminProcedure,
@@ -87,6 +89,39 @@ export const createPinFormSchema = z.object({
 export const PAGE_ASSET_NUM = -10;
 export const NO_ASSET = -99;
 
+/**
+ * Ceiling on `generateDropQRs`. Every code is a base64 image in one response, so
+ * this is really a payload guard — a hotspot that fans out to hundreds of
+ * locations belongs on the hotspot page, not squeezed through a single drop.
+ */
+const MAX_QR_CODES_PER_DROP = 100;
+
+/**
+ * 1-based position of a location among its drop's live siblings, ordered by id —
+ * the same order `generateDropQRs` renders in, so "Pin 3 of 12" on the sheet
+ * matches the sticker the brand actually printed. Null if the location is hidden
+ * or gone.
+ *
+ * A count rather than a fetch: the dialog only wants the ordinal, and ids are
+ * cuid-like so a lexicographic comparison lines up with insertion order well
+ * enough for a label. Cheaper than pulling every sibling row.
+ */
+async function locationOrdinal(db: typeof PrismaDb, locationId: string): Promise<number | null> {
+  const self = await db.location.findUnique({
+    where: { id: locationId },
+    select: { id: true, locationGroupId: true },
+  });
+  if (!self) return null;
+  const ahead = await db.location.count({
+    where: {
+      locationGroupId: self.locationGroupId,
+      hidden: false,
+      id: { lte: self.id },
+    },
+  });
+  return ahead;
+}
+
 export const createAdminPinFormSchema = z.object({
   lat: z.number({ message: "Latitude is required" }).min(-180).max(180),
   lng: z.number({ message: "Longitude is required" }).min(-180).max(180),
@@ -144,6 +179,9 @@ const reviewSelect = {
   longitude: true,
   creator: { select: { name: true, id: true, profileUrl: true } },
   _count: { select: { locations: { where: { hidden: false } } } },
+  // No `locations` here, deliberately. Bulk QR work addresses a drop by its group
+  // id, and the one place that needs a concrete location id (the preview drawer)
+  // fetches the full list itself via `getReviewGroup`.
 } as const;
 
 export const pinRouter = createTRPCRouter({
@@ -1850,5 +1888,165 @@ export const pinRouter = createTRPCRouter({
         data: { hidden: true },
       });
       return { deleted: input.locationGroupIds.length };
+    }),
+
+  /**
+   * One printable QR for one pin location.
+   *
+   * A query, not a mutation, and that is the whole reason this is separate from
+   * `generateDropQRs`: the dialog shows the code the instant the pin is opened,
+   * then re-renders as the brand flips format — that is a read of something
+   * derived, so it caches and re-fetches on its own. The bulk variant is an
+   * action with real cost (N codes, seconds of CPU) and belongs behind a click.
+   *
+   * Only the pin's id goes into the code — see `~/lib/qr-generator` for what the
+   * fan's side does with it and why the code is deliberately static.
+   */
+  generatePinQR: creatorProcedure
+    .input(z.object({
+      locationId: z.string().min(1),
+      format: z.enum(["png", "svg"]).default("svg"),
+      size: z.coerce.number().int().min(128).max(2048).default(512),
+    }))
+    .query(async ({ ctx, input }) => {
+      const location = await ctx.db.location.findUnique({
+        where: { id: input.locationId },
+        select: {
+          id: true,
+          hidden: true,
+          locationGroup: {
+            select: {
+              id: true,
+              title: true,
+              creatorId: true,
+              multiPin: true,
+              hidden: true,
+              approved: true,
+              startDate: true,
+              endDate: true,
+              creator: { select: { name: true, profileUrl: true } },
+              _count: { select: { locations: { where: { hidden: false } } } },
+            },
+          },
+        },
+      });
+      if (!location?.locationGroup) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
+      }
+
+      const group = location.locationGroup;
+      // A hidden drop is off the map, so a sticker still in circulation would
+      // land on a 404. Same rule as `list`, which filters `hidden: false`.
+      if (group.hidden) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "This drop is hidden" });
+      }
+      // A hidden pin is soft-deleted, so it can't be collected and
+      // `generateDropQRs` never returns one. Without this the dialog would happily
+      // print a sticker for a pin the bulk path insists doesn't exist.
+      if (location.hidden) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "This pin is hidden" });
+      }
+      await assertOwnerOrAdmin(ctx, group.creatorId);
+
+      const image = await renderPinQR(location.id, input.format, { size: input.size });
+      const pinIndex = group.multiPin ? await locationOrdinal(ctx.db, location.id) : null;
+
+      // Whether a scan would actually succeed right now. Not a gate — the code
+      // is still worth printing ahead of a launch — but the dialog says so,
+      // because "no app needed" is a promise about collection and a drop still
+      // sitting in review can't keep it. Cheaper here than a second lookup.
+      const now = Date.now();
+      const collectable = group.approved === true
+        && group.startDate.getTime() <= now
+        && group.endDate.getTime() >= now;
+
+      return {
+        ...image,
+        locationId: location.id,
+        locationGroupId: group.id,
+        title: group.title,
+        brandName: group.creator.name ?? "Wadzzo",
+        brandImageUrl: group.creator.profileUrl,
+        scanUrl: buildPinScanUrl(location.id),
+        collectable,
+        collectableReason: collectable
+          ? null
+          : group.approved === null
+            ? "This drop is still in review — nobody can collect it yet."
+            : group.approved === false
+              ? "This drop was rejected."
+              : group.startDate.getTime() > now
+                ? `This drop hasn't opened yet — it starts ${group.startDate.toLocaleDateString()}.`
+                : "This drop has ended.",
+        // Only meaningful on a multi-pin drop, where each location is its own
+        // code and someone needs to tell the stickers apart.
+        isMultiPin: group.multiPin,
+        pinNumber: group.multiPin ? pinIndex : null,
+        pinCount: group.multiPin ? group._count.locations : null,
+      };
+    }),
+
+  /**
+   * Every live location in a drop, rendered in one format.
+   *
+   * A brand printing a run of stickers wants one print job, not twenty-two file
+   * downloads, so this returns them all and the dialog lays them out as a sheet.
+   * Capped, because a hotspot can carry hundreds of locations and the response
+   * is one base64 image per pin — past this the brand should be using the
+   * hotspot page rather than a single drop.
+   */
+  generateDropQRs: creatorProcedure
+    .input(z.object({
+      locationGroupId: z.string().min(1),
+      format: z.enum(["png", "svg"]).default("svg"),
+      size: z.coerce.number().int().min(128).max(2048).default(512),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.locationGroup.findUnique({
+        where: { id: input.locationGroupId },
+        select: {
+          id: true,
+          title: true,
+          creatorId: true,
+          multiPin: true,
+          hidden: true,
+          creator: { select: { name: true, profileUrl: true } },
+        },
+      });
+      if (!group || group.hidden) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Drop not found" });
+      }
+      await assertOwnerOrAdmin(ctx, group.creatorId);
+
+      const locations = await ctx.db.location.findMany({
+        where: { locationGroupId: group.id, hidden: false },
+        select: { id: true },
+        orderBy: { id: "asc" },
+        take: MAX_QR_CODES_PER_DROP,
+      });
+      if (locations.length === 0) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This drop has no active pins" });
+      }
+
+      const options = { size: input.size };
+      const items = await Promise.all(
+        locations.map(async (loc, i) => ({
+          ...(await renderPinQR(loc.id, input.format, options)),
+          locationId: loc.id,
+          scanUrl: buildPinScanUrl(loc.id),
+          pinNumber: group.multiPin ? i + 1 : null,
+          pinCount: group.multiPin ? locations.length : null,
+        })),
+      );
+
+      return {
+        locationGroupId: group.id,
+        title: group.title,
+        brandName: group.creator.name ?? "Wadzzo",
+        brandImageUrl: group.creator.profileUrl,
+        isMultiPin: group.multiPin,
+        truncated: locations.length === MAX_QR_CODES_PER_DROP,
+        items,
+      };
     }),
 });

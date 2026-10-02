@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import { PinQRButton, PinQRDownloadAllButton, pinQRBulkActions, useDropQRs } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
 import { Input } from "~/components/shadcn/ui/input";
@@ -261,6 +262,28 @@ function GroupRow({
   const collected = g.locations.reduce((n, l) => n + l._count.consumers, 0);
   const editHref = g.locations[0] ? `/pins/${g.locations[0].id}/edit` : null;
 
+  // Live pins, i.e. the ones a QR code can exist for. Hidden locations are still
+  // in `g.locations` (a hidden pin is deleted-but-recoverable), and a code for
+  // one would be a sticker that leads to nothing.
+  const liveCount = g.locations.filter((l) => !l.hidden).length;
+
+  // Bulk QR work for this drop — one hook per row, so the download button's
+  // spinner and the two disabled menu items can never disagree.
+  const bulkQR = useDropQRs({ locationGroupId: g.id });
+
+  /**
+   * A group's row gets the file, not the dialog. A group has no single code to
+   * look at, so the useful artefacts are the zip and the print sheet. The dialog
+   * is one level down, on the location rows, where there *is* one code worth
+   * previewing.
+   */
+  const qrTarget = (locationId: string) => ({
+    locationId,
+    locationGroupId: g.id,
+    title: g.title,
+    pinCount: liveCount,
+  });
+
   return (
     <li className={cn("overflow-hidden rounded-xl border bg-card", selected && "border-primary/60")}>
       <div className="flex items-center gap-3 p-3">
@@ -304,6 +327,15 @@ function GroupRow({
                 </Link>
               </DropdownMenuItem>
             )}
+            {/* Download is a button on the row; the menu carries both outcomes so
+                print isn't a hidden extra. Grouped here rather than as two more
+                row buttons, which would put Print next to Delete. */}
+            {liveCount > 0 &&
+              pinQRBulkActions(bulkQR, liveCount).map((a) => (
+                <DropdownMenuItem key={a.label} disabled={a.disabled} onSelect={a.onSelect}>
+                  {a.icon && <a.icon className={a.disabled ? "opacity-50" : undefined} />} {a.label}
+                </DropdownMenuItem>
+              ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -323,6 +355,9 @@ function GroupRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {liveCount > 0 && (
+          <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={liveCount} />
+        )}
         <Button variant="ghost" size="icon-sm" onClick={() => setOpen((o) => !o)} aria-label={open ? "Hide pins" : "Show pins"}>
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
         </Button>
@@ -386,6 +421,9 @@ function GroupRow({
                   <span className="min-w-0 flex-1 truncate font-mono text-xs">{coords(l.latitude, l.longitude)}</span>
                   {l.hidden && <Pill tone="bg-muted text-muted-foreground">Hidden</Pill>}
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{l._count.consumers.toLocaleString()} collected</span>
+                  {/* No QR on a hidden pin — it's soft-deleted, so the code leads
+                      nowhere and the server refuses it. The pill above says why. */}
+                  {!l.hidden && <PinQRButton target={qrTarget(l.id)} />}
                   <Button variant="ghost" size="icon-sm" asChild>
                     <Link href={`/pins/${l.id}/edit`} aria-label="Edit pin">
                       <Pencil />
@@ -487,6 +525,12 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
         : { label: "Active", tone: "bg-primary/10 text-primary" };
   const collected = h.locationGroups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l._count.consumers, 0), 0);
 
+  /**
+   * A hotspot's codes come from its drops, not the hotspot itself — each drop is
+   * its own `LocationGroup` with its own locations. So the QR controls sit on the
+   * drop rows where there's something concrete to point at, not on the hotspot
+   * header above them.
+   */
   return (
     <li className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center gap-3 p-3">
@@ -586,56 +630,99 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
             <p className="py-3 text-center text-xs text-muted-foreground">No drops yet — the first one comes on schedule.</p>
           ) : (
             <ul className="space-y-1">
-              {h.locationGroups.map((g) => {
-                const t = g.hidden ? { label: "Scheduled", tone: "bg-warning/10 text-warning" } : timing(g.startDate, g.endDate, now);
-                const got = g.locations.reduce((n, l) => n + l._count.consumers, 0);
-                return (
-                  <li key={g.id} className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      className="size-3.5 accent-primary"
-                      checked={picked.has(g.id)}
-                      onChange={(e) =>
-                        setPicked((s) => {
-                          const n = new Set(s);
-                          if (e.target.checked) n.add(g.id);
-                          else n.delete(g.id);
-                          return n;
-                        })
-                      }
-                      aria-label={`Select drop from ${fmt(g.startDate)}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {fmt(g.startDate)} → {fmt(g.endDate)}
-                      <span className="text-muted-foreground"> · {plural(g.locations.length, "pin")} · {got.toLocaleString()} collected</span>
-                    </span>
-                    <Pill tone={t.tone}>{t.label}</Pill>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-destructive hover:text-destructive"
-                      aria-label="Delete drop"
-                      onClick={() =>
-                        ask({
-                          title: "Delete this drop?",
-                          description: "Its pins are removed. The hotspot keeps dropping on schedule.",
-                          run: async () => {
-                            await removeDrop.mutateAsync({ locationGroupId: g.id, hotspotId: h.id });
-                            toast.success("Drop deleted");
-                            refresh();
-                          },
-                        })
-                      }
-                    >
-                      <Trash2 />
-                    </Button>
-                  </li>
-                );
-              })}
+              {h.locationGroups.map((g) => (
+                <HotspotDropRow
+                  key={g.id}
+                  g={g}
+                  now={now}
+                  checked={picked.has(g.id)}
+                  onCheck={(on) =>
+                    setPicked((s) => {
+                      const n = new Set(s);
+                      if (on) n.add(g.id);
+                      else n.delete(g.id);
+                      return n;
+                    })
+                  }
+                  onDelete={() =>
+                    ask({
+                      title: "Delete this drop?",
+                      description: "Its pins are removed. The hotspot keeps dropping on schedule.",
+                      run: async () => {
+                        await removeDrop.mutateAsync({ locationGroupId: g.id, hotspotId: h.id });
+                        toast.success("Drop deleted");
+                        refresh();
+                      },
+                    })
+                  }
+                />
+              ))}
             </ul>
           )}
         </div>
       )}
+    </li>
+  );
+}
+
+/**
+ * One scheduled drop inside an expanded hotspot.
+ *
+ * Split out of `HotspotRow`'s list purely so it can own a `useDropQRs` hook —
+ * a hook can't be called inside a `.map`. Same shape as `GroupRow`: the zip is
+ * a button, print lives in the `⋯` menu, and per-pin dialogs are one level down
+ * in Pin management where the locations are actually listed.
+ */
+function HotspotDropRow({
+  g,
+  now,
+  checked,
+  onCheck,
+  onDelete,
+}: {
+  g: Hotspot["locationGroups"][number];
+  now: number;
+  checked: boolean;
+  onCheck: (on: boolean) => void;
+  onDelete: () => void;
+}) {
+  const t = g.hidden ? { label: "Scheduled", tone: "bg-warning/10 text-warning" } : timing(g.startDate, g.endDate, now);
+  const got = g.locations.reduce((n, l) => n + l._count.consumers, 0);
+  const bulkQR = useDropQRs({ locationGroupId: g.id });
+
+  return (
+    <li className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-sm">
+      <input
+        type="checkbox"
+        className="size-3.5 accent-primary"
+        checked={checked}
+        onChange={(e) => onCheck(e.target.checked)}
+        aria-label={`Select drop from ${fmt(g.startDate)}`}
+      />
+      <span className="min-w-0 flex-1 truncate">
+        {fmt(g.startDate)} → {fmt(g.endDate)}
+        <span className="text-muted-foreground"> · {plural(g.locations.length, "pin")} · {got.toLocaleString()} collected</span>
+      </span>
+      <Pill tone={t.tone}>{t.label}</Pill>
+      {g.locations.length > 0 && <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={g.locations.length} />}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={`Actions for the ${fmt(g.startDate)} drop`}>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {pinQRBulkActions(bulkQR, g.locations.length).map((a) => (
+            <DropdownMenuItem key={a.label} disabled={a.disabled} onSelect={a.onSelect}>
+              {a.icon && <a.icon />} {a.label}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>
+            <Trash2 /> Delete drop
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </li>
   );
 }
