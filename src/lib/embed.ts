@@ -25,6 +25,7 @@ export interface EmbedDraft {
     showFilterChips: boolean
     showSearch: boolean
     showNearby: boolean
+    showMurals: boolean
     eventsLabel: string
     eventsUrl: string | null
     bountiesLabel: string
@@ -47,6 +48,7 @@ export const DEFAULT_DRAFT: EmbedDraft = {
     showFilterChips: false,
     showSearch: true,
     showNearby: true,
+    showMurals: true,
     eventsLabel: "Find Events",
     eventsUrl: `${WADZZO_AR_URL}/events`,
     bountiesLabel: "View Bounties",

@@ -291,6 +291,7 @@ function Settings({ draft, set }: { draft: EmbedDraft; set: <K extends keyof Emb
             <Section title="Features">
                 <Toggle title="Search box" hint="Search drops and places" checked={draft.showSearch} onChange={(v) => set("showSearch", v)} />
                 <Toggle title="Nearby list" hint="A list of drops beside the map on wide screens, a strip on phones" checked={draft.showNearby} onChange={(v) => set("showNearby", v)} />
+                <Toggle title="Murals" hint="Street art Wadzzo users found and admins verified — shown once visitors zoom in" checked={draft.showMurals} onChange={(v) => set("showMurals", v)} />
                 <div className="space-y-1.5">
                     <Label>Scrolling</Label>
                     <Segmented<EmbedGesture>

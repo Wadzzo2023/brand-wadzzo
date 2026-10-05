@@ -46,6 +46,7 @@ export const EmbedInput = z.object({
   showFilterChips: z.boolean(),
   showSearch: z.boolean(),
   showNearby: z.boolean(),
+  showMurals: z.boolean(),
   eventsLabel: z.string().trim().min(1).max(40),
   eventsUrl: httpUrl.nullable(),
   bountiesLabel: z.string().trim().min(1).max(40),

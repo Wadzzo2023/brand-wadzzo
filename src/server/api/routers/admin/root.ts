@@ -1,5 +1,6 @@
 import { createTRPCRouter } from "~/server/api/trpc";
 import { creatorRouter } from "./creator";
+import { muralsAdminRouter } from "./murals";
 import { userRouter } from "./users";
 
 /**
@@ -10,6 +11,7 @@ import { userRouter } from "./users";
 export const adminRouter = createTRPCRouter({
   creator: creatorRouter,
   user: userRouter,
+  murals: muralsAdminRouter,
 });
 
 // export type definition of API
