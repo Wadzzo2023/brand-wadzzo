@@ -11,8 +11,10 @@ import { cn } from "~/lib/utils";
 
 /** Same styles as the fan apps, following the portal's light/dark theme. */
 export const MAP_STYLE = {
-  light: "mapbox://styles/mapbox/light-v11",
-  dark: "mapbox://styles/mapbox/dark-v11",
+  // "Wadzzo 3D Light/Dark" (Mapbox Standard + Wadzzo colour theme) — see
+  // wadzzoAR/docs/map-style.md.
+  light: "mapbox://styles/wadzzo/cmuwc16ut00gz01sd6359b3sw",
+  dark: "mapbox://styles/wadzzo/cmuwbonsf00rv01sdcun4fhdu",
 } as const;
 
 export const WORLD_VIEW = { latitude: 22.55, longitude: 0, zoom: 2.4 };
