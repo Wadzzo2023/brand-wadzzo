@@ -149,6 +149,7 @@ export const membershipRouter = createTRPCRouter({
       await ctx.db.subscription.create({
         data: {
           creatorId: ctx.session.user.id,
+          platformId: ctx.platform.id,
           name,
           features: featureDescription,
           price,

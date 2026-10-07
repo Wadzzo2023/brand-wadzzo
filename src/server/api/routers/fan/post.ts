@@ -10,6 +10,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { platformScope } from "~/server/platform";
 export const CommentSchema = z.object({
   postId: z.number(),
   parentId: z.number().optional(),
@@ -29,6 +30,7 @@ export const postRouter = createTRPCRouter({
 
       const post = await ctx.db.post.create({
         data: {
+          platformId: ctx.platform.id,
           heading: input.heading,
           content: input.content,
           creatorId: ctx.session.user.id,
@@ -504,6 +506,7 @@ export const postRouter = createTRPCRouter({
         skip: skip,
         cursor: cursor ? { id: cursor } : undefined,
         where: {
+          ...platformScope(ctx),
           OR: [
             // {
             //   content: {

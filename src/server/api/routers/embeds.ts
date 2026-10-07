@@ -142,7 +142,7 @@ export const embedsRouter = createTRPCRouter({
 
   create: creatorProcedure.input(EmbedInput).mutation(async ({ ctx, input }) => {
     const creatorId = await creatorIdOf(ctx.db, ctx.session.user.id);
-    return ctx.db.mapEmbed.create({ data: { ...input, creatorId }, select: { id: true } });
+    return ctx.db.mapEmbed.create({ data: { ...input, creatorId, platformId: ctx.platform.id }, select: { id: true } });
   }),
 
   update: creatorProcedure

@@ -15,6 +15,8 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { type MarketAssetType } from "~/lib/state/play/use-modal-store";
+import { logAudit } from "~/server/audit";
+import { platformScope } from "~/server/platform";
 export const BackMarketFormSchema = z.object({
   placingCopies: z
     .number({
@@ -142,6 +144,7 @@ export const marketRouter = createTRPCRouter({
       await ctx.db.marketAsset.create({
         data: {
           placerId,
+          platformId: ctx.platform.id,
           price,
           assetId: asset.id,
           priceUSD,
@@ -704,8 +707,10 @@ export const marketRouter = createTRPCRouter({
         await ctx.db.asset.delete({
           where: {
             id: assetId,
+            ...platformScope(ctx),
           },
         });
+        await logAudit(ctx, { action: "asset.delete", entityType: "Asset", entityId: assetId, targetPlatformId: asset?.platformId });
       } else if (marketId) {
         const marketAsset = await ctx.db.marketAsset.findUniqueOrThrow({
           where: {
@@ -716,8 +721,10 @@ export const marketRouter = createTRPCRouter({
         await ctx.db.asset.delete({
           where: {
             id: marketAsset.assetId,
+            ...platformScope(ctx),
           },
         });
+        await logAudit(ctx, { action: "asset.delete", entityType: "Asset", entityId: marketAsset.assetId, targetPlatformId: marketAsset.platformId });
       }
     }),
 

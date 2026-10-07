@@ -7,6 +7,7 @@
  * need to use are documented accordingly near the end.
  */
 
+import type { Platform } from "@prisma/client";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import { type Session } from "next-auth";
@@ -15,6 +16,7 @@ import { ZodError } from "zod";
 
 import { getServerAuthSession } from "~/server/auth";
 import { db } from "~/server/db";
+import { canAdminPlatform, getCurrentPlatform } from "~/server/platform";
 
 /**
  * 1. CONTEXT
@@ -26,6 +28,8 @@ import { db } from "~/server/db";
 
 interface CreateContextOptions {
   session: Session | null;
+  /** the white-label platform this deployment serves */
+  platform: Platform;
 }
 
 /**
@@ -41,6 +45,7 @@ interface CreateContextOptions {
 const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     session: opts.session,
+    platform: opts.platform,
     db,
   };
 };
@@ -55,10 +60,14 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   const { req, res } = opts;
 
   // Get the session from the server using the getServerSession wrapper function
-  const session = await getServerAuthSession({ req, res });
+  const [session, platform] = await Promise.all([
+    getServerAuthSession({ req, res }),
+    getCurrentPlatform(),
+  ]);
 
   return createInnerTRPCContext({
     session,
+    platform,
   });
 };
 
@@ -134,9 +143,11 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
 
   const admin = await ctx.db.admin.findUnique({
     where: { id: ctx.session.user.id },
+    select: { platformId: true, platform: { select: { isRoot: true } } },
   });
 
-  if (!admin) {
+  // An admin manages their own platform's panel; root-platform (wadzzo) admins manage every panel.
+  if (!admin || !canAdminPlatform(admin, ctx.platform)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
 
@@ -144,8 +155,17 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
     ctx: {
       // infers the `session` as non-nullable
       session: { ...ctx.session, user: ctx.session.user },
+      isSuperAdmin: admin.platform.isRoot,
     },
   });
+});
+
+/** Root-platform (wadzzo) admins on the root deployment: platform management, cross-platform admin. */
+export const superAdminProcedure = adminProcedure.use(({ ctx, next }) => {
+  if (!ctx.isSuperAdmin || !ctx.platform.isRoot) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Wadzzo admin access required" });
+  }
+  return next();
 });
 
 export const creatorProcedure = t.procedure.use(async ({ ctx, next }) => {
@@ -161,6 +181,14 @@ export const creatorProcedure = t.procedure.use(async ({ ctx, next }) => {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Creator access requires an approved brand account",
+    });
+  }
+
+  // A brand belongs to exactly one platform and only works in that platform's panel.
+  if (creator.platformId !== ctx.platform.id) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `This brand belongs to another platform (${creator.platformId})`,
     });
   }
 

@@ -36,6 +36,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { platformScope } from "~/server/platform";
 import { BADWORDS } from "~/utils/banned-word";
 import { truncateString } from "~/utils/string";
 import { PaymentMethodEnum } from "../bounty/bounty";
@@ -158,6 +159,7 @@ export const creatorRouter = createTRPCRouter({
         await ctx.db.creator.create({
           data: {
             id: ctx.session.user.id,
+            platformId: ctx.platform.id,
             profileUrl: input.profileUrl,
             circularProfileUrl,
             coverUrl: input.coverUrl,
@@ -174,6 +176,7 @@ export const creatorRouter = createTRPCRouter({
         await ctx.db.creator.create({
           data: {
             id: ctx.session.user.id,
+            platformId: ctx.platform.id,
             profileUrl: input.profileUrl,
             circularProfileUrl,
             coverUrl: input.coverUrl,
@@ -364,6 +367,7 @@ export const creatorRouter = createTRPCRouter({
           bio: id,
 
           user: { connect: { id: id } },
+          platform: { connect: { id: ctx.platform.id } },
           storagePub: i.publicKey,
           storageSecret: i.secretKey,
         },
@@ -413,7 +417,7 @@ export const creatorRouter = createTRPCRouter({
   // Admin brand pickers. Never return whole rows: Creator holds storageSecret.
   getCreators: adminProcedure.query(async ({ ctx }) => {
     return ctx.db.creator.findMany({
-      where: { approved: { equals: true } },
+      where: { approved: { equals: true }, ...platformScope(ctx) },
       select: { id: true, name: true, profileUrl: true },
       orderBy: { name: "asc" },
     });
@@ -478,6 +482,7 @@ export const creatorRouter = createTRPCRouter({
         skip: skip,
         cursor: cursor ? { id: cursor } : undefined,
         where: {
+          ...platformScope(ctx),
           OR: [
             {
               name: {
@@ -669,6 +674,7 @@ export const creatorRouter = createTRPCRouter({
           totalRedeemable: maxRedeems,
           code: redeemCode.toLocaleUpperCase(),
           assetRedeemId: assetId,
+          platformId: ctx.platform.id,
         },
       });
       return { code: redeemCode };
@@ -1065,6 +1071,7 @@ export const creatorRouter = createTRPCRouter({
         await ctx.db.creator.create({
           data: {
             id: ctx.session.user.id,
+            platformId: ctx.platform.id,
             profileUrl: data.profileUrl,
             circularProfileUrl,
             coverUrl: data.coverUrl,

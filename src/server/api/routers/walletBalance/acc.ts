@@ -23,6 +23,7 @@ import {
 import { getAccSecretFromRubyApi } from "package/connect_wallet/src/lib/stellar/get-acc-secret";
 import { Horizon } from "@stellar/stellar-sdk";
 import { PLATFORM_ASSET, STELLAR_URL } from "~/lib/stellar/constant";
+import { env } from "~/env";
 
 export const WBalanceRouter = createTRPCRouter({
   getWalletsBalance: protectedProcedure.query(async ({ ctx, input }) => {
@@ -36,9 +37,9 @@ export const WBalanceRouter = createTRPCRouter({
   })).query(async ({ input, ctx }) => {
     const { limit, cursor } = input
     const server = new Horizon.Server(STELLAR_URL);
-    const homeDomain = (PLATFORM_ASSET.code.toLowerCase() === "wadzzo"
-      ? "app.wadzzo.com"
-      : "bandcoin.io")
+    // Wadzzo and Bandcoin keep their known domains; a partner token uses its own home domain.
+    const assetCode = PLATFORM_ASSET.code.toLowerCase();
+    const homeDomain = assetCode === "wadzzo" ? "app.wadzzo.com" : assetCode === "bandcoin" ? "bandcoin.io" : env.NEXT_PUBLIC_HOME_DOMAIN
     try {
       const claimableBalancesCall = server.claimableBalances()
 

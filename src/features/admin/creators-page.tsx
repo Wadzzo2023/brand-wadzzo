@@ -8,6 +8,8 @@ import toast from "react-hot-toast";
 import { Button } from "~/components/shadcn/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
+import { usePortalAccess } from "~/components/shell/use-portal-access";
+import { PlatformFilter } from "~/features/admin/platform-filter";
 import { BLANK_KEYWORD } from "~/lib/utils";
 import type { CreatorExtraFields } from "~/types/creator";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
@@ -31,7 +33,9 @@ const needsIssue = (c: Creator) => c.approved === true && c.pageAsset?.issuer ==
 
 /** Admin › Creators: the approval queue, then every brand with its access. */
 export default function CreatorsPage() {
-  const creators = api.admin.creator.getCreators.useQuery(undefined, { refetchOnWindowFocus: false });
+  const { isSuperAdmin } = usePortalAccess();
+  const [platformId, setPlatformId] = useState<string>();
+  const creators = api.admin.creator.getCreators.useQuery(platformId ? { platformId } : undefined, { refetchOnWindowFocus: false });
   const [status, setStatus] = useState<Status>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
@@ -66,6 +70,9 @@ export default function CreatorsPage() {
       skeleton: "person",
       cell: (c) => <Person name={c.name} image={c.profileUrl} sub={<span className="font-mono">{addrShort(c.id, 6)}</span>} />,
     },
+    ...(isSuperAdmin
+      ? [{ id: "platform", header: "Platform", skeleton: "short", cell: (c) => <StatusPill tone="info">{c.platform.name}</StatusPill> } satisfies Column<Creator>]
+      : []),
     {
       id: "status",
       header: "Status",
@@ -157,6 +164,7 @@ export default function CreatorsPage() {
         />
         <div className="flex gap-2 sm:ml-auto">
           <SearchInput onSearch={onSearch} placeholder="Search name, wallet or URL" />
+          <PlatformFilter value={platformId} onChange={setPlatformId} />
           <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
             <SelectTrigger className="w-32 shrink-0" aria-label="Sort">
               <SelectValue />

@@ -162,6 +162,7 @@ export const musicRouter = createTRPCRouter({
                         code,
                         issuer: issuer.publicKey,
                         issuerPrivate: issuer.secretKey,
+                        platformId: ctx.platform.id,
                         song: {
                             create: {
                                 artist,
@@ -171,7 +172,7 @@ export const musicRouter = createTRPCRouter({
                                 creatorId: userId,
                             },
                         },
-                        marketItems: { create: { price, type: "SONG", placerId: userId } },
+                        marketItems: { create: { price, type: "SONG", placerId: userId, platformId: ctx.platform.id } },
                         mediaType: "MUSIC",
                         name,
                         mediaUrl: musicUrl,

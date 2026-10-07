@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Building2,
   CalendarDays,
   Code2,
   FileText,
@@ -18,6 +19,7 @@ import {
   Ticket,
   Radar,
   ImagePlus,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +41,8 @@ export type NavItem = {
   match?: string[];
   /** Sub-paths that belong to another nav item (e.g. /pins/manage under /pins). */
   exclude?: string[];
+  /** Only Wadzzo (root-platform) admins see it. */
+  superAdmin?: boolean;
 };
 
 export type NavGroup = { label: string; items: NavItem[] };
@@ -87,8 +91,15 @@ export const ADMIN_NAV: NavGroup = {
     { href: "/admin/murals", label: "Mural review", shortLabel: "Murals", icon: Frame },
     { href: "/admin/maps", label: "All maps", shortLabel: "Maps", icon: Map },
     { href: "/admin/reports", label: "Collection reports", shortLabel: "Reports", icon: Flag },
+    { href: "/admin/audit", label: "Audit log", shortLabel: "Audit", icon: ScrollText },
+    { href: "/admin/platforms", label: "Platforms", icon: Building2, superAdmin: true },
   ],
 };
+
+/** The admin group as this admin sees it: Wadzzo-only items need a Wadzzo admin. */
+export function adminNavFor(isSuperAdmin: boolean): NavGroup {
+  return { ...ADMIN_NAV, items: ADMIN_NAV.items.filter((i) => !i.superAdmin || isSuperAdmin) };
+}
 
 /** Phone tab bar: Map · Stores · [+] · Bounties · More (decided). */
 export const MOBILE_TABS: { left: NavItem[]; right: NavItem[] } = {

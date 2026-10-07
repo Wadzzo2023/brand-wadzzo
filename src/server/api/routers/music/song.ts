@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isAdmin as checkIsAdmin } from "~/server/api/access";
+import { platformScope } from "~/server/platform";
 
 import { accountDetailsWithHomeDomain } from "~/lib/stellar/marketplace/test/acc";
 import {
@@ -171,7 +173,7 @@ export const songRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await ctx.db.asset.delete({
-        where: { id: input.songId },
+        where: { id: input.songId, ...platformScope(ctx) },
       });
     }),
 
@@ -368,7 +370,7 @@ export const songRouter = createTRPCRouter({
     .input(z.object({ songId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.song.delete({
-        where: { id: input.songId },
+        where: { id: input.songId, asset: platformScope(ctx) },
         include: { asset: { include: { marketItems: true } } },
       });
     }),
@@ -398,6 +400,7 @@ export const songRouter = createTRPCRouter({
             code,
             issuer: issuer.publicKey,
             issuerPrivate: issuer.secretKey,
+            platformId: ctx.platform.id,
             song: {
               create: {
                 artist,
@@ -406,7 +409,7 @@ export const songRouter = createTRPCRouter({
                 priceUSD,
               },
             },
-            marketItems: { create: { price, type: "SONG" } },
+            marketItems: { create: { price, type: "SONG", platformId: ctx.platform.id } },
             mediaType: "MUSIC",
             name,
 
@@ -445,7 +448,7 @@ export const songRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       const { id } = ctx.session.user;
-      const isAdmin = await ctx.db.admin.findUnique({ where: { id } });
+      const isAdmin = await checkIsAdmin(ctx);
       const isCreator = await ctx.db.asset.findUnique({
         where: { creatorId: id, id: input.songId },
       });

@@ -5,6 +5,7 @@ import { Asset } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 import { db } from "~/server/db";
+import { getCurrentPlatform } from "~/server/platform";
 import { ipfsHashToUrl } from "~/utils/ipfs";
 
 export default async function handler(
@@ -13,9 +14,12 @@ export default async function handler(
 ) {
   if (await applyCors(req, res, { origin: "*" })) return;
 
-  let FullTomlContent = defaultTomlString;
+  let FullTomlContent = documentationToml();
 
+  // Only this deployment's own assets: each platform's toml lives on its own home domain.
+  const { id: platformId } = await getCurrentPlatform();
   const assets = await db.asset.findMany({
+    where: { platformId },
     select: {
       issuer: true,
       code: true,
@@ -27,6 +31,7 @@ export default async function handler(
   });
 
   const PageAssets = await db.creatorPageAsset.findMany({
+    where: { creator: { platformId } },
     select: {
       issuer: true,
       code: true,
@@ -77,17 +82,35 @@ export function dictionaryToTomlString(dict: {
   return tomlString + "\n";
 }
 
-const defaultTomlString = `[DOCUMENTATION]
-ORG_NAME="Wadzzo"
-ORG_URL="https://wadzzo.com/"
-ORG_LOGO="https://raw.githubusercontent.com/Bandcoin2023/assets/refs/heads/main/public/wadzzo.webp"
-ORG_DESCRIPTION="Wadzzo: Explore, Collect, Win"
-ORG_TWITTER="WadzzoApp"
-ORG_OFFICIAL_EMAIL="support@wadzzo.com"
-
-[[PRINCIPALS]]
-name="Arnob Dey"
-twitter="ArnobDey_Dev"
-github="arnob016"
-
-`;
+/**
+ * The organisation behind this deployment's assets. Partner platforms set the
+ * TOML_ORG_* env vars (and optionally TOML_PRINCIPAL_*); unset, it's Wadzzo.
+ */
+function documentationToml() {
+  const e = process.env;
+  const partner = Boolean(e.TOML_ORG_NAME);
+  // A partner's unset fields are left out rather than showing Wadzzo's.
+  const field = (key: string, value: string | undefined, wadzzo: string) => {
+    const v = value ?? (partner ? undefined : wadzzo);
+    return v ? [`${key}="${v}"`] : [];
+  };
+  const lines = [
+    "[DOCUMENTATION]",
+    ...field("ORG_NAME", e.TOML_ORG_NAME, "Wadzzo"),
+    ...field("ORG_URL", e.TOML_ORG_URL, "https://wadzzo.com/"),
+    ...field("ORG_LOGO", e.TOML_ORG_LOGO, "https://raw.githubusercontent.com/Bandcoin2023/assets/refs/heads/main/public/wadzzo.webp"),
+    ...field("ORG_DESCRIPTION", e.TOML_ORG_DESCRIPTION, "Wadzzo: Explore, Collect, Win"),
+    ...field("ORG_TWITTER", e.TOML_ORG_TWITTER, "WadzzoApp"),
+    ...field("ORG_OFFICIAL_EMAIL", e.TOML_ORG_OFFICIAL_EMAIL, "support@wadzzo.com"),
+    "",
+  ];
+  // Wadzzo's principal only describes Wadzzo's own toml.
+  if (e.TOML_PRINCIPAL_NAME) {
+    lines.push("[[PRINCIPALS]]", `name="${e.TOML_PRINCIPAL_NAME}"`);
+    if (e.TOML_PRINCIPAL_EMAIL) lines.push(`email="${e.TOML_PRINCIPAL_EMAIL}"`);
+    lines.push("");
+  } else if (!partner) {
+    lines.push("[[PRINCIPALS]]", `name="Arnob Dey"`, `twitter="ArnobDey_Dev"`, `github="arnob016"`, "");
+  }
+  return lines.join("\n") + "\n";
+}

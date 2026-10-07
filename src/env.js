@@ -6,6 +6,11 @@ export const env = createEnv({
    * Specify your server-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars.
    */ server: {
+    /** White-label platform this deployment serves; a `Platform.id` (see src/server/platform.ts). */
+    PLATFORM_SLUG: z
+      .string()
+      .regex(/^[a-z0-9-]+$/)
+      .default("wadzzo"),
     /** The Express task server (package/express-wadzzo). Required outside production. */
     EXPRESS_SERVER_URL: z.string().url().optional(),
     DATABASE_URL: z
@@ -54,6 +59,8 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
+    /** Partner deployments: public fan-page host (vanity and share links). Unset = the built-in per-token host. */
+    NEXT_PUBLIC_FAN_APP_URL: z.string().url().optional(),
     NEXT_PUBLIC_SITE: z.string(),
     NEXT_PUBLIC_DESC: z.string(),
     NEXT_PUBLIC_URL: z.string(),
@@ -83,6 +90,8 @@ export const env = createEnv({
    * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
    * middlewares) or client-side so we need to destruct manually.
    */ runtimeEnv: {
+    PLATFORM_SLUG: process.env.PLATFORM_SLUG,
+    NEXT_PUBLIC_FAN_APP_URL: process.env.NEXT_PUBLIC_FAN_APP_URL,
     EXPRESS_SERVER_URL: process.env.EXPRESS_SERVER_URL,
     NEXT_PUBLIC_SITE: process.env.NEXT_PUBLIC_SITE,
     NEXT_PUBLIC_PLATFORM_CREATOR_TERM:

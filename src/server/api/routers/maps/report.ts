@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { assertOwnerOrAdmin, isAdmin } from "~/server/api/access";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { platformScope } from "~/server/platform";
 import { fetchUsersByPublicKeys } from "~/utils/get-pubkey";
 
 type Ctx = Parameters<typeof assertOwnerOrAdmin>[0];
@@ -21,24 +22,28 @@ const scopeInput = z.object({
   to: z.date().optional(),
 });
 
-async function resolveScope(ctx: Ctx, creatorId: string | undefined): Promise<string | null> {
+/** One brand, or every brand of a platform (null = every platform, Wadzzo only). */
+type Scope = { creatorId: string | null; platformId: string | null };
+
+async function resolveScope(ctx: Ctx, creatorId: string | undefined): Promise<Scope> {
   if (creatorId === "all") {
     if (!(await isAdmin(ctx))) throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can see every brand" });
-    return null;
+    return { creatorId: null, platformId: platformScope(ctx).platformId ?? null };
   }
   if (creatorId) {
     await assertOwnerOrAdmin(ctx, creatorId);
-    return creatorId;
+    return { creatorId, platformId: null };
   }
   const creator = await ctx.db.creator.findUnique({ where: { id: ctx.session.user.id }, select: { id: true } });
   if (!creator) throw new TRPCError({ code: "FORBIDDEN", message: "Only brands have collection reports" });
-  return creator.id;
+  return { creatorId: creator.id, platformId: null };
 }
 
-/** WHERE for collections of live (not deleted) pins, scoped to a brand and a period. */
-function collectionsWhere(creatorId: string | null, from?: Date, to?: Date) {
+/** WHERE for collections of live (not deleted) pins, scoped to a brand (or platform) and a period. */
+function collectionsWhere({ creatorId, platformId }: Scope, from?: Date, to?: Date) {
   return Prisma.sql`c.hidden = false AND l.hidden = false AND g.hidden = false
     ${creatorId ? Prisma.sql`AND g."creatorId" = ${creatorId}` : Prisma.empty}
+    ${platformId ? Prisma.sql`AND g."platformId" = ${platformId}` : Prisma.empty}
     ${from ? Prisma.sql`AND c."createdAt" >= ${from}` : Prisma.empty}
     ${to ? Prisma.sql`AND c."createdAt" <= ${to}` : Prisma.empty}`;
 }
@@ -47,28 +52,28 @@ const FROM = Prisma.sql`"LocationConsumer" c
   JOIN "LocationGroup" g ON g.id = l."locationGroupId"`;
 
 type Totals = { collections: number; collectors: number; redeemed: number };
-async function totals(ctx: Ctx, creatorId: string | null, from?: Date, to?: Date): Promise<Totals> {
+async function totals(ctx: Ctx, scope: Scope, from?: Date, to?: Date): Promise<Totals> {
   const [row] = await ctx.db.$queryRaw<Totals[]>`
     SELECT COUNT(*)::int AS collections, COUNT(DISTINCT c."userId")::int AS collectors,
            COUNT(*) FILTER (WHERE c."isRedeemed")::int AS redeemed
-    FROM ${FROM} WHERE ${collectionsWhere(creatorId, from, to)}`;
+    FROM ${FROM} WHERE ${collectionsWhere(scope, from, to)}`;
   return row ?? { collections: 0, collectors: 0, redeemed: 0 };
 }
 
 export const reportRouter = createTRPCRouter({
   /** Totals (with the previous period for comparison), collections per day, every pin's numbers, top collectors. */
   summary: protectedProcedure.input(scopeInput).query(async ({ ctx, input }) => {
-    const creatorId = await resolveScope(ctx, input.creatorId);
+    const scope = await resolveScope(ctx, input.creatorId);
     const { from, to } = input;
-    const where = collectionsWhere(creatorId, from, to);
+    const where = collectionsWhere(scope, from, to);
 
     // Same-length window right before this one, for "vs previous period".
     const prevTo = from ? new Date(from.getTime() - 1) : undefined;
     const prevFrom = from ? new Date(from.getTime() - ((to ?? new Date()).getTime() - from.getTime())) : undefined;
 
     const [now, previous, daily, perPin, collectors, pins] = await Promise.all([
-      totals(ctx, creatorId, from, to),
-      from ? totals(ctx, creatorId, prevFrom, prevTo) : Promise.resolve(null),
+      totals(ctx, scope, from, to),
+      from ? totals(ctx, scope, prevFrom, prevTo) : Promise.resolve(null),
       ctx.db.$queryRaw<{ day: string; n: number }[]>`
         SELECT to_char(c."createdAt", 'YYYY-MM-DD') AS day, COUNT(*)::int AS n
         FROM ${FROM} WHERE ${where} GROUP BY 1 ORDER BY 1`,
@@ -80,7 +85,11 @@ export const reportRouter = createTRPCRouter({
         FROM ${FROM} JOIN "User" u ON u.id = c."userId"
         WHERE ${where} GROUP BY u.id, u.name, u.image ORDER BY n DESC, last DESC LIMIT 10`,
       ctx.db.locationGroup.findMany({
-        where: { hidden: false, ...(creatorId ? { creatorId } : {}) },
+        where: {
+          hidden: false,
+          ...(scope.creatorId ? { creatorId: scope.creatorId } : {}),
+          ...(scope.platformId ? { platformId: scope.platformId } : {}),
+        },
         select: {
           id: true,
           title: true,
@@ -176,12 +185,12 @@ export const reportRouter = createTRPCRouter({
 
   /** Every collection in the scope and period, one row each, for a CSV download. */
   export: protectedProcedure.input(scopeInput.extend({ pinId: z.string().optional() })).mutation(async ({ ctx, input }) => {
-    let creatorId = await resolveScope(ctx, input.creatorId);
+    let scope = await resolveScope(ctx, input.creatorId);
     if (input.pinId) {
       const g = await ctx.db.locationGroup.findUnique({ where: { id: input.pinId }, select: { creatorId: true } });
       if (!g) throw new TRPCError({ code: "NOT_FOUND", message: "Pin not found" });
       await assertOwnerOrAdmin(ctx, g.creatorId);
-      creatorId = g.creatorId;
+      scope = { creatorId: g.creatorId, platformId: null };
     }
     const rows = await ctx.db.$queryRaw<
       { brand: string; pin: string; pinId: string; lat: number; lng: number; wallet: string; name: string | null; email: string | null; collectedAt: Date; redeemed: boolean }[]
@@ -189,7 +198,7 @@ export const reportRouter = createTRPCRouter({
       SELECT cr.name AS brand, g.title AS pin, g.id AS "pinId", l.latitude AS lat, l.longitude AS lng,
              u.id AS wallet, u.name, u.email, c."createdAt" AS "collectedAt", c."isRedeemed" AS redeemed
       FROM ${FROM} JOIN "User" u ON u.id = c."userId" JOIN "Creator" cr ON cr.id = g."creatorId"
-      WHERE ${collectionsWhere(creatorId, input.from, input.to)}
+      WHERE ${collectionsWhere(scope, input.from, input.to)}
         ${input.pinId ? Prisma.sql`AND g.id = ${input.pinId}` : Prisma.empty}
       ORDER BY c."createdAt" DESC LIMIT 50000`;
 

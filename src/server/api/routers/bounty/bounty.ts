@@ -37,6 +37,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { platformScope } from "~/server/platform";
 export const BountyCommentSchema = z.object({
   bountyId: z.number(),
   parentId: z.number().optional(),
@@ -135,6 +136,7 @@ export const BountyRoute = createTRPCRouter({
 
       const bounty = await ctx.db.bounty.create({
         data: {
+          platformId: ctx.platform.id,
           title: input.title,
           description: input.content,
           priceInUSD: input.prizeInUSD,
@@ -205,6 +207,7 @@ export const BountyRoute = createTRPCRouter({
       }
 
       const where: Prisma.BountyWhereInput = {
+        ...platformScope(ctx),
         ...(search && {
           OR: [
             { title: { contains: search, mode: "insensitive" } },
@@ -320,6 +323,7 @@ export const BountyRoute = createTRPCRouter({
       }
       await ctx.db.bountyParticipant.create({
         data: {
+          platformId: ctx.platform.id,
           bountyId: input.BountyId,
           userId: ctx.session.user.id,
         },
@@ -680,14 +684,7 @@ export const BountyRoute = createTRPCRouter({
       if (!bounty) {
         throw new Error("Bounty not found");
       }
-      const admin = await ctx.db.admin.findUnique({
-        where: {
-          id: ctx.session.user.id,
-        },
-      });
-      if (bounty.creatorId !== ctx.session.user.id && admin?.id !== ctx.session.user.id) {
-        throw new Error("You are not the owner of this bounty or admin");
-      }
+      await assertOwnerOrAdmin(ctx, bounty.creatorId);
       await ctx.db.bounty.delete({
         where: {
           id: input.BountyId,
@@ -887,18 +884,7 @@ export const BountyRoute = createTRPCRouter({
         throw new Error("Submission not found");
       }
 
-      const isUserIsAdmin = await ctx.db.admin.findUnique({
-        where: {
-          id: ctx.session.user.id,
-        },
-      });
-      const isOwner = submission.bounty.creatorId === ctx.session.user.id;
-
-      if (!isOwner && !isUserIsAdmin) {
-        throw new Error(
-          "You do not have permission to update this submission status",
-        );
-      }
+      await assertOwnerOrAdmin(ctx, submission.bounty.creatorId);
       await ctx.db.bountySubmission.update({
         where: {
           id: input.submissionId,

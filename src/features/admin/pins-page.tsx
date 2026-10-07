@@ -29,6 +29,7 @@ import { PinQRDownloadAllButton, pinQRBulkActions, useDropQRs } from "~/componen
 import { Button } from "~/components/shadcn/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
+import { PlatformFilter } from "~/features/admin/platform-filter";
 import { cn } from "~/lib/utils";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { Check, RowMenu, type RowAction } from "~/ui/data-table";
@@ -69,8 +70,10 @@ export default function AdminPinsPage() {
   const params = useSearchParams();
   const view: View = params?.get("view") === "approved" ? "approved" : "pending";
 
-  const pending = api.maps.pin.getAdminLocationGroups.useQuery(undefined, { refetchOnWindowFocus: false });
-  const approved = api.maps.pin.getApprovedLocationGroups.useQuery(undefined, { enabled: view === "approved", refetchOnWindowFocus: false });
+  const [platformId, setPlatformId] = useState<string>();
+  const scope = platformId ? { platformId } : undefined;
+  const pending = api.maps.pin.getAdminLocationGroups.useQuery(scope, { refetchOnWindowFocus: false });
+  const approved = api.maps.pin.getApprovedLocationGroups.useQuery(scope, { enabled: view === "approved", refetchOnWindowFocus: false });
   const list = view === "pending" ? pending : approved;
 
   const [now] = useState(() => Date.now());
@@ -368,8 +371,9 @@ export default function AdminPinsPage() {
             { value: "approved", label: "Approved & live", icon: CheckCircle2, count: approved.data?.length },
           ]}
         />
-        <div className="sm:ml-auto">
+        <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row">
           <SearchInput onSearch={onSearch} placeholder="Search pin or brand" />
+          <PlatformFilter value={platformId} onChange={setPlatformId} />
         </div>
       </div>
 

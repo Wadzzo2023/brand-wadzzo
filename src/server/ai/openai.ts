@@ -3,6 +3,7 @@ import OpenAI from "openai";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
+import { canAdminPlatform, getCurrentPlatform } from "~/server/platform";
 
 export const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
@@ -23,8 +24,13 @@ function readUsage(extraFields: unknown): Usage {
   return { day: u.day, text: u.text ?? 0, image: u.image ?? 0 };
 }
 
+/** An admin of this deployment's platform (root-platform admins count everywhere). */
 async function isAdmin(userId: string) {
-  return Boolean(await db.admin.findUnique({ where: { id: userId }, select: { id: true } }));
+  const [admin, platform] = await Promise.all([
+    db.admin.findUnique({ where: { id: userId }, select: { platformId: true, platform: { select: { isRoot: true } } } }),
+    getCurrentPlatform(),
+  ]);
+  return Boolean(admin && canAdminPlatform(admin, platform));
 }
 
 /** What's left today for this brand (null = unlimited). */

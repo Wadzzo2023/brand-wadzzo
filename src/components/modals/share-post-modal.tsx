@@ -22,8 +22,8 @@ const ShareModal = ({ isOpen, setIsOpen, data }: ShareModalProps) => {
         setIsOpen(false)
     }
 
-    const fullUrl = `${env.NEXT_PUBLIC_ASSET_CODE?.toLocaleLowerCase() === "wadzzo" ? "https://app.wadzzo.com" :
-        env.NEXT_PUBLIC_ASSET_CODE === "bandcoin" ? "https://bandcoin.io" : "https://app.action-tokens.com"
+    const fullUrl = `${env.NEXT_PUBLIC_FAN_APP_URL?.replace(/\/$/, "") ?? (env.NEXT_PUBLIC_ASSET_CODE?.toLocaleLowerCase() === "wadzzo" ? "https://app.wadzzo.com" :
+        env.NEXT_PUBLIC_ASSET_CODE === "bandcoin" ? "https://bandcoin.io" : "https://app.action-tokens.com")
         }${data}`
 
     const handleCopy = async () => {

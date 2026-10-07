@@ -99,6 +99,7 @@ export const qrRouter = createTRPCRouter({
             const result = await ctx.db.$transaction(async (tx) => {
                 const qrItem = await tx.qRItem.create({
                     data: {
+                        platformId: ctx.platform.id,
                         title: input.title,
                         modelUrl: input.modelUrl,
                         externalLink: input.externalLink,

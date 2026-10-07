@@ -5,6 +5,7 @@ import {
   protectedProcedure,
   adminProcedure,
   publicProcedure,
+  superAdminProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { AssetSelectAllProperty } from "../marketplace/marketplace";
@@ -124,7 +125,8 @@ export const albumRouter = createTRPCRouter({
       return { ...albumSongs, songs: array ?? [] };
     }),
 
-  delete: adminProcedure
+  // Albums are one catalogue shared by every platform: Wadzzo admins manage it.
+  delete: superAdminProcedure
     .input(z.object({ albumId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.album.delete({
@@ -132,7 +134,7 @@ export const albumRouter = createTRPCRouter({
       });
     }),
 
-  create: adminProcedure
+  create: superAdminProcedure
     .input(AlbumFormShema)
 
     .mutation(async ({ input, ctx }) => {
@@ -140,7 +142,7 @@ export const albumRouter = createTRPCRouter({
       await ctx.db.album.create({ data: { name, coverImgUrl, description } });
     }),
 
-  update: adminProcedure
+  update: superAdminProcedure
     .input(AlbumFormShema)
     .mutation(async ({ input, ctx }) => {
       if (input.id) {

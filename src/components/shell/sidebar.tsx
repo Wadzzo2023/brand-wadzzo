@@ -24,15 +24,17 @@ export function Sidebar({
   isAdmin,
   navPermission,
   isApprovedCreator = false,
+  isSuperAdmin = false,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   isAdmin: boolean;
   navPermission: boolean;
   isApprovedCreator?: boolean;
+  isSuperAdmin?: boolean;
 }) {
   const pathname = usePathname() ?? "";
-  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission });
+  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission, isSuperAdmin });
   const homeHref = getPortalLandingRoute({ isAdmin, isApprovedCreator });
   const isPureAdmin = isAdmin && !isApprovedCreator;
 

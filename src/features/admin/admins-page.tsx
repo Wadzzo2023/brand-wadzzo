@@ -39,6 +39,10 @@ export default function AdminsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  // The last-admin rule is per platform; the list spans platforms on the Wadzzo panel.
+  const countOn = (platformId: string) => admins.data?.filter((x) => x.platformId === platformId).length ?? 0;
+  const multiPlatform = new Set(admins.data?.map((a) => a.platformId)).size > 1;
+
   const columns: Column<Admin>[] = [
     {
       id: "admin",
@@ -69,6 +73,16 @@ export default function AdminsPage() {
         </span>
       ),
     },
+    ...(multiPlatform
+      ? [
+          {
+            id: "platform",
+            header: "Platform",
+            skeleton: "short",
+            cell: (a) => <StatusPill tone="info">{a.platform.name}</StatusPill>,
+          } satisfies Column<Admin>,
+        ]
+      : []),
     {
       id: "since",
       header: "Admin since",
@@ -76,8 +90,6 @@ export default function AdminsPage() {
       cell: (a) => <span className="whitespace-nowrap text-muted-foreground">{format(new Date(a.joinedAt), "MMM d, yyyy")}</span>,
     },
   ];
-
-  const count = admins.data?.length ?? 0;
 
   return (
     <PageBody wide>
@@ -104,10 +116,10 @@ export default function AdminsPage() {
         onRetry={() => void admins.refetch()}
         actions={(a) => [
           {
-            label: a.id === me ? "You can't remove yourself" : count <= 1 ? "The last admin can't be removed" : "Remove admin access",
+            label: a.id === me ? "You can't remove yourself" : countOn(a.platformId) <= 1 ? "The last admin can't be removed" : "Remove admin access",
             icon: Trash2,
             destructive: true,
-            disabled: a.id === me || count <= 1,
+            disabled: a.id === me || countOn(a.platformId) <= 1,
             onSelect: () => setRemoving(a),
           },
         ]}
@@ -145,7 +157,7 @@ function AddAdminDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const k = key.trim();
     if (!PUBKEY.test(k)) return setError("A Stellar public key: 56 characters starting with G.");
-    add.mutate(k);
+    add.mutate({ pubkey: k });
   };
 
   return (
@@ -156,7 +168,7 @@ function AddAdminDialog({ onClose }: { onClose: () => void }) {
             <DialogTitle className="flex items-center gap-2 font-hud">
               <ShieldCheck className="size-5 text-primary" /> Add an admin
             </DialogTitle>
-            <DialogDescription>They need a Wadzzo account already — ask them to sign in once, then paste their public key.</DialogDescription>
+            <DialogDescription>They need an account already — ask them to sign in once, then paste their public key.</DialogDescription>
           </DialogHeader>
           <div className="my-5">
             <Field label="Public key" htmlFor="admin-key" required error={error}>

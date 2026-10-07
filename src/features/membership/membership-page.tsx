@@ -22,7 +22,7 @@ import { PageBody, PageHeader } from "~/ui/page-header";
 import { Skeleton } from "~/ui/skeleton";
 import { api } from "~/utils/api";
 
-export type SubscriptionType = Omit<Subscription, "issuerPrivate">;
+export type SubscriptionType = Omit<Subscription, "issuerPrivate" | "platformId">;
 const MAX_TIERS = 3;
 
 /** Membership: up to three tiers fans unlock by holding your page asset. */

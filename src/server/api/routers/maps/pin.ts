@@ -14,7 +14,9 @@ import { PinType } from "@prisma/client";
 import type { db as PrismaDb } from "~/server/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { assertOwnerOrAdmin, isAdmin as checkIsAdmin } from "~/server/api/access";
+import { assertCreatorInScope, assertOwnerOrAdmin, isAdmin as checkIsAdmin } from "~/server/api/access";
+import { logAudit } from "~/server/audit";
+import { assertInPlatformScope, platformScope, relationScope } from "~/server/platform";
 import { createOptimizedImage } from "~/server/image-optimizer";
 import { createHotspotFormSchema } from "~/types/hotspot";
 import { updateMapFormSchema } from "~/types/pin-edit";
@@ -262,6 +264,7 @@ export const pinRouter = createTRPCRouter({
   getCreatorHotspots: adminProcedure
     .input(z.object({ creatorId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await assertCreatorInScope(ctx, input.creatorId);
       return ctx.db.hotspot.findMany({
         where: { creatorId: input.creatorId, hidden: false },
         select: {
@@ -290,7 +293,7 @@ export const pinRouter = createTRPCRouter({
       const hotspot = await ctx.db.hotspot.findFirst({
         where: {
           id: input.hotspotId,
-          ...(!admin ? { creatorId: ctx.session.user.id } : {}),
+          ...(!admin ? { creatorId: ctx.session.user.id } : platformScope(ctx)),
         },
         select: {
           id: true,
@@ -507,10 +510,13 @@ export const pinRouter = createTRPCRouter({
 
       const targetCreatorId = input.creatorId ?? ctx.session.user.id;
       await assertOwnerOrAdmin(ctx, targetCreatorId);
+      // A pin lives on its brand's platform (an admin may create one for another brand).
+      const target = await ctx.db.creator.findUniqueOrThrow({ where: { id: targetCreatorId }, select: { platformId: true } });
 
       const locationGroup = await ctx.db.locationGroup.create({
         data: {
           creatorId: targetCreatorId,
+          platformId: target.platformId,
           endDate: input.endDate,
           startDate: input.startDate,
           title: input.title,
@@ -550,6 +556,7 @@ export const pinRouter = createTRPCRouter({
 
       const creator = await ctx.db.creator.findUnique({ where: { id: creatorId } });
       if (!creator) throw new Error("Creator not found");
+      assertInPlatformScope(ctx, creator.platformId);
 
       let tierId: number | undefined;
       let privacy: ItemPrivacy = ItemPrivacy.PUBLIC;
@@ -577,6 +584,7 @@ export const pinRouter = createTRPCRouter({
       const locationGroup = await ctx.db.locationGroup.create({
         data: {
           creatorId,
+          platformId: creator.platformId,
           endDate: input.endDate,
           startDate: input.startDate,
           title: input.title,
@@ -691,7 +699,7 @@ export const pinRouter = createTRPCRouter({
     const pin = await ctx.db.location.findFirst({
       where: {
         OR: [{ id: input }, { locationGroupId: input }],
-        ...(!admin ? { locationGroup: { creatorId: ctx.session.user.id } } : {}),
+        locationGroup: admin ? relationScope(ctx) : { creatorId: ctx.session.user.id },
       },
       include: {
         locationGroup: {
@@ -830,6 +838,7 @@ export const pinRouter = createTRPCRouter({
     .input(z.object({ creator_id: z.string(), showExpired: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       const { showExpired = false, creator_id } = input;
+      await assertCreatorInScope(ctx, creator_id);
       const dateCondition = showExpired
         ? { endDate: { lte: new Date() } }
         : { endDate: { gte: new Date() } };
@@ -895,17 +904,18 @@ export const pinRouter = createTRPCRouter({
       });
     }),
 
-  getAdminLocationGroups: adminProcedure.query(async ({ ctx }) => {
+  // Review queues: this platform's pins; on Wadzzo every platform's (or one, via `platformId`).
+  getAdminLocationGroups: adminProcedure.input(z.object({ platformId: z.string().optional() }).optional()).query(async ({ ctx, input }) => {
     return ctx.db.locationGroup.findMany({
-      where: { approved: { equals: null }, endDate: { gte: new Date() }, hidden: false },
+      where: { approved: { equals: null }, endDate: { gte: new Date() }, hidden: false, ...platformScope(ctx, input?.platformId) },
       select: reviewSelect,
       orderBy: { createdAt: "desc" },
     });
   }),
 
-  getApprovedLocationGroups: adminProcedure.query(async ({ ctx }) => {
+  getApprovedLocationGroups: adminProcedure.input(z.object({ platformId: z.string().optional() }).optional()).query(async ({ ctx, input }) => {
     return ctx.db.locationGroup.findMany({
-      where: { approved: { equals: true }, endDate: { gte: new Date() }, hidden: false },
+      where: { approved: { equals: true }, endDate: { gte: new Date() }, hidden: false, ...platformScope(ctx, input?.platformId) },
       select: reviewSelect,
       orderBy: { createdAt: "desc" },
     });
@@ -914,7 +924,7 @@ export const pinRouter = createTRPCRouter({
   /** One group's live locations, loaded when an admin opens it in Pin review. */
   getReviewLocations: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
     return ctx.db.location.findMany({
-      where: { locationGroupId: input, hidden: false },
+      where: { locationGroupId: input, hidden: false, locationGroup: platformScope(ctx) },
       select: { id: true, latitude: true, longitude: true, autoCollect: true, _count: { select: { consumers: true } } },
       orderBy: { id: "asc" },
     });
@@ -922,8 +932,8 @@ export const pinRouter = createTRPCRouter({
 
   /** Everything Pin review's preview drawer shows for one group. */
   getReviewGroup: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
-    const g = await ctx.db.locationGroup.findUnique({
-      where: { id: input },
+    const g = await ctx.db.locationGroup.findFirst({
+      where: { id: input, ...platformScope(ctx) },
       select: {
         id: true, title: true, description: true, image: true, type: true, link: true,
         startDate: true, endDate: true, createdAt: true, updatedAt: true,
@@ -950,7 +960,7 @@ export const pinRouter = createTRPCRouter({
         ? { longitude: { gte: input.west, lte: input.east } }
         : { OR: [{ longitude: { gte: input.west } }, { longitude: { lte: input.east } }] };
       const rows = await ctx.db.location.findMany({
-        where: { hidden: false, latitude: { gte: input.south, lte: input.north }, ...lng, locationGroup: { hidden: false } },
+        where: { hidden: false, latitude: { gte: input.south, lte: input.north }, ...lng, locationGroup: { hidden: false, ...platformScope(ctx) } },
         select: { locationGroupId: true },
         distinct: ["locationGroupId"],
       });
@@ -961,12 +971,14 @@ export const pinRouter = createTRPCRouter({
   restoreLocationGroupsForAdmin: adminProcedure
     .input(z.object({ ids: z.array(z.string()).min(1).max(1000) }))
     .mutation(async ({ ctx, input }) => {
-      const { count } = await ctx.db.locationGroup.updateMany({ where: { id: { in: input.ids } }, data: { hidden: false } });
+      const { count } = await ctx.db.locationGroup.updateMany({ where: { id: { in: input.ids }, ...platformScope(ctx) }, data: { hidden: false } });
+      await logAudit(ctx, { action: "pin.restore", entityType: "LocationGroup", entityId: input.ids.join(","), meta: { ids: input.ids, count } });
       return { count };
     }),
 
   getPinsGrops: adminProcedure.query(async ({ ctx }) => {
     return ctx.db.locationGroup.findMany({
+      where: platformScope(ctx),
       include: { locations: true },
     });
   }),
@@ -975,9 +987,15 @@ export const pinRouter = createTRPCRouter({
     // approved: null sends pins back to review (used by undo and "Move back to review").
     .input(z.object({ locationGroupIds: z.array(z.string()).min(1).max(1000), approved: z.boolean().nullable() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.locationGroup.updateMany({
-        where: { id: { in: input.locationGroupIds } },
+      const { count } = await ctx.db.locationGroup.updateMany({
+        where: { id: { in: input.locationGroupIds }, ...platformScope(ctx) },
         data: { approved: input.approved },
+      });
+      await logAudit(ctx, {
+        action: input.approved === null ? "pin.to_review" : input.approved ? "pin.approve" : "pin.reject",
+        entityType: "LocationGroup",
+        entityId: input.locationGroupIds.join(","),
+        meta: { ids: input.locationGroupIds, count },
       });
     }),
 
@@ -1015,9 +1033,9 @@ export const pinRouter = createTRPCRouter({
       // Admins may look at any brand; a brand only ever sees its own report.
       let creatorId: string;
       if (input?.isAdmin) {
-        const admin = await ctx.db.admin.findUnique({ where: { id: ctx.session.user.id } });
-        if (!admin) throw new TRPCError({ code: "UNAUTHORIZED" });
+        if (!(await checkIsAdmin(ctx))) throw new TRPCError({ code: "UNAUTHORIZED" });
         if (!input.creatorId) return;
+        await assertOwnerOrAdmin(ctx, input.creatorId);
         creatorId = input.creatorId;
       } else {
         const creator = await ctx.db.creator.findUnique({ where: { id: ctx.session.user.id } });
@@ -1165,6 +1183,8 @@ export const pinRouter = createTRPCRouter({
           createdAt: input
             ? { gte: new Date(Date.now() - input.day * 86_400_000) }
             : {},
+          // collections of this platform's pins (every platform on Wadzzo)
+          location: { locationGroup: relationScope(ctx) },
         },
         include: {
           location: {
@@ -1204,6 +1224,8 @@ export const pinRouter = createTRPCRouter({
           createdAt: input
             ? { gte: new Date(Date.now() - input.day * 86_400_000) }
             : {},
+          // only collectors of the calling brand's own pins (the list includes emails)
+          location: { locationGroup: { creatorId: ctx.session.user.id } },
         },
         include: {
           location: {
@@ -1243,6 +1265,8 @@ export const pinRouter = createTRPCRouter({
           createdAt: input
             ? { gte: new Date(Date.now() - input.day * 86_400_000) }
             : {},
+          // collections of this platform's pins (every platform on Wadzzo)
+          location: { locationGroup: relationScope(ctx) },
         },
         include: {
           location: {
@@ -1320,11 +1344,11 @@ export const pinRouter = createTRPCRouter({
   deletePin: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const isAdmin = await ctx.db.admin.findUnique({ where: { id: ctx.session.user.id } });
+      const isAdmin = await checkIsAdmin(ctx);
       const items = await ctx.db.location.update({
         where: {
           id: input.id,
-          ...(!isAdmin ? { locationGroup: { creatorId: ctx.session.user.id } } : {}),
+          locationGroup: isAdmin ? relationScope(ctx) : { creatorId: ctx.session.user.id },
         },
         data: { hidden: true },
       });
@@ -1335,9 +1359,10 @@ export const pinRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const items = await ctx.db.location.update({
-        where: { id: input.id },
+        where: { id: input.id, locationGroup: relationScope(ctx) },
         data: { hidden: true },
       });
+      await logAudit(ctx, { action: "pin.location_hide", entityType: "Location", entityId: input.id });
       return { item: items.id };
     }),
 
@@ -1346,9 +1371,10 @@ export const pinRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.string()).min(1).max(1000) }))
     .mutation(async ({ ctx, input }) => {
       const { count } = await ctx.db.locationGroup.updateMany({
-        where: { id: { in: input.ids } },
+        where: { id: { in: input.ids }, ...platformScope(ctx) },
         data: { hidden: true },
       });
+      await logAudit(ctx, { action: "pin.hide", entityType: "LocationGroup", entityId: input.ids.join(","), meta: { ids: input.ids, count } });
       return { count };
     }),
 

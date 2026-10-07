@@ -1,18 +1,25 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { assertUserInScope } from "~/server/api/access";
 import {
   adminProcedure,
   createTRPCRouter,
   protectedProcedure,
+  superAdminProcedure,
 } from "~/server/api/trpc";
+import { logAudit } from "~/server/audit";
+import { inPlatformScope, platformScope, relationScope } from "~/server/platform";
 
 import { createTransport, type Transporter } from "nodemailer";
 
 export const userRouter = createTRPCRouter({
-  // Admins only: this lists every user's email.
+  // Admins only: this lists every user's email. Users who joined this platform;
+  // on Wadzzo, everyone (or the members of `platformId`).
   getUsers: adminProcedure
     .input(
       z
         .object({
+          platformId: z.string().optional(),
           search: z.string().optional(),
           cursor: z.string().optional(),
           limit: z.number().min(1).max(100).default(30),
@@ -22,15 +29,19 @@ export const userRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const q = input?.search?.trim();
       const limit = input?.limit ?? 30;
-      const where = q
-        ? {
-            OR: [
-              { id: { contains: q, mode: "insensitive" as const } },
-              { name: { contains: q, mode: "insensitive" as const } },
-              { email: { contains: q, mode: "insensitive" as const } },
-            ],
-          }
-        : {};
+      const scope = platformScope(ctx, input?.platformId);
+      const where = {
+        ...(q
+          ? {
+              OR: [
+                { id: { contains: q, mode: "insensitive" as const } },
+                { name: { contains: q, mode: "insensitive" as const } },
+                { email: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+        ...(scope.platformId ? { platforms: { some: { platformId: scope.platformId } } } : {}),
+      };
       const [total, users] = await Promise.all([
         ctx.db.user.count({ where }),
         ctx.db.user.findMany({
@@ -45,9 +56,11 @@ export const userRouter = createTRPCRouter({
             image: true,
             joinedAt: true,
             firstSignUpMethod: true,
+            signupPlatform: { select: { id: true, name: true } },
             creator: { select: { id: true, name: true, approved: true } },
             Admin: { select: { id: true }, take: 1 },
-            _count: { select: { LocationConsumer: true } },
+            // collections of this platform's pins (all platforms on Wadzzo)
+            _count: { select: { LocationConsumer: { where: { location: { locationGroup: relationScope(ctx, input?.platformId) } } } } },
           },
         }),
       ]);
@@ -56,7 +69,10 @@ export const userRouter = createTRPCRouter({
     }),
   // One user for the admin detail page: profile, roles, counts and their most
   // recent collections / redemptions / purchases.
+  // Activity is limited to this platform (every platform on Wadzzo).
   getUser: adminProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    await assertUserInScope(ctx, input);
+    const scope = platformScope(ctx);
     const user = await ctx.db.user.findUniqueOrThrow({
       where: { id: input },
       select: {
@@ -68,10 +84,26 @@ export const userRouter = createTRPCRouter({
         joinedAt: true,
         firstSignUpMethod: true,
         fromAppSignup: true,
+        signupPlatform: { select: { id: true, name: true } },
+        // every platform they joined, first visit first
+        platforms: {
+          where: scope,
+          orderBy: { firstSeenAt: "asc" },
+          select: { platformId: true, firstSeenAt: true, lastSeenAt: true, signUpMethod: true, platform: { select: { name: true } } },
+        },
         Admin: { select: { id: true }, take: 1 },
         creator: { select: { id: true, name: true, approved: true, profileUrl: true } },
-        _count: { select: { LocationConsumer: true, RedeemConsumer: true, assets: true, followings: true, BountySubmission: true } },
+        _count: {
+          select: {
+            LocationConsumer: { where: { location: { locationGroup: relationScope(ctx) } } },
+            RedeemConsumer: { where: { redeemCode: scope } },
+            assets: { where: { asset: scope } },
+            followings: { where: { creator: scope } },
+            BountySubmission: { where: { bounty: scope } },
+          },
+        },
         LocationConsumer: {
+          where: { location: { locationGroup: relationScope(ctx) } },
           orderBy: { createdAt: "desc" },
           take: 50,
           select: {
@@ -89,8 +121,9 @@ export const userRouter = createTRPCRouter({
             },
           },
         },
-        RedeemConsumer: { orderBy: { redeemedAt: "desc" }, take: 50, select: { id: true, code: true, redeemedAt: true } },
+        RedeemConsumer: { where: { redeemCode: scope }, orderBy: { redeemedAt: "desc" }, take: 50, select: { id: true, code: true, redeemedAt: true } },
         assets: {
+          where: { asset: scope },
           orderBy: { buyAt: "desc" },
           take: 50,
           select: { id: true, buyAt: true, asset: { select: { id: true, name: true, code: true, issuer: true, thumbnail: true } } },
@@ -102,12 +135,19 @@ export const userRouter = createTRPCRouter({
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";
   }),
-  deleteUser: adminProcedure.input(z.string()).mutation(({ ctx, input }) => {
-    return ctx.db.user.delete({ where: { id: input } });
+  // Accounts are shared by every platform, so only Wadzzo admins can delete one.
+  deleteUser: superAdminProcedure.input(z.string()).mutation(async ({ ctx, input }) => {
+    const deleted = await ctx.db.user.delete({ where: { id: input } });
+    await logAudit(ctx, { action: "user.delete", entityType: "User", entityId: input });
+    return deleted;
   }),
 
-  deleteAPost: adminProcedure.input(z.number()).mutation(({ ctx, input }) => {
-    return ctx.db.post.delete({ where: { id: input } });
+  deleteAPost: adminProcedure.input(z.number()).mutation(async ({ ctx, input }) => {
+    const post = await ctx.db.post.findUnique({ where: { id: input }, select: { platformId: true } });
+    if (!post || !inPlatformScope(ctx, post.platformId)) throw new TRPCError({ code: "NOT_FOUND" });
+    const deleted = await ctx.db.post.delete({ where: { id: input } });
+    await logAudit(ctx, { action: "post.delete", entityType: "Post", entityId: input, targetPlatformId: post.platformId });
+    return deleted;
   }),
   sendEmail: adminProcedure
     .input(
@@ -148,7 +188,7 @@ const sendEmail = async (
   try {
     const mailOptions = {
       from: userEmail,
-      to: "support@wadzzo.com",
+      to: process.env.SUPPORT_EMAIL ?? "support@wadzzo.com",
       subject: `Support Request: ${name}`,
       text: message,
     };

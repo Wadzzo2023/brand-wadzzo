@@ -86,6 +86,8 @@ export function usePortalAccess() {
     signedIn,
     isAdmin: admin.isFetched ? fresh.isAdmin : now.isAdmin,
     adminLoading: signedIn && admin.isLoading && !cached,
+    /** a Wadzzo (root-platform) admin: manages every platform */
+    isSuperAdmin: Boolean(admin.data?.isSuperAdmin),
     creator,
     approved: creator.isFetched ? approved : now.approved,
     /** True while the brand check is still running and we have nothing remembered. */

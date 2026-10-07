@@ -2,8 +2,10 @@ import type { MuralStatus, Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { adminProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { adminProcedure, createTRPCRouter, superAdminProcedure } from "~/server/api/trpc";
+import { logAudit } from "~/server/audit";
 import type { Db } from "~/server/db";
+import { platformScope, type PlatformCtx } from "~/server/platform";
 
 /**
  * Admin › Mural review (wadzzoAR/docs/murals/plan.md §9).
@@ -61,64 +63,76 @@ function borderline(vision: unknown) {
   return screen || weakArt;
 }
 
-async function adjust(tx: Tx, userId: string, amount: number, reason: "MURAL_REVOKE" | "ADMIN_ADJUST", muralId: string, note: string) {
-  await tx.coinLedger.create({ data: { userId, amount, reason, muralId, note } });
+/**
+ * Coins live in one balance per (user, platform): the platform they were
+ * earned on. Adjustments go back to the balance the coins came from.
+ */
+async function adjust(tx: Tx, userId: string, platformId: string, amount: number, reason: "MURAL_REVOKE" | "ADMIN_ADJUST", muralId: string, note: string) {
+  await tx.coinLedger.create({ data: { userId, amount, reason, muralId, note, platformId } });
   await tx.coinBalance.upsert({
-    where: { userId },
+    where: { userId_platformId: { userId, platformId } },
     update: { balance: { increment: amount } },
-    create: { userId, balance: Math.max(0, amount) },
+    create: { userId, platformId, balance: Math.max(0, amount) },
   });
 }
 
 /**
- * Per user: what they earned from this mural and what's currently left of it
- * after earlier revokes/restores.
+ * Per user and platform balance: what they earned from this mural and what's
+ * currently left of it after earlier revokes/restores.
  */
 async function coinPosition(tx: Db | Tx, muralId: string) {
-  const rows = await tx.coinLedger.groupBy({ by: ["userId", "reason"], where: { muralId }, _sum: { amount: true } });
-  const by = new Map<string, { earned: number; net: number }>();
+  const rows = await tx.coinLedger.groupBy({ by: ["userId", "platformId", "reason"], where: { muralId }, _sum: { amount: true } });
+  const by = new Map<string, { userId: string; platformId: string; earned: number; net: number }>();
   for (const r of rows) {
-    const p = by.get(r.userId) ?? { earned: 0, net: 0 };
+    const key = `${r.userId}:${r.platformId}`;
+    const p = by.get(key) ?? { userId: r.userId, platformId: r.platformId, earned: 0, net: 0 };
     const amount = r._sum.amount ?? 0;
     if (r.reason === "MURAL_SCAN" || r.reason === "MURAL_DISCOVERY") p.earned += amount;
     p.net += amount;
-    by.set(r.userId, p);
+    by.set(key, p);
   }
-  return by;
+  return [...by.values()];
 }
 
 /** FRAUD: take back each user's remaining coins from the mural, floored at their balance. */
 async function revoke(tx: Tx, muralId: string) {
-  let users = 0;
+  const users = new Set<string>();
   let coins = 0;
-  for (const [userId, p] of await coinPosition(tx, muralId)) {
+  for (const p of await coinPosition(tx, muralId)) {
+    const { userId, platformId } = p;
     if (p.net <= 0) continue;
-    const bal = await tx.coinBalance.findUnique({ where: { userId } });
+    const bal = await tx.coinBalance.findUnique({ where: { userId_platformId: { userId, platformId } } });
     const take = Math.min(p.net, Math.max(0, bal?.balance ?? 0));
     const note = take < p.net ? `Rejected as fraud (balance covered ${take} of ${p.net})` : "Rejected as fraud";
     // Only what was actually taken moves the balance; a later restore gives
     // back exactly that (earned − net). The shortfall is noted, not owed.
-    await adjust(tx, userId, -take, "MURAL_REVOKE", muralId, note);
-    if (take < p.net) await tx.coinLedger.create({ data: { userId, amount: 0, reason: "MURAL_REVOKE", muralId, note: `Uncollectable ${p.net - take}` } });
-    users++;
+    await adjust(tx, userId, platformId, -take, "MURAL_REVOKE", muralId, note);
+    if (take < p.net) await tx.coinLedger.create({ data: { userId, amount: 0, reason: "MURAL_REVOKE", muralId, note: `Uncollectable ${p.net - take}`, platformId } });
+    users.add(userId);
     coins += take;
   }
-  return { users, coins };
+  return { users: users.size, coins };
 }
 
 /** Undo of a FRAUD reject: give back what was actually taken. */
 async function restore(tx: Tx, muralId: string) {
-  for (const [userId, p] of await coinPosition(tx, muralId)) {
+  for (const p of await coinPosition(tx, muralId)) {
     const taken = p.earned - p.net;
-    if (taken > 0) await adjust(tx, userId, taken, "ADMIN_ADJUST", muralId, "Restored — fraud rejection undone");
+    if (taken > 0) await adjust(tx, p.userId, p.platformId, taken, "ADMIN_ADJUST", muralId, "Restored — fraud rejection undone");
   }
 }
 
 const statusInput = z.enum(["DISCOVERED", "PENDING", "APPROVED", "REJECTED"]);
 
+/** Every id must be a mural this deployment's platform may manage (NOT_FOUND otherwise). */
+async function assertMuralsInScope(ctx: PlatformCtx & { db: Db }, ids: string[]) {
+  const found = await ctx.db.mural.count({ where: { id: { in: ids }, ...platformScope(ctx) } });
+  if (found !== new Set(ids).size) throw new TRPCError({ code: "NOT_FOUND", message: "Mural not found" });
+}
+
 export const muralsAdminRouter = createTRPCRouter({
   counts: adminProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.mural.groupBy({ by: ["status"], where: { mergedIntoId: null }, _count: { _all: true } });
+    const rows = await ctx.db.mural.groupBy({ by: ["status"], where: { mergedIntoId: null, ...platformScope(ctx) }, _count: { _all: true } });
     const out: Record<MuralStatus, number> = { DISCOVERED: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 };
     for (const r of rows) out[r.status] = r._count._all;
     return out;
@@ -127,7 +141,7 @@ export const muralsAdminRouter = createTRPCRouter({
   list: adminProcedure.input(z.object({ status: statusInput })).query(async ({ ctx, input }) => {
     const settings = await getSettings(ctx.db);
     const murals = await ctx.db.mural.findMany({
-      where: { status: input.status, mergedIntoId: null },
+      where: { status: input.status, mergedIntoId: null, ...platformScope(ctx) },
       orderBy: input.status === "PENDING" ? { updatedAt: "asc" } : { updatedAt: "desc" },
       take: 500,
       include: {
@@ -146,7 +160,7 @@ export const muralsAdminRouter = createTRPCRouter({
 
     // Possible duplicates: another live mural within 50 m.
     const live = await ctx.db.mural.findMany({
-      where: { mergedIntoId: null, status: { not: "REJECTED" } },
+      where: { mergedIntoId: null, status: { not: "REJECTED" }, ...platformScope(ctx) },
       select: { id: true, latitude: true, longitude: true },
     });
 
@@ -197,9 +211,10 @@ export const muralsAdminRouter = createTRPCRouter({
       },
     });
     if (!mural) throw new TRPCError({ code: "NOT_FOUND" });
+    await assertMuralsInScope(ctx, [mural.id]);
 
     const nearby = await ctx.db.mural.findMany({
-      where: { id: { not: mural.id }, mergedIntoId: null, ...boxAround(mural.latitude, mural.longitude, DUPLICATE_RADIUS_M) },
+      where: { id: { not: mural.id }, mergedIntoId: null, ...platformScope(ctx), ...boxAround(mural.latitude, mural.longitude, DUPLICATE_RADIUS_M) },
       select: { id: true, title: true, autoTitle: true, coverUrl: true, status: true, latitude: true, longitude: true, scanCount: true },
     });
     const coins = await ctx.db.coinLedger.aggregate({ where: { muralId: mural.id, amount: { gt: 0 } }, _sum: { amount: true } });
@@ -230,12 +245,13 @@ export const muralsAdminRouter = createTRPCRouter({
 
   /** Coins a FRAUD rejection would take back — for the confirm dialog. */
   revokePreview: adminProcedure.input(z.object({ ids: z.array(z.string()).min(1).max(200) })).query(async ({ ctx, input }) => {
+    await assertMuralsInScope(ctx, input.ids);
     const users = new Set<string>();
     let coins = 0;
     for (const id of input.ids) {
-      for (const [userId, p] of await coinPosition(ctx.db, id)) {
+      for (const p of await coinPosition(ctx.db, id)) {
         if (p.net > 0) {
-          users.add(userId);
+          users.add(p.userId);
           coins += p.net;
         }
       }
@@ -255,6 +271,7 @@ export const muralsAdminRouter = createTRPCRouter({
       if (input.status === "REJECTED" && !input.reason) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Pick a reason for rejecting" });
       }
+      await assertMuralsInScope(ctx, input.ids);
       const adminId = ctx.session.user.id;
       let revoked = { users: 0, coins: 0 };
       await ctx.db.$transaction(
@@ -282,6 +299,12 @@ export const muralsAdminRouter = createTRPCRouter({
         },
         { timeout: 30_000 },
       );
+      await logAudit(ctx, {
+        action: `mural.${input.status.toLowerCase()}`,
+        entityType: "Mural",
+        entityId: input.ids.join(","),
+        meta: { ids: input.ids, reason: input.reason ?? null, revoked },
+      });
       return { revoked };
     }),
 
@@ -296,6 +319,7 @@ export const muralsAdminRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertMuralsInScope(ctx, [input.id]);
       if (input.coverUrl) {
         // The cover must be one of this mural's own keyframes.
         const owns = await ctx.db.muralScan.findFirst({ where: { muralId: input.id, keyframes: { has: input.coverUrl } }, select: { id: true } });
@@ -314,13 +338,16 @@ export const muralsAdminRouter = createTRPCRouter({
   /** Fold a duplicate into the record that stays. Scans, references and coins move across. */
   merge: adminProcedure.input(z.object({ fromId: z.string(), intoId: z.string() })).mutation(async ({ ctx, input }) => {
     if (input.fromId === input.intoId) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick a different mural" });
-    return ctx.db.$transaction(async (tx) => {
+    await assertMuralsInScope(ctx, [input.fromId, input.intoId]);
+    const result = await ctx.db.$transaction(async (tx) => {
       const settings = await getSettings(tx);
       const [from, into] = await Promise.all([
         tx.mural.findUnique({ where: { id: input.fromId } }),
         tx.mural.findUnique({ where: { id: input.intoId } }),
       ]);
       if (!from || !into || from.mergedIntoId || into.mergedIntoId) throw new TRPCError({ code: "NOT_FOUND", message: "Mural not found" });
+      // Each platform's murals, scans and coins stay on that platform.
+      if (from.platformId !== into.platformId) throw new TRPCError({ code: "BAD_REQUEST", message: "Murals on different platforms can't be merged" });
 
       await tx.muralScan.updateMany({ where: { muralId: from.id }, data: { muralId: into.id } });
       await tx.muralEmbedding.updateMany({ where: { muralId: from.id }, data: { muralId: into.id } });
@@ -342,14 +369,17 @@ export const muralsAdminRouter = createTRPCRouter({
       await tx.mural.update({ where: { id: from.id }, data: { mergedIntoId: into.id, distinctScanners: 0, scanCount: 0 } });
       return { intoId: into.id };
     });
+    await logAudit(ctx, { action: "mural.merge", entityType: "Mural", entityId: input.fromId, meta: { into: input.intoId } });
+    return result;
   }),
 
   /**
    * Insights tab: volume, acceptance, Cloud Vision spend, coins, reject
    * reasons and the accounts worth a look — all from MuralScanSession, which
    * records every attempt (accepted or not) with the Vision units it cost.
+   * Wadzzo only: scan sessions aren't recorded per platform.
    */
-  insights: adminProcedure.input(z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]) })).query(async ({ ctx, input }) => {
+  insights: superAdminProcedure.input(z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]) })).query(async ({ ctx, input }) => {
     const since = new Date(Date.now() - input.days * 86_400_000);
     const where = { startedAt: { gte: since }, finishedAt: { not: null } };
 
@@ -434,7 +464,8 @@ export const muralsAdminRouter = createTRPCRouter({
 
   settings: adminProcedure.query(({ ctx }) => getSettings(ctx.db)),
 
-  updateSettings: adminProcedure
+  // One settings row drives every platform's mural coins, so only Wadzzo admins change it.
+  updateSettings: superAdminProcedure
     .input(
       z.object({
         coinsPerScan: z.number().int().min(0).max(10_000),

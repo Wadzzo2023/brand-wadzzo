@@ -15,9 +15,9 @@ import { type Horizon } from "@stellar/stellar-sdk";
 export type AssetRightType = AssetType & { copies: number };
 
 export type SongItemType = Song & { asset: AssetType };
-export type AssetType = Omit<Asset, "issuerPrivate">;
+export type AssetType = Omit<Asset, "issuerPrivate" | "platformId">;
 
-export type MarketAssetType = MarketAsset & {
+export type MarketAssetType = Omit<MarketAsset, "platformId"> & {
   asset: AssetType;
 };
 export type AdminAssetWithTag = AdminAsset & {

@@ -8,6 +8,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
+import { usePortalAccess } from "~/components/shell/use-portal-access";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { EmptyState } from "~/ui/empty-state";
@@ -43,6 +44,7 @@ export default function UserDetailsPage({ id }: { id: string }) {
 }
 
 function Details({ u }: { u: User }) {
+  const { isSuperAdmin } = usePortalAccess();
   const router = useRouter();
   const utils = api.useUtils();
   const [deleting, setDeleting] = useState(false);
@@ -96,9 +98,15 @@ function Details({ u }: { u: User }) {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {u.joinedAt ? `Joined ${format(new Date(u.joinedAt), "MMM d, yyyy")}` : "Join date unknown"}
-            {u.firstSignUpMethod && ` · signed up with ${u.firstSignUpMethod}`}
+            {` · signed up on ${u.signupPlatform.name}`}
+            {u.firstSignUpMethod && ` with ${u.firstSignUpMethod}`}
             {u.fromAppSignup && " · from the app"}
           </p>
+          {u.platforms.length > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Platforms: {u.platforms.map((p) => `${p.platform.name} (since ${format(new Date(p.firstSeenAt), "MMM d, yyyy")})`).join(" · ")}
+            </p>
+          )}
           {u.bio && <p className="mt-2 max-w-2xl text-sm">{u.bio}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -109,9 +117,12 @@ function Details({ u }: { u: User }) {
               </Link>
             </Button>
           )}
-          <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(true)}>
-            <Trash2 /> Delete
-          </Button>
+          {/* Accounts are shared by every platform: only Wadzzo admins delete them. */}
+          {isSuperAdmin && (
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(true)}>
+              <Trash2 /> Delete
+            </Button>
+          )}
         </div>
       </header>
 

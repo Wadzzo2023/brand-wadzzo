@@ -33,6 +33,10 @@ import type { RequestBrandCreateFormSchema } from "~/types/brand-onboarding";
 import { Dropzone } from "~/ui/upload/dropzone";
 import { uploadToIpfsUrl } from "~/ui/upload/ipfs";
 import { api } from "~/utils/api";
+import { WADZZO_AR_URL } from "~/lib/embed";
+
+/** The AR site brand vanity URLs live on (this platform's web app). */
+const AR_HOST = WADZZO_AR_URL.replace(/^https?:\/\//, "");
 
 type FormData = z.infer<typeof RequestBrandCreateFormSchema>;
 
@@ -691,7 +695,7 @@ export default function ArtistOnboarding() {
                         </Label>
                         <div className="flex items-center">
                           <span className="inline-flex h-10 items-center rounded-l-xl border border-r-0 border-border bg-muted/60 px-3 text-xs font-medium text-muted-foreground">
-                            web.wadzzo.com/
+                            {AR_HOST}/
                           </span>
                           <Input
                             id="vanityUrl"
@@ -725,7 +729,7 @@ export default function ArtistOnboarding() {
                             ) : isVanityUrlAvailable === true ? (
                               <span className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
                                 <CheckCheck className="size-4" />
-                                web.wadzzo.com/{formData.vanityUrl} is available!
+                                {AR_HOST}/{formData.vanityUrl} is available!
                               </span>
                             ) : isVanityUrlAvailable === false ? (
                               <span className="flex items-center gap-1.5 font-semibold text-destructive">
@@ -839,7 +843,7 @@ export default function ArtistOnboarding() {
                             </Button>
                           </div>
                           <p className="font-mono text-sm text-primary">
-                            https://web.wadzzo.com/{formData.vanityUrl}
+                            {WADZZO_AR_URL}/{formData.vanityUrl}
                           </p>
                         </div>
                       </div>

@@ -21,7 +21,9 @@ import { api } from "~/utils/api";
 const isWadzzo = PLATFORM_ASSET.code.toLowerCase() === "wadzzo";
 // Same numbers the server charges (VANITY_PRICE in lib/stellar/fan/vanity-url); shown before paying.
 const PRICE = isWadzzo ? { set: 200, change: 500 } : { set: 300000, change: 750000 };
-export const VANITY_HOST = env.NEXT_PUBLIC_ASSET_CODE.toLowerCase() === "wadzzo" ? "app.wadzzo.com" : "bandcoin.io";
+export const VANITY_HOST = env.NEXT_PUBLIC_FAN_APP_URL
+  ? new URL(env.NEXT_PUBLIC_FAN_APP_URL).host
+  : env.NEXT_PUBLIC_ASSET_CODE.toLowerCase() === "wadzzo" ? "app.wadzzo.com" : "bandcoin.io";
 const VANITY_RE = /^[a-z0-9_-]+$/;
 const money = (n: number) => `${n.toLocaleString()} ${PLATFORM_ASSET.code}`;
 

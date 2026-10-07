@@ -4,6 +4,7 @@ import {
   adminProcedure,
   createTRPCRouter,
   protectedProcedure,
+  superAdminProcedure,
 } from "~/server/api/trpc";
 import { getBlurData } from "~/utils/serverUtils";
 export const AdminAssetFormSchema = z.object({
@@ -128,7 +129,8 @@ export const assetRouter = createTRPCRouter({
       });
     }),
 
-  deleteAsset: adminProcedure
+  // The wallet asset list is shared by every platform: Wadzzo admins manage it.
+  deleteAsset: superAdminProcedure
     .input(z.number())
     .mutation(async ({ ctx, input }) => {
       await ctx.db.adminAsset.delete({

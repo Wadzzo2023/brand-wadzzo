@@ -6,6 +6,8 @@ import { useCallback, useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
+import { usePortalAccess } from "~/components/shell/use-portal-access";
+import { PlatformFilter } from "~/features/admin/platform-filter";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { DataTable, type Column } from "~/ui/data-table";
 import { PageBody, PageHeader } from "~/ui/page-header";
@@ -35,15 +37,17 @@ const SIGNUP: Record<string, string> = {
   hotWallet: "HOT Wallet",
 };
 
-/** Admin › Users: everyone with a Wadzzo account — fans, brands and admins. */
+/** Admin › Users: everyone who joined this platform (every platform on Wadzzo) — fans, brands and admins. */
 export default function UsersPage() {
+  const { isSuperAdmin } = usePortalAccess();
+  const [platformId, setPlatformId] = useState<string>();
   const [search, setSearch] = useState("");
   const onSearch = useCallback((q: string) => setSearch(q), []);
   const [deleting, setDeleting] = useState<User | null>(null);
   const utils = api.useUtils();
 
   const users = api.admin.user.getUsers.useInfiniteQuery(
-    { search: search || undefined, limit: 30 },
+    { search: search || undefined, platformId, limit: 30 },
     { getNextPageParam: (l) => l.nextCursor, refetchOnWindowFocus: false },
   );
   const rows = users.data?.pages.flatMap((p) => p.users);
@@ -100,6 +104,12 @@ export default function UsersPage() {
       cell: (u) => <span className="text-muted-foreground">{u.firstSignUpMethod ? (SIGNUP[u.firstSignUpMethod] ?? u.firstSignUpMethod) : "—"}</span>,
     },
     {
+      id: "platform",
+      header: "Signed up on",
+      skeleton: "short",
+      cell: (u) => <span className="text-muted-foreground">{u.signupPlatform.name}</span>,
+    },
+    {
       id: "joined",
       header: "Joined",
       skeleton: "short",
@@ -119,11 +129,12 @@ export default function UsersPage() {
       <PageHeader
         eyebrow="Admin"
         title="Users"
-        description={total !== undefined ? `${total.toLocaleString()} accounts — fans, brands and admins.` : "Everyone with a Wadzzo account — fans, brands and admins."}
+        description={total !== undefined ? `${total.toLocaleString()} accounts — fans, brands and admins.` : "Everyone with an account here — fans, brands and admins."}
       />
 
       <Toolbar className="mt-6">
         <SearchInput onSearch={onSearch} placeholder="Search name, email or wallet" />
+        <PlatformFilter value={platformId} onChange={setPlatformId} />
       </Toolbar>
 
       <DataTable
@@ -138,7 +149,8 @@ export default function UsersPage() {
         rowHref={(u) => `/admin/users/${u.id}`}
         actions={(u) => [
           { label: "View details", icon: ExternalLink, href: `/admin/users/${u.id}` },
-          { label: "Delete user", icon: Trash2, destructive: true, separator: true, onSelect: () => setDeleting(u) },
+          // Accounts are shared by every platform: only Wadzzo admins delete them.
+          ...(isSuperAdmin ? [{ label: "Delete user", icon: Trash2, destructive: true, separator: true, onSelect: () => setDeleting(u) }] : []),
         ]}
         empty={{ icon: Users, title: search ? "No users match" : "No users yet", description: search ? "Try a name, email or wallet." : undefined }}
         footer={

@@ -180,6 +180,7 @@ export const eventsRouter = createTRPCRouter({
       data: {
         ...eventData(input),
         creatorId,
+        platformId: ctx.platform.id,
         pins: { connect: input.pinIds.map((id) => ({ id })) },
         bounties: { connect: input.bountyIds.map((id) => ({ id })) },
       },
@@ -259,7 +260,7 @@ export const eventsRouter = createTRPCRouter({
   createAnnouncement: creatorProcedure.input(AnnouncementInput).mutation(async ({ ctx, input }) => {
     const creatorId = await creatorIdOf(ctx.db, ctx.session.user.id);
     return ctx.db.creatorAnnouncement.create({
-      data: { ...announcementData(input), creatorId },
+      data: { ...announcementData(input), creatorId, platformId: ctx.platform.id },
       select: { id: true },
     });
   }),

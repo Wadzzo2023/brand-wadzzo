@@ -1,4 +1,4 @@
-import { ADMIN_NAV, BRAND_NAV, type NavGroup, type NavItem } from "./nav";
+import { adminNavFor, BRAND_NAV, type NavGroup, type NavItem } from "./nav";
 
 export interface PortalAccessState {
   isAdmin: boolean;
@@ -28,10 +28,13 @@ export function getVisibleNavGroups({
   isAdmin,
   isApprovedCreator,
   navPermission,
+  isSuperAdmin = false,
 }: {
   isAdmin: boolean;
   isApprovedCreator: boolean;
   navPermission: boolean;
+  /** a Wadzzo (root-platform) admin: also sees platform management */
+  isSuperAdmin?: boolean;
 }): NavGroup[] {
   const allowed = (i: NavItem) => !i.gated || navPermission;
   // If user is an admin without an approved creator profile, hide brand nav
@@ -43,6 +46,6 @@ export function getVisibleNavGroups({
 
   return [
     ...brandGroups,
-    ...(isAdmin ? [ADMIN_NAV] : []),
+    ...(isAdmin ? [adminNavFor(isSuperAdmin)] : []),
   ];
 }

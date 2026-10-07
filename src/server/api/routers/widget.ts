@@ -3,11 +3,13 @@ import { ItemPrivacy } from "@prisma/client";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "~/env";
+import { WADZZO_AR_URL } from "~/lib/embed";
 import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+import { platformScope } from "~/server/platform";
 import { Location } from "~/types/game/location";
 import { findNearestLocation } from "~/utils/geo";
 
@@ -143,6 +145,7 @@ export const widgetRouter = createTRPCRouter({
       // Add creator filter if creatorIds are provided
       const whereCondition = {
         ...baseConditions,
+        ...platformScope(ctx),
         ...(input?.creatorIds && input.creatorIds.length > 0
           ? {
               privacy: {
@@ -201,7 +204,7 @@ export const widgetRouter = createTRPCRouter({
           title: location.title,
           description: location.description ?? "No description provided",
           brand_name: location.creator.name,
-          url: location.link ?? "https://wadzzo.com/",
+          url: location.link ?? WADZZO_AR_URL,
           image_url:
             location.image ?? location.creator.profileUrl ?? WadzzoIconURL,
           collected: false,
@@ -239,6 +242,7 @@ export const widgetRouter = createTRPCRouter({
       // Fetch all creators and locations to build context for OpenAI
       const locationGroups = await ctx.db.locationGroup.findMany({
         where: {
+          ...platformScope(ctx),
           approved: { equals: true },
           endDate: { gte: new Date() },
           ...(input.creatorIds && input.creatorIds.length > 0
