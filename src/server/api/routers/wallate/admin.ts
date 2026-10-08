@@ -17,7 +17,8 @@ export const adminRouter = createTRPCRouter({
     if (admin) {
       return {
         ...admin,
-        isSuperAdmin: admin.platform.isRoot,
+        // Wadzzo-only controls work on the Wadzzo deployment only (superAdminProcedure checks both).
+        isSuperAdmin: admin.platform.isRoot && ctx.platform.isRoot,
         platform: { id: ctx.platform.id, name: ctx.platform.name, isRoot: ctx.platform.isRoot },
       };
     }
