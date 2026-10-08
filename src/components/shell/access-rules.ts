@@ -1,4 +1,4 @@
-import { adminNavFor, BRAND_NAV, JOIN_BRAND_GROUP, type NavGroup, type NavItem } from "./nav";
+import { adminNavFor, BRAND_NAV, brandEntryGroup, type BrandEntry, type NavGroup, type NavItem } from "./nav";
 
 export interface PortalAccessState {
   isAdmin: boolean;
@@ -23,19 +23,29 @@ export function getPortalLandingRoute({ isAdmin, isApprovedCreator }: PortalAcce
   return "/pins";
 }
 
+export type BrandRecord = { onThisPlatform: boolean; aprovalSend: boolean; approved: boolean | null } | null | undefined;
+
+/** Which way into a brand an admin without a working one should be offered. */
+export function brandEntryFor(applies: boolean, c: BrandRecord): BrandEntry | null {
+  if (!applies) return null;
+  if (c == null) return "join";
+  if (!c.onThisPlatform || c.approved === false) return null; // another platform's brand, or refused
+  return c.aprovalSend ? "pending" : "finish";
+}
+
 /** Returns the navigation groups appropriate for the user's role. */
 export function getVisibleNavGroups({
   isAdmin,
   isApprovedCreator,
   navPermission,
   isSuperAdmin = false,
-  canJoinAsBrand = false,
+  brandEntry = null,
 }: {
   isAdmin: boolean;
   isApprovedCreator: boolean;
   navPermission: boolean;
-  /** an admin with no brand yet: offer the brand sign-up */
-  canJoinAsBrand?: boolean;
+  /** an admin without a working brand: the way to join / finish / check their own brand */
+  brandEntry?: BrandEntry | null;
   /** a Wadzzo (root-platform) admin: also sees platform management */
   isSuperAdmin?: boolean;
 }): NavGroup[] {
@@ -49,7 +59,7 @@ export function getVisibleNavGroups({
 
   return [
     ...brandGroups,
-    ...(isAdmin && !isApprovedCreator && canJoinAsBrand ? [JOIN_BRAND_GROUP] : []),
+    ...(isAdmin && !isApprovedCreator && brandEntry ? [brandEntryGroup(brandEntry)] : []),
     ...(isAdmin ? [adminNavFor(isSuperAdmin)] : []),
   ];
 }

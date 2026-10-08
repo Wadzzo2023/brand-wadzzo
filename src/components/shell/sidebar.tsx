@@ -10,7 +10,7 @@ import { cn } from "~/lib/utils";
 
 import { getPortalLandingRoute, getVisibleNavGroups } from "./access-rules";
 import { CreateMenu } from "./create-menu";
-import { isActive, type NavItem } from "./nav";
+import { isActive, type NavItem, type BrandEntry } from "./nav";
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
 
@@ -25,7 +25,7 @@ export function Sidebar({
   navPermission,
   isApprovedCreator = false,
   isSuperAdmin = false,
-  canJoinAsBrand = false,
+  brandEntry = null,
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -33,10 +33,10 @@ export function Sidebar({
   navPermission: boolean;
   isApprovedCreator?: boolean;
   isSuperAdmin?: boolean;
-  canJoinAsBrand?: boolean;
+  brandEntry?: BrandEntry | null;
 }) {
   const pathname = usePathname() ?? "";
-  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission, isSuperAdmin, canJoinAsBrand });
+  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission, isSuperAdmin, brandEntry });
   const homeHref = getPortalLandingRoute({ isAdmin, isApprovedCreator });
   const isPureAdmin = isAdmin && !isApprovedCreator;
 

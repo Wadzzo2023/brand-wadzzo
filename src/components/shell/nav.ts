@@ -96,9 +96,20 @@ export const ADMIN_NAV: NavGroup = {
   ],
 };
 
-/** For an admin who has no brand yet: the way into the brand sign-up (admins otherwise only see admin screens). */
-export const JOIN_BRAND_ITEM: NavItem = { href: "/onboarding", label: "Join as a brand", shortLabel: "Brand", icon: Store };
-export const JOIN_BRAND_GROUP: NavGroup = { label: "Brand", items: [JOIN_BRAND_ITEM] };
+/**
+ * An admin without a working brand only sees admin screens, so give them a way to their own brand:
+ * join (no brand yet), finish (brand created but never sent for approval), pending (waiting for review).
+ */
+export type BrandEntry = "join" | "finish" | "pending";
+export function brandEntryGroup(entry: BrandEntry): NavGroup {
+  const item: NavItem =
+    entry === "join"
+      ? { href: "/onboarding", label: "Join as a brand", shortLabel: "Brand", icon: Store }
+      : entry === "finish"
+        ? { href: "/pins", label: "Finish brand setup", shortLabel: "Brand", icon: Store }
+        : { href: "/pins", label: "My brand application", shortLabel: "Brand", icon: Store };
+  return { label: "Brand", items: [item] };
+}
 
 /** The admin group as this admin sees it: Wadzzo-only items need a Wadzzo admin. */
 export function adminNavFor(isSuperAdmin: boolean): NavGroup {

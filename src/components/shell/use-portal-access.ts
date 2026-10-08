@@ -6,6 +6,8 @@ import { useEffect, useMemo } from "react";
 import { useCreatorStorageAcc, useUserStellarAcc } from "~/lib/state/wallete/stellar-balances";
 import { api } from "~/utils/api";
 
+import { brandEntryFor } from "./access-rules";
+
 /**
  * Everything the shell needs to decide what to show, in one place:
  * sign-in state, admin, the brand's nav permission, and the wallet balances
@@ -87,8 +89,8 @@ export function usePortalAccess() {
     session,
     signedIn,
     isAdmin: isAdminNow,
-    /** an admin whose account has no brand yet: the portal offers "Join as a brand" */
-    canJoinAsBrand: isAdminNow && creator.isFetched && creator.data == null,
+    /** an admin without a working brand here: how they get to their own brand (see nav.ts) */
+    brandEntry: brandEntryFor(isAdminNow && !approved && creator.isFetched, creator.data),
     adminLoading: signedIn && admin.isLoading && !cached,
     /** the admin check has finished (so "not an admin" is a real answer) */
     adminSettled: admin.isFetched,

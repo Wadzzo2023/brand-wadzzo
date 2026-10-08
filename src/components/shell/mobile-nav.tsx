@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "~/components/shadcn/ui/drawer";
 import { cn } from "~/lib/utils";
 
-import { ADMIN_NAV, adminNavFor, BRAND_NAV, CREATE_ACTIONS, isActive, JOIN_BRAND_ITEM, MOBILE_TABS, type NavItem } from "./nav";
+import { ADMIN_NAV, adminNavFor, BRAND_NAV, CREATE_ACTIONS, isActive, brandEntryGroup, MOBILE_TABS, type BrandEntry, type NavItem } from "./nav";
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
 
@@ -39,13 +39,13 @@ export function MobileTabBar({
   navPermission,
   isApprovedCreator = false,
   isSuperAdmin = false,
-  canJoinAsBrand = false,
+  brandEntry = null,
 }: {
   isAdmin: boolean;
   navPermission: boolean;
   isApprovedCreator?: boolean;
   isSuperAdmin?: boolean;
-  canJoinAsBrand?: boolean;
+  brandEntry?: BrandEntry | null;
 }) {
   const pathname = usePathname() ?? "";
   const adminNav = adminNavFor(isSuperAdmin);
@@ -60,7 +60,7 @@ export function MobileTabBar({
       ADMIN_NAV.items.find((i) => i.href === "/admin/maps")!,
     ].filter(Boolean);
     const inAdminBar = new Set(adminTabs.map((t) => t.href));
-    const adminMoreItems = [...(canJoinAsBrand ? [JOIN_BRAND_ITEM] : []), ...adminNav.items.filter((i) => !inAdminBar.has(i.href))];
+    const adminMoreItems = [...(brandEntry ? brandEntryGroup(brandEntry).items : []), ...adminNav.items.filter((i) => !inAdminBar.has(i.href))];
     const moreActive = adminMoreItems.some((i) => isActive(pathname, i));
 
     return (

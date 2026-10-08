@@ -50,7 +50,9 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
   const c = creator.data;
   const isSettled = creator.isFetched;
   const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true && c.onThisPlatform);
-  const shouldRedirectAdmin = access.isAdmin && isSettled && !isApproved;
+  // An admin with a brand of their own here that isn't working yet gets its status screen, not a bounce.
+  const hasBrandHere = Boolean(c && c.onThisPlatform && c.approved !== false);
+  const shouldRedirectAdmin = access.isAdmin && isSettled && !isApproved && !hasBrandHere;
 
   // If user is an admin but NOT an approved creator, they only have access to
   // their admin section, not the creator section. Redirect them to /admin/creators.

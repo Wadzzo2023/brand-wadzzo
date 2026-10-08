@@ -105,7 +105,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         navPermission={access.navPermission}
         isApprovedCreator={access.approved}
         isSuperAdmin={access.isSuperAdmin}
-        canJoinAsBrand={access.canJoinAsBrand}
+        brandEntry={access.brandEntry}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar title={title} homeHref={homeHref} />
@@ -116,7 +116,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         navPermission={access.navPermission}
         isApprovedCreator={access.approved}
         isSuperAdmin={access.isSuperAdmin}
-        canJoinAsBrand={access.canJoinAsBrand}
+        brandEntry={access.brandEntry}
       />
     </div>
   );
