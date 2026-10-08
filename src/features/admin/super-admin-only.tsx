@@ -19,7 +19,7 @@ export function SuperAdminOnly({ children }: { children: ReactNode }) {
         <ShieldAlert className="mx-auto mb-3 size-8 text-muted-foreground" />
         <h1 className="font-hud text-xl font-bold">Not available here</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Platform management and the audit log are run from the Wadzzo admin portal.
+          Platform management and the audit log are for Wadzzo admins.
         </p>
         <Button asChild variant="outline" className="mt-5">
           <Link href="/admin/creators">Back to admin</Link>

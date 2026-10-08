@@ -106,6 +106,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
  * @see https://trpc.io/docs/router
  */
 export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory;
 
 /**
  * Public (unauthenticated) procedure
@@ -160,9 +161,9 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
   });
 });
 
-/** Root-platform (wadzzo) admins on the root deployment: platform management, cross-platform admin. */
+/** Wadzzo (root-platform) admins, on any platform's site: platform management, audit log, cross-platform admin. */
 export const superAdminProcedure = adminProcedure.use(({ ctx, next }) => {
-  if (!ctx.isSuperAdmin || !ctx.platform.isRoot) {
+  if (!ctx.isSuperAdmin) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Wadzzo admin access required" });
   }
   return next();

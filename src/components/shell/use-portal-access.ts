@@ -89,6 +89,8 @@ export function usePortalAccess() {
     adminLoading: signedIn && admin.isLoading && !cached,
     /** the admin check has finished (so "not an admin" is a real answer) */
     adminSettled: admin.isFetched,
+    /** the platform whose site this is */
+    platform: admin.data?.platform,
     /** a Wadzzo (root-platform) admin: manages every platform */
     isSuperAdmin: Boolean(admin.data?.isSuperAdmin),
     creator,

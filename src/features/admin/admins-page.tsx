@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Input } from "~/components/shadcn/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import { usePortalAccess } from "~/components/shell/use-portal-access";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { DataTable, type Column } from "~/ui/data-table";
 import { Field } from "~/ui/form-page";
@@ -142,11 +144,14 @@ export default function AdminsPage() {
 
 function AddAdminDialog({ onClose }: { onClose: () => void }) {
   const utils = api.useUtils();
+  const { isSuperAdmin, platform } = usePortalAccess();
+  const platforms = api.admin.platforms.options.useQuery(undefined, { enabled: isSuperAdmin, refetchOnWindowFocus: false });
   const [key, setKey] = useState("");
+  const [target, setTarget] = useState<string>();
   const [error, setError] = useState<string>();
   const add = api.wallate.admin.makeAdmin.useMutation({
-    onSuccess: () => {
-      toast.success("Admin added");
+    onSuccess: (r) => {
+      toast.success(r.moved ? `Moved from ${r.from} — they're now an admin here` : "Admin added");
       void utils.wallate.admin.admins.invalidate();
       onClose();
     },
@@ -157,7 +162,7 @@ function AddAdminDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const k = key.trim();
     if (!PUBKEY.test(k)) return setError("A Stellar public key: 56 characters starting with G.");
-    add.mutate({ pubkey: k });
+    add.mutate({ pubkey: k, platformId: target });
   };
 
   return (
@@ -170,6 +175,26 @@ function AddAdminDialog({ onClose }: { onClose: () => void }) {
             </DialogTitle>
             <DialogDescription>They need an account already — ask them to sign in once, then paste their public key.</DialogDescription>
           </DialogHeader>
+          {isSuperAdmin && platforms.data && platforms.data.length > 1 && (
+            <div className="mt-5">
+              <Field label="Admin of" htmlFor="admin-platform">
+                <Select value={target ?? platform?.id} onValueChange={setTarget}>
+                  <SelectTrigger id="admin-platform" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {platforms.data.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        {p.isRoot ? " — full access to every platform" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <p className="mt-1.5 text-xs text-muted-foreground">An account is an admin of one platform. Choosing another moves it.</p>
+            </div>
+          )}
           <div className="my-5">
             <Field label="Public key" htmlFor="admin-key" required error={error}>
               <Input
