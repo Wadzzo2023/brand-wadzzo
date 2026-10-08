@@ -1,14 +1,14 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { adminProcedure, createTRPCRouter } from "~/server/api/trpc";
+import { createTRPCRouter, superAdminProcedure } from "~/server/api/trpc";
 
 /**
- * Admin › Audit log. A platform's admins see what happened on their platform
- * (including Wadzzo admins acting on it); Wadzzo admins see everything.
+ * Admin › Audit log: Wadzzo's oversight of every platform (sign-ups, platform joins,
+ * admin actions). Partner platforms' admins don't see it.
  */
 export const auditRouter = createTRPCRouter({
-  list: adminProcedure
+  list: superAdminProcedure
     .input(
       z.object({
         platformId: z.string().optional(),
@@ -20,7 +20,7 @@ export const auditRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const platformId = ctx.platform.isRoot ? input.platformId : ctx.platform.id;
+      const platformId = input.platformId;
       const where: Prisma.AuditLogWhereInput = {
         ...(platformId ? { OR: [{ platformId }, { targetPlatformId: platformId }] } : {}),
         ...(input.action ? { action: { startsWith: input.action } } : {}),

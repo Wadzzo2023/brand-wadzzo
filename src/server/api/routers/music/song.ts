@@ -181,6 +181,7 @@ export const songRouter = createTRPCRouter({
     const songs = await ctx.db.marketAsset.findMany({
       include: { asset: { select: AssetSelectAllProperty } },
       where: {
+        ...platformScope(ctx),
         type: { equals: "FAN" },
         asset: { mediaType: { equals: "MUSIC" }, tier: { isNot: null } },
       },
@@ -228,7 +229,7 @@ export const songRouter = createTRPCRouter({
           },
         },
         orderBy: { id: "desc" },
-        where: { type: { equals: "SONG" } },
+        where: { type: { equals: "SONG" }, ...platformScope(ctx) },
       });
 
       const stellarAcc = await StellarAccount.create(currentUserId);

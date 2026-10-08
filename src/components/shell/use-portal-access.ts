@@ -43,7 +43,8 @@ export function usePortalAccess() {
 
   const admin = api.wallate.admin.checkAdmin.useQuery(undefined, { enabled: signedIn, retry: false });
   const creator = api.fan.creator.meCreator.useQuery(undefined, { enabled: signedIn });
-  const approved = Boolean(creator.data?.aprovalSend && creator.data?.approved === true);
+  // A brand only works on the platform it belongs to.
+  const approved = Boolean(creator.data?.aprovalSend && creator.data?.approved === true && creator.data?.onThisPlatform);
   const permission = api.fan.creator.getPermissionData.useQuery(undefined, { enabled: signedIn && approved, retry: false });
 
   const account = api.wallate.acc.getAccountBalance.useQuery(undefined, { enabled: signedIn, retry: false });
@@ -86,6 +87,8 @@ export function usePortalAccess() {
     signedIn,
     isAdmin: admin.isFetched ? fresh.isAdmin : now.isAdmin,
     adminLoading: signedIn && admin.isLoading && !cached,
+    /** the admin check has finished (so "not an admin" is a real answer) */
+    adminSettled: admin.isFetched,
     /** a Wadzzo (root-platform) admin: manages every platform */
     isSuperAdmin: Boolean(admin.data?.isSuperAdmin),
     creator,

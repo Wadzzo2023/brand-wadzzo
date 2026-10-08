@@ -91,7 +91,7 @@ export const ADMIN_NAV: NavGroup = {
     { href: "/admin/murals", label: "Mural review", shortLabel: "Murals", icon: Frame },
     { href: "/admin/maps", label: "All maps", shortLabel: "Maps", icon: Map },
     { href: "/admin/reports", label: "Collection reports", shortLabel: "Reports", icon: Flag },
-    { href: "/admin/audit", label: "Audit log", shortLabel: "Audit", icon: ScrollText },
+    { href: "/admin/audit", label: "Audit log", shortLabel: "Audit", icon: ScrollText, superAdmin: true },
     { href: "/admin/platforms", label: "Platforms", icon: Building2, superAdmin: true },
   ],
 };

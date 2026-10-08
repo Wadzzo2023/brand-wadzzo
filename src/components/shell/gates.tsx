@@ -49,7 +49,7 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
   const { creator } = access;
   const c = creator.data;
   const isSettled = creator.isFetched;
-  const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true);
+  const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true && c.onThisPlatform);
   const shouldRedirectAdmin = access.isAdmin && isSettled && !isApproved;
 
   // If user is an admin but NOT an approved creator, they only have access to
@@ -77,7 +77,9 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
 
   return (
     <div className="flex min-h-[70dvh] items-center justify-center px-4 py-10">
-      {c?.aprovalSend && (c.approved === null || c.approved === undefined) ? (
+      {c && !c.onThisPlatform ? (
+        <OtherPlatformCard platformName={c.platform.name} />
+      ) : c?.aprovalSend && (c.approved === null || c.approved === undefined) ? (
         <PendingArtistPage createdAt={c.createdAt} />
       ) : c?.approved === false ? (
         <BannedCreatorCard creatorName={c.name} />
@@ -86,6 +88,20 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
       ) : (
         <JoinArtistPage />
       )}
+    </div>
+  );
+}
+
+/** This account is a brand on another platform: it can't be used here. */
+function OtherPlatformCard({ platformName }: { platformName: string }) {
+  return (
+    <div className="max-w-sm text-center">
+      <ShieldAlert className="mx-auto mb-3 size-8 text-muted-foreground" />
+      <h1 className="font-hud text-xl font-bold">This brand is on {platformName}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Your account is already a brand on {platformName}, and a brand belongs to one platform only. Sign in with a different
+        account to create a brand here.
+      </p>
     </div>
   );
 }

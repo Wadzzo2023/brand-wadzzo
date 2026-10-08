@@ -254,7 +254,7 @@ export const creatorRouter = createTRPCRouter({
   }),
 
   meCreator: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.creator.findFirst({
+    const creator = await ctx.db.creator.findFirst({
       where: { user: { id: ctx.session.user.id } },
       include: {
         _count: {
@@ -265,8 +265,11 @@ export const creatorRouter = createTRPCRouter({
           },
         },
         pageAsset: true,
+        platform: { select: { id: true, name: true } },
       },
     });
+    // A brand belongs to one platform; on any other one it is read-only context, not a working account.
+    return creator && { ...creator, onThisPlatform: creator.platformId === ctx.platform.id };
   }),
   /** Everything the brand profile page header needs, in one call (no secrets). */
   profileOverview: protectedProcedure.query(async ({ ctx }) => {

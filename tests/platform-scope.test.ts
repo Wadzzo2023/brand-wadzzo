@@ -65,12 +65,14 @@ describe("admin nav", () => {
       .flatMap((g) => g.items)
       .map((i) => i.href);
 
-  it("shows platform management only to Wadzzo admins", () => {
-    expect(adminItems(true)).toContain("/admin/platforms");
-    expect(adminItems(false)).not.toContain("/admin/platforms");
+  it("shows platform management and the audit log only to Wadzzo admins", () => {
+    for (const href of ["/admin/platforms", "/admin/audit"]) {
+      expect(adminItems(true)).toContain(href);
+      expect(adminItems(false)).not.toContain(href);
+    }
   });
 
-  it("shows the audit log to every admin", () => {
-    expect(adminItems(false)).toContain("/admin/audit");
+  it("keeps the everyday admin pages for every admin", () => {
+    expect(adminItems(false)).toEqual(expect.arrayContaining(["/admin/creators", "/admin/users", "/admin/pins"]));
   });
 });

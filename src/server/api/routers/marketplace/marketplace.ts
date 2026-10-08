@@ -226,7 +226,7 @@ export const marketRouter = createTRPCRouter({
               },
             },
           },
-          where: { placerId: { not: null }, type: { equals: "FAN" } },
+          where: { placerId: { not: null }, type: { equals: "FAN" }, ...platformScope(ctx) },
         })
 
         const stellarAcc = await StellarAccount.create(currentUserId)
@@ -308,7 +308,8 @@ export const marketRouter = createTRPCRouter({
 
       const items = await ctx.db.creator.findMany({
         where: {
-          profileUrl: { not: null }
+          profileUrl: { not: null },
+          ...platformScope(ctx),
         },
         select: {
           id: true,
@@ -375,7 +376,7 @@ export const marketRouter = createTRPCRouter({
             },
           },
         },
-        where: { type: "ADMIN" },
+        where: { type: "ADMIN", ...platformScope(ctx) },
       });
 
       const stellarAcc = await StellarAccount.create(currentUserId);
@@ -467,7 +468,7 @@ export const marketRouter = createTRPCRouter({
               },
             },
           },
-          where: { asset: { creatorId: creatorId } },
+          where: { asset: { creatorId: creatorId }, ...platformScope(ctx) },
         });
 
         const stellarAcc = await StellarAccount.create(currentUserId);
