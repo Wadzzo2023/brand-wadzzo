@@ -1130,8 +1130,15 @@ export const creatorRouter = createTRPCRouter({
    * flow. Puts it in the admin queue; leaves decided rows alone.
    */
   requestApproval: protectedProcedure.mutation(async ({ ctx }) => {
+    // Sends this platform's brand for review. A brand an admin already approved (but that was never
+    // submitted) just becomes active; one that was refused (approved: false) stays refused.
     const res = await ctx.db.creator.updateMany({
-      where: { id: ctx.session.user.id, approved: null, aprovalSend: false },
+      where: {
+        id: ctx.session.user.id,
+        platformId: ctx.platform.id,
+        aprovalSend: false,
+        OR: [{ approved: null }, { approved: true }],
+      },
       data: { aprovalSend: true },
     });
     return { requested: res.count > 0 };

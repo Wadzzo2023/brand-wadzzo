@@ -15,7 +15,8 @@ export default function RequestApprovalCard({ creatorName }: { creatorName: stri
     const utils = api.useUtils()
     const request = api.fan.creator.requestApproval.useMutation({
         onSuccess: (r) => {
-            toast.success(r.requested ? "Approval requested" : "Already in review")
+            if (r.requested) toast.success("Sent")
+            else toast("Nothing to send: it was already sent, or isn't available here")
             void utils.fan.creator.meCreator.invalidate()
         },
         onError: (e) => toast.error(e.message),
