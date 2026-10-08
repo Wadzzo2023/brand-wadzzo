@@ -96,6 +96,10 @@ export const ADMIN_NAV: NavGroup = {
   ],
 };
 
+/** For an admin who has no brand yet: the way into the brand sign-up (admins otherwise only see admin screens). */
+export const JOIN_BRAND_ITEM: NavItem = { href: "/onboarding", label: "Join as a brand", shortLabel: "Brand", icon: Store };
+export const JOIN_BRAND_GROUP: NavGroup = { label: "Brand", items: [JOIN_BRAND_ITEM] };
+
 /** The admin group as this admin sees it: Wadzzo-only items need a Wadzzo admin. */
 export function adminNavFor(isSuperAdmin: boolean): NavGroup {
   return { ...ADMIN_NAV, items: ADMIN_NAV.items.filter((i) => !i.superAdmin || isSuperAdmin) };

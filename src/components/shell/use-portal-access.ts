@@ -82,10 +82,13 @@ export function usePortalAccess() {
   }, [settled, userId, fresh.isAdmin, fresh.approved, fresh.navPermission]);
 
   const now = settled ? fresh : (cached ?? fresh);
+  const isAdminNow = admin.isFetched ? fresh.isAdmin : now.isAdmin;
   return {
     session,
     signedIn,
-    isAdmin: admin.isFetched ? fresh.isAdmin : now.isAdmin,
+    isAdmin: isAdminNow,
+    /** an admin whose account has no brand yet: the portal offers "Join as a brand" */
+    canJoinAsBrand: isAdminNow && creator.isFetched && creator.data == null,
     adminLoading: signedIn && admin.isLoading && !cached,
     /** the admin check has finished (so "not an admin" is a real answer) */
     adminSettled: admin.isFetched,

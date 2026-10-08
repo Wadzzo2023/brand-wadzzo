@@ -42,6 +42,15 @@ describe("Portal Access Rules", () => {
   });
 
   describe("getVisibleNavGroups", () => {
+    it("offers an admin with no brand a way in to the brand sign-up, and nobody else", () => {
+      const hrefs = (o: Parameters<typeof getVisibleNavGroups>[0]) => getVisibleNavGroups(o).flatMap((g) => g.items).map((i) => i.href);
+      const base = { isAdmin: true, isApprovedCreator: false, navPermission: false };
+      expect(hrefs({ ...base, canJoinAsBrand: true })).toContain("/onboarding");
+      expect(hrefs({ ...base, canJoinAsBrand: false })).not.toContain("/onboarding");
+      expect(hrefs({ ...base, isApprovedCreator: true, canJoinAsBrand: true })).not.toContain("/onboarding");
+      expect(hrefs({ isAdmin: false, isApprovedCreator: false, navPermission: false, canJoinAsBrand: true })).not.toContain("/onboarding");
+    });
+
     it("only shows ADMIN_NAV if user is an admin without approved creator profile", () => {
       const groups = getVisibleNavGroups({
         isAdmin: true,

@@ -1,4 +1,4 @@
-import { adminNavFor, BRAND_NAV, type NavGroup, type NavItem } from "./nav";
+import { adminNavFor, BRAND_NAV, JOIN_BRAND_GROUP, type NavGroup, type NavItem } from "./nav";
 
 export interface PortalAccessState {
   isAdmin: boolean;
@@ -29,10 +29,13 @@ export function getVisibleNavGroups({
   isApprovedCreator,
   navPermission,
   isSuperAdmin = false,
+  canJoinAsBrand = false,
 }: {
   isAdmin: boolean;
   isApprovedCreator: boolean;
   navPermission: boolean;
+  /** an admin with no brand yet: offer the brand sign-up */
+  canJoinAsBrand?: boolean;
   /** a Wadzzo (root-platform) admin: also sees platform management */
   isSuperAdmin?: boolean;
 }): NavGroup[] {
@@ -46,6 +49,7 @@ export function getVisibleNavGroups({
 
   return [
     ...brandGroups,
+    ...(isAdmin && !isApprovedCreator && canJoinAsBrand ? [JOIN_BRAND_GROUP] : []),
     ...(isAdmin ? [adminNavFor(isSuperAdmin)] : []),
   ];
 }

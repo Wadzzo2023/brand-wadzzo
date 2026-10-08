@@ -25,6 +25,7 @@ export function Sidebar({
   navPermission,
   isApprovedCreator = false,
   isSuperAdmin = false,
+  canJoinAsBrand = false,
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -32,9 +33,10 @@ export function Sidebar({
   navPermission: boolean;
   isApprovedCreator?: boolean;
   isSuperAdmin?: boolean;
+  canJoinAsBrand?: boolean;
 }) {
   const pathname = usePathname() ?? "";
-  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission, isSuperAdmin });
+  const groups = getVisibleNavGroups({ isAdmin, isApprovedCreator, navPermission, isSuperAdmin, canJoinAsBrand });
   const homeHref = getPortalLandingRoute({ isAdmin, isApprovedCreator });
   const isPureAdmin = isAdmin && !isApprovedCreator;
 

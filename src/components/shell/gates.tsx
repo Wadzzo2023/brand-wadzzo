@@ -137,15 +137,25 @@ export function OnboardingGate({ access, children }: { access: Access; children:
   const hasSubmittedOrIsCreator = Boolean(c?.id) || Boolean(c?.aprovalSend);
   const isApproved = Boolean(c?.id && c.aprovalSend && c.approved === true);
   const destination = access.isAdmin && !isApproved ? "/admin/creators" : "/pins";
+  // A brand that belongs to another platform: explain, rather than bouncing them away.
+  const otherPlatform = c && !c.onThisPlatform ? c.platform.name : null;
 
   useEffect(() => {
-    if (isSettled && hasSubmittedOrIsCreator) {
+    if (isSettled && hasSubmittedOrIsCreator && !otherPlatform) {
       router.replace(destination);
     }
-  }, [isSettled, hasSubmittedOrIsCreator, destination, router]);
+  }, [isSettled, hasSubmittedOrIsCreator, otherPlatform, destination, router]);
 
   if (access.creatorLoading || (access.creator.isLoading && !c)) {
     return <PageSkeleton />;
+  }
+
+  if (otherPlatform) {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center px-4">
+        <OtherPlatformCard platformName={otherPlatform} />
+      </div>
+    );
   }
 
   if (hasSubmittedOrIsCreator) {
