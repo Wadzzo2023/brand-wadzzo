@@ -28,6 +28,7 @@ type Ctx = Parameters<typeof resolveActingBrand>[0];
 const BrandInput = z.object({ creatorId: z.string().optional() });
 
 const MESSAGES_PER_CONVERSATION = 200;
+const PIN_JOB_STALL_MS = 10 * 60_000;
 
 async function mayActFor(ctx: Ctx, creatorId: string) {
   return resolveActingBrand(ctx, creatorId).then(
@@ -215,16 +216,18 @@ export const agentRouter = createTRPCRouter({
   pinJob: protectedProcedure.input(z.object({ jobId: z.string() })).query(async ({ ctx, input }) => {
     const job = await ctx.db.locationGroupJob.findUnique({
       where: { id: input.jobId },
-      select: { id: true, creatorId: true, status: true, total: true, completed: true, log: true, error: true },
+      select: { id: true, creatorId: true, status: true, total: true, completed: true, log: true, error: true, updatedAt: true },
     });
     if (!job || !(await mayActFor(ctx, job.creatorId))) throw new TRPCError({ code: "NOT_FOUND", message: "Job not found" });
     const log = (Array.isArray(job.log) ? job.log : []) as { title: string; status: "ok" | "error" }[];
+    // No progress for this long means the task server lost it (e.g. it restarted).
+    const stalled = (job.status === "pending" || job.status === "processing") && Date.now() - job.updatedAt.getTime() > PIN_JOB_STALL_MS;
     return {
-      status: job.status as "pending" | "processing" | "completed" | "failed",
+      status: stalled ? ("failed" as const) : (job.status as "pending" | "processing" | "completed" | "failed"),
       total: job.total,
       completed: job.completed,
       failed: log.filter((l) => l?.status === "error").map((l) => l.title),
-      error: job.error,
+      error: stalled ? "Pin creation stopped responding. The pins created so far are on the map; ask again for the rest." : job.error,
     };
   }),
 });

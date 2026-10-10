@@ -244,7 +244,7 @@ function PinJobProgress({ jobId }: { jobId: string }) {
   }, [finished, utils]);
 
   if (!job.data) return null;
-  const { total, completed, failed, status } = job.data;
+  const { total, completed, failed, status, error } = job.data;
   return (
     <div className="space-y-1">
       <Progress value={total ? (completed / total) * 100 : 0} className="h-1.5" />
@@ -252,8 +252,10 @@ function PinJobProgress({ jobId }: { jobId: string }) {
         {status === "completed"
           ? `All ${total} pins are on the map.`
           : status === "failed"
-            ? `${completed} of ${total} created${failed.length ? ` — couldn't create: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "…" : ""}` : ""}.`
-            : `Creating pins… ${completed} of ${total}`}
+            ? `${completed} of ${total} created${failed.length ? ` — couldn't create: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "…" : ""}` : error ? ` — ${error}` : ""}.`
+            : completed === 0
+              ? `Getting place details and tags for ${total} pins…`
+              : `Creating pins… ${completed} of ${total}`}
       </p>
     </div>
   );
