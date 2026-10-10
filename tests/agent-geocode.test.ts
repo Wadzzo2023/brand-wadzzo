@@ -13,7 +13,7 @@ vi.mock("../package/express-wadzzo/src/lib/db", () => ({
 }));
 vi.mock("../package/express-wadzzo/src/lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
-const { geocode } = await import("../package/express-wadzzo/src/agent/google");
+const { geocode, searchPlaces } = await import("../package/express-wadzzo/src/agent/google");
 const { cacheKey } = await import("../package/express-wadzzo/src/agent/geo-cache");
 
 afterEach(() => {
@@ -39,5 +39,24 @@ describe("finding where a place is", () => {
   it("keeps names in other scripts apart in the cache", () => {
     expect(cacheKey("geocode", "সাভার")).not.toBe(cacheKey("geocode", "ঢাকা"));
     expect(cacheKey("geocode", "Savar")).toBe(cacheKey("geocode", "  savar "));
+  });
+
+  it("asks Google for every page with the same area restriction", async () => {
+    vi.stubEnv("GOOGLE_MAP_API_KEY", "test-key");
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(init!.body as string) as Record<string, unknown>;
+        bodies.push(body);
+        const page = bodies.length;
+        const places = Array.from({ length: 20 }, (_, i) => ({ id: `p${page}_${i}`, displayName: { text: "Park" }, location: { latitude: 41.8, longitude: -90.2 } }));
+        return new Response(JSON.stringify({ places, nextPageToken: page < 3 ? `t${page}` : undefined }));
+      }),
+    );
+    const found = await searchPlaces("parks", { south: 41.7, west: -90.4, north: 42, east: -90.1 }, 60);
+    expect(found).toHaveLength(60);
+    expect(bodies).toHaveLength(3);
+    expect(bodies[1]).toMatchObject({ pageToken: "t1", locationRestriction: bodies[0]!.locationRestriction, textQuery: "parks" });
   });
 });
