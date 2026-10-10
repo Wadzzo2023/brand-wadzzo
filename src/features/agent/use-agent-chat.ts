@@ -102,7 +102,9 @@ export function useAgentChat(creatorId?: string) {
               ? { ...m, blocks: m.blocks.map((b) => (b.kind === "choices" && b.id === answer.blockId ? { ...b, answered: answer.labels } : b)) }
               : m,
           );
-          return { id, title: old?.title ?? body.slice(0, 80), actions: old?.actions ?? {}, messages: [...messages, res.userMessage] };
+          // A refetch that finished meanwhile may already include it.
+          const fresh = messages.some((m) => m.id === res.userMessage.id) ? messages : [...messages, res.userMessage];
+          return { id, title: old?.title ?? body.slice(0, 80), actions: old?.actions ?? {}, messages: fresh };
         });
         setConversationId(id);
         setSteps([]);
