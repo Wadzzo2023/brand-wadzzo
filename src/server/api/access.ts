@@ -58,6 +58,31 @@ export async function assertCreatorInScope(ctx: AuthCtx, creatorId: string) {
   return creator.platformId;
 }
 
+/**
+ * The brand a request acts for. With no `requestedId` (or the caller's own id) it
+ * is the caller's own brand, which must be approved and on this platform. Any
+ * other brand needs an admin of this platform whose scope covers it.
+ */
+export async function resolveActingBrand(ctx: AuthCtx, requestedId?: string | null) {
+  const userId = ctx.session.user.id;
+  const creatorId = requestedId ?? userId;
+  const creator = await ctx.db.creator.findUnique({
+    where: { id: creatorId },
+    select: { platformId: true, aprovalSend: true, approved: true },
+  });
+
+  if (creatorId === userId) {
+    if (!creator?.aprovalSend || creator.approved !== true || creator.platformId !== ctx.platform.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Creator access requires an approved brand account" });
+    }
+  } else {
+    if (!(await isAdmin(ctx))) throw new TRPCError({ code: "FORBIDDEN", message: "Only an admin can act for another brand" });
+    if (!creator || !inPlatformScope(ctx, creator.platformId)) throw new TRPCError({ code: "NOT_FOUND", message: "Brand not found" });
+  }
+
+  return { creatorId, platformId: creator.platformId };
+}
+
 /** Checks the user joined this deployment's platform (always true on the root platform). */
 export async function assertUserInScope(ctx: AuthCtx, userId: string) {
   if (ctx.platform.isRoot) return;

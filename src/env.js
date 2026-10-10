@@ -13,6 +13,8 @@ export const env = createEnv({
       .default("wadzzo"),
     /** The Express task server (package/express-wadzzo). Required outside production. */
     EXPRESS_SERVER_URL: z.string().url().optional(),
+    /** Shared secret the task server requires on every call (its TASK_SERVER_SECRET). */
+    TASK_SERVER_SECRET: z.string().min(32).optional(),
     DATABASE_URL: z
       .string()
       .url()
@@ -93,6 +95,7 @@ export const env = createEnv({
     PLATFORM_SLUG: process.env.PLATFORM_SLUG,
     NEXT_PUBLIC_FAN_APP_URL: process.env.NEXT_PUBLIC_FAN_APP_URL,
     EXPRESS_SERVER_URL: process.env.EXPRESS_SERVER_URL,
+    TASK_SERVER_SECRET: process.env.TASK_SERVER_SECRET,
     NEXT_PUBLIC_SITE: process.env.NEXT_PUBLIC_SITE,
     NEXT_PUBLIC_PLATFORM_CREATOR_TERM:
       process.env.NEXT_PUBLIC_PLATFORM_CREATOR_TERM,

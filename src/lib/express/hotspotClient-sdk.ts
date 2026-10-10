@@ -4,17 +4,16 @@
 // Calls the Express task server's /hotspots API directly —
 // these are fast DB + cron operations, not long-running jobs.
 //
-// Auth: The /hotspots routes on Express have NO auth middleware.
-// Ownership is enforced by passing creatorId in every request body/query,
-// and the route handlers do a DB ownership check (findFirst { creatorId }).
+// Auth: every call carries the shared task-server secret (taskServerHeaders).
+// The caller (a tRPC procedure) must already have checked the user may manage
+// creatorId; the route handlers then scope each query to it.
 //
 // Note: GET routes pass creatorId as a query param (no body on GET).
 //       POST/DELETE routes pass creatorId in the JSON body.
 
-import { taskServerUrl } from "./server-url";
+import { taskServerHeaders, taskServerUrl } from "./server-url";
 
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
@@ -96,7 +95,7 @@ export const hotspotClient = {
     ): Promise<{ hotspotId: string }> {
         const res = await fetch(`${taskServerUrl()}/hotspots`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ ...input, creatorId }),  // creatorId in body — ownership scoping
         });
         return handleResponse<{ hotspotId: string }>(res);
@@ -106,13 +105,13 @@ export const hotspotClient = {
 
     async list(creatorId: string): Promise<{ hotspots: HotspotSummary[] }> {
         const url = `${taskServerUrl()}/hotspots?creatorId=${encodeURIComponent(creatorId)}`;
-        const res = await fetch(url, { headers: JSON_HEADERS });
+        const res = await fetch(url, { headers: taskServerHeaders() });
         return handleResponse<{ hotspots: HotspotSummary[] }>(res);
     },
 
     async get(creatorId: string, hotspotId: string): Promise<HotspotDetail> {
         const url = `${taskServerUrl()}/hotspots/${hotspotId}?creatorId=${encodeURIComponent(creatorId)}`;
-        const res = await fetch(url, { headers: JSON_HEADERS });
+        const res = await fetch(url, { headers: taskServerHeaders() });
         return handleResponse<HotspotDetail>(res);
     },
 
@@ -121,7 +120,7 @@ export const hotspotClient = {
     async pause(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
         const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/pause`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ creatorId }),
         });
         return handleResponse<HotspotActionResult>(res);
@@ -130,7 +129,7 @@ export const hotspotClient = {
     async resume(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
         const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/resume`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ creatorId }),
         });
         return handleResponse<HotspotActionResult>(res);
@@ -140,7 +139,7 @@ export const hotspotClient = {
     async update(creatorId: string, hotspotId: string, input: UpdateHotspotInput): Promise<HotspotActionResult & { rescheduled: boolean }> {
         const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}`, {
             method: "PATCH",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ creatorId, ...input }),
         });
         return handleResponse<HotspotActionResult & { rescheduled: boolean }>(res);
@@ -149,7 +148,7 @@ export const hotspotClient = {
     async delete(creatorId: string, hotspotId: string): Promise<HotspotActionResult> {
         const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}`, {
             method: "DELETE",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ creatorId }),
         });
         return handleResponse<HotspotActionResult>(res);
@@ -162,7 +161,7 @@ export const hotspotClient = {
     ): Promise<{ ok: boolean; result?: unknown; reason?: string }> {
         const res = await fetch(`${taskServerUrl()}/hotspots/${hotspotId}/drop`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ creatorId }),
         });
         return handleResponse<{ ok: boolean; result?: unknown; reason?: string }>(res);

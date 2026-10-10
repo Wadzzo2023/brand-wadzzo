@@ -1,22 +1,23 @@
-// client-sdk/task-client.ts
-// Copy this file into your Next.js project at ~/lib/task-client.ts
-//
-// Next.js is now a THIN CLIENT — it only enqueues jobs and polls for results.
-// All agent/pipeline/DB logic runs on the Express task server.
+// Client for the Express task server's job queue (package/express-wadzzo).
+// Long work (the map agent, bulk pin creation) runs there; this app enqueues it
+// and polls. Callers must check the user may act for `creatorId` first.
 
-import { taskServerUrl } from "./server-url";
+import { taskServerHeaders, taskServerUrl } from "./server-url";
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
 
 export type JobType = "agent_run" | "create_pins" | "generic";
 export type JobStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
 
 export interface PollResult {
     jobId: string;
+    /** The brand the job runs for — check the caller may see it before returning anything. */
+    creatorId: string;
     status: JobStatus;
     result: unknown;
     error?: string;
     progress: number;
+    /** agent_run: what the agent is doing (AgentStep[]). */
+    steps?: unknown[];
 }
 
 export const taskClient = {
@@ -29,7 +30,7 @@ export const taskClient = {
     ): Promise<{ jobId: string }> {
         const res = await fetch(`${taskServerUrl()}/jobs/enqueue`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
             body: JSON.stringify({ type, creatorId, payload, maxAttempts }),
         });
         if (!res.ok) {
@@ -42,7 +43,7 @@ export const taskClient = {
     /** Poll once — compatible with your existing pollJobResult tRPC shape. */
     async poll(jobId: string): Promise<PollResult> {
         const res = await fetch(`${taskServerUrl()}/jobs/${jobId}`, {
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
         });
         if (res.status === 404) throw new Error("Job not found");
         if (!res.ok) throw new Error(`Poll error: ${res.status}`);
@@ -53,7 +54,7 @@ export const taskClient = {
     async cancel(jobId: string): Promise<void> {
         await fetch(`${taskServerUrl()}/jobs/${jobId}/cancel`, {
             method: "POST",
-            headers: JSON_HEADERS,
+            headers: taskServerHeaders(),
         });
     },
 };

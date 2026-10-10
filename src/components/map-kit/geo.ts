@@ -53,6 +53,12 @@ export function circleFeature(center: LatLng, edge: LatLng): StoredFeature {
   };
 }
 
+/** Circle of `radiusMetres` around `center` (same stored format as a drawn circle). */
+export function circleAround(center: LatLng, radiusMetres: number): StoredFeature {
+  const dLng = ((radiusMetres / EARTH_R) * (180 / Math.PI)) / Math.cos((center.lat * Math.PI) / 180);
+  return circleFeature(center, { lat: center.lat, lng: center.lng + dLng });
+}
+
 /** Stored [lat, lng] ring → Mapbox [lng, lat] Feature for drawing. */
 export function toMapboxFeature(f: { geometry?: { coordinates?: number[][][] } } | null | undefined, properties: Record<string, unknown> = {}) {
   const ring = f?.geometry?.coordinates?.[0];

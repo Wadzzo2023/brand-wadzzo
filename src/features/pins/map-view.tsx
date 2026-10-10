@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MapRef } from "react-map-gl/mapbox";
 
-import AgentChat from "~/components/agent/AgentChat";
 import { BaseMap, WORLD_VIEW } from "~/components/map-kit/base-map";
 import { DrawTool } from "~/components/map-kit/draw-tool";
 import { toMapboxFeature, type DrawShape, type StoredFeature } from "~/components/map-kit/geo";
@@ -20,6 +19,8 @@ import PinDetailAndActionsModal from "~/components/modals/pin-detail-modal";
 import { Button } from "~/components/shadcn/ui/button";
 import { Label } from "~/components/shadcn/ui/label";
 import { Switch } from "~/components/shadcn/ui/switch";
+import { AgentChat } from "~/features/agent/agent-chat";
+import { AgentMapLayer } from "~/features/agent/agent-map";
 import { useCopyCutModalStore } from "~/store/copy-cut-modal-store";
 import { useHotspotDraft } from "~/store/hotspot-draft";
 import { useMapInteractionStore, useNearbyPinsStore } from "~/store/map-stores";
@@ -191,6 +192,7 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
               />
             );
           })}
+        {!drawing && <AgentMapLayer />}
         {drawing && <DrawTool initialShape={drawShape} onDone={onDrawn} onCancel={() => setDrawing(false)} />}
       </BaseMap>
 

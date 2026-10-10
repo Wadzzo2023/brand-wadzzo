@@ -15,3 +15,10 @@ export function taskServerUrl() {
     );
   return url.replace(/\/$/, "");
 }
+
+/** Headers for every task-server call: JSON, plus the shared secret it requires. */
+export function taskServerHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (env.TASK_SERVER_SECRET) headers["X-Task-Secret"] = env.TASK_SERVER_SECRET;
+  return headers;
+}

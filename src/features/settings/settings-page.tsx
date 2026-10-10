@@ -1,7 +1,7 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { Camera, Coins, Crown, Copy, ExternalLink, FileText, Link2, Loader2, MapPin, Package, Pencil, Target, UserRound, Users } from "lucide-react";
+import { Camera, Coins, Crown, Copy, ExternalLink, FileText, Link2, Loader2, MapPin, MapPinned, Package, Pencil, Target, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
@@ -17,6 +17,7 @@ import { usePortalAccess } from "~/components/shell/use-portal-access";
 import { htmlToText } from "~/ui/ai/shared";
 import { AiTextButton } from "~/ui/ai/ai-text";
 import { BountyCard } from "~/features/bounties/bounties-page";
+import { HomeAreaTab } from "~/features/home-area/home-area-pages";
 import { MembershipTiers } from "~/features/membership/membership-page";
 import { AssetCard } from "~/features/stores/stores-page";
 import { WADZZO_AR_URL } from "~/lib/embed";
@@ -36,7 +37,7 @@ import { PageAssetTab } from "./page-asset-tab";
 import { VANITY_HOST, VanityUrlTab } from "./vanity-url-tab";
 
 type Overview = NonNullable<RouterOutputs["fan"]["creator"]["profileOverview"]>;
-type Tab = "pins" | "posts" | "bounties" | "store" | "page-asset" | "membership" | "vanity";
+type Tab = "pins" | "posts" | "bounties" | "store" | "page-asset" | "membership" | "vanity" | "home-area";
 const BIO_MAX = 100;
 
 /**
@@ -86,6 +87,7 @@ function Profile({ data }: { data: Overview }) {
     { id: "page-asset", label: "Page asset", icon: Coins },
     { id: "membership", label: "Membership", icon: Crown, gated: true },
     { id: "vanity", label: "Vanity URL", icon: Link2 },
+    { id: "home-area", label: "Home area", icon: MapPinned },
   ];
   const visible = tabs.filter((t) => !t.gated || navPermission);
   const param = search?.get("tab") as Tab | null;
@@ -221,6 +223,9 @@ function Profile({ data }: { data: Overview }) {
             <MembershipTiers onSetUpPageAsset={() => setTab("page-asset")} />
           </TabsContent>
         )}
+        <TabsContent value="home-area" className="mt-5">
+          <HomeAreaTab />
+        </TabsContent>
         <TabsContent value="vanity" className="mt-5">
           <VanityUrlTab key={data.vanityURL ?? ""} vanityURL={data.vanityURL} subscription={data.vanitySubscription} />
         </TabsContent>

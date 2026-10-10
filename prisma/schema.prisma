@@ -232,6 +232,12 @@ model Creator {
     events        CreatorEvent[]
     announcements CreatorAnnouncement[]
     mapEmbeds          MapEmbed[]
+    agentConversations AgentConversation[]
+
+    // The brand's own home area; overrides its platform's (see Platform.homeArea).
+    homeArea     Json?
+    homeAreaName String?
+
     // white-label platform this row belongs to (see model Platform)
     platformId String   @default("wadzzo")
     platform   Platform @relation(fields: [platformId], references: [id])
@@ -916,7 +922,8 @@ model QRDescription {
     @@index([qrItemId, order])
 }
 
-// Pin Agent Chat Session
+/// Deprecated: the old pin-analysis chat, unused since the map agent rebuild
+/// (see AgentConversation). Kept so existing rows aren't dropped without a decision.
 model PinAgentChatSession {
     id        String  @id @default(cuid())
     creatorId String
@@ -931,7 +938,7 @@ model PinAgentChatSession {
     @@index([creatorId, updatedAt])
 }
 
-// Pin Agent Chat History
+/// Deprecated: see PinAgentChatSession.
 model PinAgentChatHistory {
     id        String  @id @default(cuid())
     creatorId String
@@ -971,6 +978,8 @@ model LocationGroupJob {
     @@index([creatorId, createdAt])
 }
 
+/// Deprecated: nothing reads or writes this since the map agent rebuild. Kept so
+/// existing rows aren't dropped without a decision.
 model AgentJob {
     id        String  @id @default(cuid())
     creatorId String
@@ -985,6 +994,62 @@ model AgentJob {
     updatedAt DateTime @updatedAt
 
     @@index([creatorId, createdAt])
+}
+
+// ------------------------MAP AGENT (chat on the Pins map)-------------------------
+
+/// One chat between a person and the map agent, acting for one brand. Listed per
+/// brand AND per person, so an admin acting for a brand keeps their own chats.
+model AgentConversation {
+    id         String   @id @default(cuid())
+    creatorId  String
+    creator    Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    platformId String
+    platform   Platform @relation(fields: [platformId], references: [id])
+    userId     String // who is chatting: the brand itself, or an admin acting for it
+    title      String
+
+    messages AgentMessage[]
+    actions  AgentAction[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([creatorId, userId, updatedAt])
+}
+
+model AgentMessage {
+    id             String            @id @default(cuid())
+    conversationId String
+    conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+    role   String // "user" | "assistant"
+    text   String @db.Text
+    blocks Json   @default("[]") // cards shown with the message (AgentBlock[])
+    steps  Json   @default("[]") // what the agent did while answering (AgentStep[])
+
+    createdAt DateTime @default(now())
+
+    @@index([conversationId, createdAt])
+}
+
+/// A change the agent proposed. Nothing happens until the person confirms it;
+/// the brand app then re-checks access and carries it out once.
+model AgentAction {
+    id             String            @id @default(cuid())
+    conversationId String
+    conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    creatorId      String
+
+    type    String
+    payload Json
+    status  String @default("pending") // pending | running | done | failed | cancelled
+    result  Json?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([conversationId])
 }
 
 model GeoCache {
@@ -1387,6 +1452,14 @@ model Platform {
     active      Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
+
+    // Default home area for this platform's brands (the map agent searches here
+    // unless told otherwise). A polygon Feature in the map kit's [lat, lng]
+    // storage format (src/components/map-kit/geo.ts). A brand may override it.
+    homeArea     Json?
+    homeAreaName String?
+
+    agentConversations AgentConversation[]
 
     signups            User[]         @relation("SignupPlatform")
     members            UserPlatform[]

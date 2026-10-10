@@ -109,7 +109,7 @@ async function ownAnnouncement(db: Db, creatorId: string, id: string) {
   return row;
 }
 
-function eventData(input: z.infer<typeof EventInput>) {
+export function eventData(input: z.infer<typeof EventInput>) {
   return {
     title: input.title,
     description: input.description,
@@ -126,7 +126,7 @@ function eventData(input: z.infer<typeof EventInput>) {
   };
 }
 
-function announcementData(input: z.infer<typeof AnnouncementInput>) {
+export function announcementData(input: z.infer<typeof AnnouncementInput>) {
   return {
     title: input.title,
     body: input.body,

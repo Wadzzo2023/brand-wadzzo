@@ -18,6 +18,7 @@ import { pinAgentRouter } from "./routers/pin-agent";
 import { tagRouter } from "./routers/tags";
 import { eventsRouter } from "./routers/events";
 import { embedsRouter } from "./routers/embeds";
+import { homeAreaRouter } from "./routers/home-area";
 /**
  * This is the primary router for your server.
  *
@@ -43,6 +44,7 @@ export const appRouter = createTRPCRouter({
   tag: tagRouter,
   events: eventsRouter,
   embeds: embedsRouter,
+  homeArea: homeAreaRouter,
 });
 
 // export type definition of API

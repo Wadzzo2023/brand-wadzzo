@@ -21,6 +21,7 @@ import {
   ImagePlus,
   ScrollText,
   type LucideIcon,
+  MapPinned,
 } from "lucide-react";
 
 /**
@@ -90,6 +91,7 @@ export const ADMIN_NAV: NavGroup = {
     { href: "/admin/pins", label: "Pin review", shortLabel: "Review", icon: MapPin },
     { href: "/admin/murals", label: "Mural review", shortLabel: "Murals", icon: Frame },
     { href: "/admin/maps", label: "All maps", shortLabel: "Maps", icon: Map },
+    { href: "/admin/home-area", label: "Home area", shortLabel: "Area", icon: MapPinned },
     { href: "/admin/reports", label: "Collection reports", shortLabel: "Reports", icon: Flag },
     { href: "/admin/audit", label: "Audit log", shortLabel: "Audit", icon: ScrollText, superAdmin: true },
     { href: "/admin/platforms", label: "Platforms", icon: Building2, superAdmin: true },
