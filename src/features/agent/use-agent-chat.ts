@@ -184,6 +184,7 @@ export function useAgentChat(creatorId?: string) {
     confirm,
     cancel,
     confirming: confirmMutation.isPending ? confirmMutation.variables.actionId : undefined,
+    cancelling: cancelMutation.isPending ? cancelMutation.variables.actionId : undefined,
     newChat,
     openConversation: setConversationId,
   };

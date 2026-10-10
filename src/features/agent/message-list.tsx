@@ -125,6 +125,7 @@ function Block({ block, message, chat, linkable, canAnswer }: { block: AgentBloc
           block={block}
           state={chat.actions[block.actionId]}
           busy={chat.confirming === block.actionId}
+          cancelling={chat.cancelling === block.actionId}
           onConfirm={(edits) => chat.confirm(block.actionId, edits)}
           onCancel={() => void chat.cancel(block.actionId)}
         />

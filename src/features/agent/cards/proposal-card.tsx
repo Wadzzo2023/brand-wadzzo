@@ -22,19 +22,22 @@ export function ProposalCard({
   block,
   state,
   busy,
+  cancelling,
   onConfirm,
   onCancel,
 }: {
   block: Proposal;
   state: ActionState | undefined;
+  /** Confirming right now. */
   busy: boolean;
+  cancelling: boolean;
   onConfirm: (edits?: ActionEdits) => Promise<boolean>;
   onCancel: () => void;
 }) {
   const { action } = block;
   const status = state?.status ?? "pending";
   const open = status === "pending";
-  const locked = !open || busy;
+  const locked = !open || busy || cancelling;
 
   // Editable parts of the proposal.
   const [keep, setKeep] = useState<Set<string>>(() => new Set(action.type === "create_pins" ? action.items.map((i) => i.key) : []));
@@ -82,11 +85,11 @@ export function ProposalCard({
       <footer className="flex flex-wrap items-center gap-2 px-3 py-2.5">
         {status === "pending" && (
           <>
-            <Button size="sm" variant={destructive ? "destructive" : "default"} onClick={confirm} disabled={busy || (action.type === "create_pins" && keep.size === 0)}>
+            <Button size="sm" variant={destructive ? "destructive" : "default"} onClick={confirm} disabled={busy || cancelling || (action.type === "create_pins" && keep.size === 0)}>
               {busy ? <Loader2 className="animate-spin" /> : <Check />} {confirmLabel}
             </Button>
-            <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-              Cancel
+            <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy || cancelling}>
+              {cancelling && <Loader2 className="animate-spin" />} {cancelling ? "Cancelling…" : "Cancel"}
             </Button>
             {state?.result?.message && <p className="w-full text-xs text-destructive">{state.result.message}</p>}
           </>

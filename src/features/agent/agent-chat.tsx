@@ -194,8 +194,9 @@ function Conversations({
   const utils = api.useUtils();
   const list = api.agent.conversations.useQuery({ creatorId }, { enabled: open });
   const remove = api.agent.deleteConversation.useMutation({
-    onSuccess: (_, v) => {
-      void utils.agent.conversations.invalidate();
+    // Keep the spinner until the list no longer shows the chat.
+    onSuccess: async (_, v) => {
+      await utils.agent.conversations.invalidate();
       if (v.id === currentId) onNew();
     },
     onError: (e) => toast.error(e.message),
@@ -217,26 +218,39 @@ function Conversations({
           <p className="px-2 py-3 text-xs text-muted-foreground">No chats yet.</p>
         ) : (
           <div className="max-h-80 overflow-y-auto scrollbar-thin">
-            {list.data.map((c) => (
-              <DropdownMenuItem key={c.id} onSelect={() => onOpen(c.id)} className={cn("group gap-2", c.id === currentId && "bg-accent")}>
+            {list.data.map((c) => {
+              const deleting = remove.isPending && remove.variables.id === c.id;
+              return (
+              <DropdownMenuItem
+                key={c.id}
+                disabled={deleting}
+                onSelect={() => onOpen(c.id)}
+                className={cn("group gap-2", c.id === currentId && "bg-accent", deleting && "opacity-60")}
+              >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{c.title}</span>
                   <span className="block text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}</span>
                 </span>
-                <button
-                  type="button"
-                  className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100"
-                  aria-label={`Delete “${c.title}”`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    remove.mutate({ creatorId, id: c.id });
-                  }}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                {deleting ? (
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Deleting" />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={remove.isPending}
+                    className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100 disabled:pointer-events-none"
+                    aria-label={`Delete “${c.title}”`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      remove.mutate({ creatorId, id: c.id });
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
               </DropdownMenuItem>
-            ))}
+              );
+            })}
           </div>
         )}
       </DropdownMenuContent>
