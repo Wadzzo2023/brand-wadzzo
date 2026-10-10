@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, History, MapPin, MapPinOff, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, History, Loader2, MapPin, MapPinOff, Plus, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -221,34 +221,34 @@ function Conversations({
             {list.data.map((c) => {
               const deleting = remove.isPending && remove.variables.id === c.id;
               return (
-              <DropdownMenuItem
-                key={c.id}
-                disabled={deleting}
-                onSelect={() => onOpen(c.id)}
-                className={cn("group gap-2", c.id === currentId && "bg-accent", deleting && "opacity-60")}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{c.title}</span>
-                  <span className="block text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}</span>
-                </span>
-                {deleting ? (
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Deleting" />
-                ) : (
-                  <button
-                    type="button"
-                    disabled={remove.isPending}
-                    className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100 disabled:pointer-events-none"
-                    aria-label={`Delete “${c.title}”`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      remove.mutate({ creatorId, id: c.id });
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                )}
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  key={c.id}
+                  disabled={deleting}
+                  onSelect={() => onOpen(c.id)}
+                  className={cn("group gap-2", c.id === currentId && "bg-accent", deleting && "opacity-60")}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{c.title}</span>
+                    <span className="block text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}</span>
+                  </span>
+                  {deleting ? (
+                    <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Deleting" />
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={remove.isPending}
+                      className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100 disabled:pointer-events-none"
+                      aria-label={`Delete “${c.title}”`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        remove.mutate({ creatorId, id: c.id });
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </DropdownMenuItem>
               );
             })}
           </div>
