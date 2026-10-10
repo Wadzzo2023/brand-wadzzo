@@ -1,0 +1,8 @@
+{
+  // Type-checks the tests (`pnpm typecheck:tests`). Kept out of the app's
+  // tsconfig so `next build` doesn't need the task server's packages.
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["../next-env.d.ts", "**/*.ts", "../src/**/*.ts", "../src/**/*.tsx", "../src/env.js"],
+  "exclude": []
+}

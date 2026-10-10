@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "lint": "eslint .",
     "start": "next start",
-    "test": "vitest"
+    "test": "vitest",
+    "typecheck:tests": "tsc -p tests"
   },
   "dependencies": {
     "@albedo-link/intent": "^0.12.0",

@@ -48,10 +48,13 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  // express-wadzzo is its own project with its own tsconfig.
+  // express-wadzzo is its own project with its own tsconfig. Tests have their
+  // own (tests/tsconfig.json): some import the task server's code, whose
+  // packages aren't installed where the app is built (e.g. Vercel).
   "exclude": [
     "node_modules",
     ".next",
-    "package/express-wadzzo"
+    "package/express-wadzzo",
+    "tests"
   ]
 }
