@@ -97,6 +97,13 @@ export function AreaSearch({ onPick, className }: { onPick: (area: { name: strin
             <X className="size-4" />
           </button>
         )}
+        <button
+          type="submit"
+          disabled={text.trim().length < 2 || busy !== null}
+          className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          Search
+        </button>
       </form>
 
       {error && <p className="border-t px-3 py-2 text-xs text-destructive">{error}</p>}

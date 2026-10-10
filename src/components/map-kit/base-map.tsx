@@ -3,8 +3,8 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useTheme } from "next-themes";
-import { forwardRef, type ReactNode } from "react";
-import MapGL, { NavigationControl, type MapProps, type MapRef } from "react-map-gl/mapbox";
+import { forwardRef, useEffect, type ReactNode } from "react";
+import MapGL, { NavigationControl, useMap, type MapProps, type MapRef } from "react-map-gl/mapbox";
 
 import { env } from "~/env";
 import { cn } from "~/lib/utils";
@@ -18,6 +18,23 @@ export const MAP_STYLE = {
 } as const;
 
 export const WORLD_VIEW = { latitude: 22.55, longitude: 0, zoom: 2.4 };
+
+/**
+ * Mapbox only resizes its canvas with the window. Keep it filling its box when
+ * the box itself changes size (layout settling, panels opening), or part of the
+ * map stays blank.
+ */
+function FollowContainerSize() {
+  const { current } = useMap();
+  useEffect(() => {
+    const map = current?.getMap();
+    if (!map) return;
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [current]);
+  return null;
+}
 
 /**
  * The portal's one map: Mapbox, themed, with the same token everywhere.
@@ -45,6 +62,7 @@ export const BaseMap = forwardRef<
         maxZoom={20}
         {...props}
       >
+        <FollowContainerSize />
         {controls && <NavigationControl position={controlsPosition} showCompass={false} />}
         {children}
       </MapGL>
