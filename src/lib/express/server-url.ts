@@ -1,3 +1,5 @@
+import { createHmac } from "crypto";
+
 import { env } from "~/env";
 
 const PRODUCTION_URL = "https://portal.actn.xyz/wadzzo/api/";
@@ -16,9 +18,18 @@ export function taskServerUrl() {
   return url.replace(/\/$/, "");
 }
 
-/** Headers for every task-server call: JSON, plus the shared secret it requires. */
+/**
+ * The task server's key, derived from NEXTAUTH_SECRET (both servers share it) so
+ * the session secret itself is never sent. Must match the task server's
+ * middleware/auth.ts.
+ */
+export function taskServerKey(secret: string) {
+  return createHmac("sha256", secret).update("wadzzo-task-server").digest("hex");
+}
+
+/** Headers for every task-server call: JSON, plus the key it requires. */
 export function taskServerHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (env.TASK_SERVER_SECRET) headers["X-Task-Secret"] = env.TASK_SERVER_SECRET;
+  if (env.NEXTAUTH_SECRET) headers["X-Task-Secret"] = taskServerKey(env.NEXTAUTH_SECRET);
   return headers;
 }
