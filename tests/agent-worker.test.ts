@@ -18,7 +18,7 @@ const searchPlaces = vi.fn(async (_query: string, _box: unknown, _limit: number)
 vi.mock("../package/express-wadzzo/src/agent/google", () => ({ geocode, searchPlaces, findPlace: vi.fn() }));
 
 const { Run } = await import("../package/express-wadzzo/src/agent/run");
-const { inArea, inRing, tiles, areaFromFeature } = await import("../package/express-wadzzo/src/agent/area");
+const { inArea, inRing, tiles, areaFromFeature, searchBoxes } = await import("../package/express-wadzzo/src/agent/area");
 const { AGENT_TOOLS } = await import("../package/express-wadzzo/src/agent/tools");
 const { createJob } = await import("../package/express-wadzzo/src/lib/job-store");
 
@@ -56,8 +56,24 @@ describe("areas", () => {
     const area = areaFromFeature("Clinton", CLINTON_AREA)!;
     expect(inArea(area, 41.84, -90.19)).toBe(true);
     expect(inArea(area, 41.52, -90.57)).toBe(false); // Davenport
-    expect(inRing(area.ring!, 41.84, -90.19)).toBe(true);
+    expect(inRing(area.rings![0]!, 41.84, -90.19)).toBe(true);
     expect(tiles(area.box, 2)).toHaveLength(4);
+  });
+
+  it("handle a place in several parts, searching its big parts separately", () => {
+    // A "mainland", a big island far away, and a tiny islet.
+    const square = (s: number, w: number, size: number) => [[[s, w], [s, w + size], [s + size, w + size], [s + size, w], [s, w]]];
+    const country = { type: "Feature", properties: null, geometry: { type: "MultiPolygon", coordinates: [square(30, -110, 20), square(55, -160, 10), square(20, -156, 0.2)] } };
+    const area = areaFromFeature("Country", country)!;
+    expect(area.rings).toHaveLength(3);
+    expect(inArea(area, 40, -100)).toBe(true); // mainland
+    expect(inArea(area, 60, -155)).toBe(true); // island
+    expect(inArea(area, 20.1, -155.9)).toBe(true); // islet
+    expect(inArea(area, 45, -130)).toBe(false); // sea between them, inside the overall box
+    expect(searchBoxes(area)).toEqual([
+      { south: 30, north: 50, west: -110, east: -90 },
+      { south: 55, north: 65, west: -160, east: -150 },
+    ]);
   });
 });
 

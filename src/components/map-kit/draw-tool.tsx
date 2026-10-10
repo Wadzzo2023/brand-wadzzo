@@ -51,17 +51,25 @@ const SHAPES: { id: DrawShape; label: string; icon: typeof Hexagon; hint: [strin
 ];
 
 /**
- * Draw a hotspot area on a BaseMap (render it as a child of the map).
- * Emits the portal's stored feature format (see geo.ts) with its shape.
+ * Draw an area on a BaseMap (render it as a child of the map) — a hotspot by
+ * default. Emits the portal's stored feature format (see geo.ts) with its shape.
  */
 export function DrawTool({
   onDone,
   onCancel,
   initialShape = "polygon",
+  title = "Draw hotspot area",
+  minZoom = MIN_DRAW_ZOOM,
+  warnAboveMetres = LARGE_SPAN_M,
 }: {
   onDone: (feature: StoredFeature, shape: DrawShape) => void;
   onCancel: () => void;
   initialShape?: DrawShape;
+  title?: string;
+  /** Clicks below this zoom zoom in instead of placing a point (0 = draw at any zoom). */
+  minZoom?: number;
+  /** Areas wider than this get a "spreads pins thin" warning. */
+  warnAboveMetres?: number;
 }) {
   const { current: map } = useMap();
   const [shape, setShape] = useState<DrawShape>(initialShape);
@@ -74,7 +82,7 @@ export function DrawTool({
       return 0;
     }
   });
-  const tooFar = zoom < MIN_DRAW_ZOOM;
+  const tooFar = zoom < minZoom;
   const pointsRef = useRef(points);
   const doneRef = useRef(onDone);
 
@@ -89,7 +97,7 @@ export function DrawTool({
   const enough = (shape === "polygon" && points.length >= 3) || (shape !== "polygon" && points.length >= 2);
   const extent = enough ? span(points) : 0;
   const tooSmall = enough && extent < MIN_SPAN_M;
-  const large = extent > LARGE_SPAN_M;
+  const large = extent > warnAboveMetres;
   const complete = enough && !tooSmall;
 
   const finish = () => {
@@ -131,7 +139,7 @@ export function DrawTool({
 
     const updateCursor = () => {
       const z = m.getZoom();
-      if (z < MIN_DRAW_ZOOM) {
+      if (z < minZoom) {
         canvas.style.cursor = "zoom-in";
       } else {
         canvas.style.cursor = "crosshair";
@@ -146,7 +154,7 @@ export function DrawTool({
     updateZoom();
 
     const click = (e: mapboxgl.MapMouseEvent) => {
-      if (m.getZoom() < MIN_DRAW_ZOOM) {
+      if (m.getZoom() < minZoom) {
         m.flyTo({
           center: [e.lngLat.lng, e.lngLat.lat],
           zoom: 14,
@@ -183,7 +191,7 @@ export function DrawTool({
     };
 
     const move = (e: mapboxgl.MapMouseEvent) => {
-      if (m.getZoom() < MIN_DRAW_ZOOM) {
+      if (m.getZoom() < minZoom) {
         canvas.style.cursor = "zoom-in";
         setHover(null);
         return;
@@ -228,7 +236,7 @@ export function DrawTool({
       m.off("mousemove", move);
       m.off("dblclick", dbl);
     };
-  }, [map, shape]);
+  }, [map, shape, minZoom]);
 
   const drawn = feature ? toMapboxFeature(feature) : null;
   const vertices = {
@@ -289,7 +297,7 @@ export function DrawTool({
       {/* Top Floating Controls */}
       <div className="absolute left-1/2 top-3 z-20 w-[min(92%,440px)] -translate-x-1/2 rounded-xl border bg-card/95 p-3 shadow-lg backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <p className="font-hud text-sm font-semibold">Draw hotspot area</p>
+          <p className="font-hud text-sm font-semibold">{title}</p>
           <div className="ml-auto flex gap-1 rounded-lg bg-surface-2 p-0.5" role="radiogroup" aria-label="Shape">
             {SHAPES.map((s) => (
               <button
@@ -315,7 +323,7 @@ export function DrawTool({
           <PlaceSearch
             className="mt-3"
             placeholder="Jump to a place"
-            onSelect={(p) => map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(15, map.getZoom()), duration: 700 })}
+            onSelect={(p) => map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(minZoom ? 15 : 9, map.getZoom()), duration: 700 })}
           />
         )}
 

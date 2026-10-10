@@ -1,37 +1,31 @@
 "use client";
 
 import { Loader2, MapPinned, Pencil, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Layer, Source } from "react-map-gl/mapbox";
 import type { MapRef } from "react-map-gl/mapbox";
 
 import { BaseMap, WORLD_VIEW } from "~/components/map-kit/base-map";
 import { DrawTool } from "~/components/map-kit/draw-tool";
-import { toMapboxFeature, type StoredFeature } from "~/components/map-kit/geo";
-import { PlaceSearch } from "~/components/map-kit/place-search";
+import { areaBounds, toMapboxArea, type AreaFeature } from "~/components/map-kit/geo";
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
 
-export type Area = { name: string; feature: StoredFeature };
+import { AreaSearch } from "./area-search";
 
-function fit(map: MapRef | null, features: (StoredFeature | null | undefined)[]) {
-  const ring = features.flatMap((f) => toMapboxFeature(f)?.geometry.coordinates[0] ?? []);
-  if (!map || ring.length === 0) return;
-  const lngs = ring.map((p) => p[0]!);
-  const lats = ring.map((p) => p[1]!);
-  map.fitBounds(
-    [
-      [Math.min(...lngs), Math.min(...lats)],
-      [Math.max(...lngs), Math.max(...lats)],
-    ],
-    { padding: 40, duration: 0 },
-  );
+export type Area = { name: string; feature: AreaFeature };
+
+function fit(map: MapRef | null, features: (AreaFeature | null | undefined)[], duration = 0) {
+  const bounds = areaBounds(features);
+  // Room at the top for the search box.
+  if (map && bounds) map.fitBounds(bounds, { padding: { top: 80, bottom: 30, left: 30, right: 30 }, duration });
 }
 
 /**
- * Draw and name a home area. Shows the saved area (solid) and, when given, the
- * area used if this one is removed (dashed) — e.g. the platform default under
- * a brand's own.
+ * Set and name a home area: find a place's real outline by name (a county,
+ * city, state or country), or draw one. Shows the saved area (solid) and, when
+ * given, the area used if this one is removed (dashed) — e.g. the platform
+ * default under a brand's own.
  */
 export function HomeAreaEditor({
   current,
@@ -49,22 +43,24 @@ export function HomeAreaEditor({
 }) {
   const map = useRef<MapRef>(null);
   const [drawing, setDrawing] = useState(false);
-  const [draft, setDraft] = useState<StoredFeature | null>(null);
+  const [draft, setDraft] = useState<AreaFeature | null>(null);
   const [name, setName] = useState(current?.name ?? "");
 
   const layers = useMemo(() => {
     const shown = draft ?? current?.feature;
     return {
-      solid: toMapboxFeature(shown),
-      dashed: fallback && !draft ? toMapboxFeature(fallback.feature) : null,
+      solid: toMapboxArea(shown),
+      dashed: fallback && !draft ? toMapboxArea(fallback.feature) : null,
     };
   }, [draft, current, fallback]);
 
   const onLoad = useCallback(() => fit(map.current, [current?.feature, fallback?.feature]), [current, fallback]);
+  // Show a newly found or drawn area in full.
+  useEffect(() => fit(map.current, [draft], 700), [draft]);
 
   return (
     <div className="space-y-3">
-      <div className="relative h-[420px] overflow-hidden rounded-xl border">
+      <div className="relative h-[480px] overflow-hidden rounded-xl border">
         <BaseMap ref={map} initialViewState={WORLD_VIEW} onLoad={onLoad} cursor={drawing ? "crosshair" : "grab"}>
           {layers.dashed && (
             <Source id="home-fallback" type="geojson" data={layers.dashed}>
@@ -79,6 +75,9 @@ export function HomeAreaEditor({
           )}
           {drawing && (
             <DrawTool
+              title="Draw your home area"
+              minZoom={0}
+              warnAboveMetres={Infinity}
               onDone={(f) => {
                 setDraft(f);
                 setDrawing(false);
@@ -89,9 +88,15 @@ export function HomeAreaEditor({
         </BaseMap>
         {!drawing && (
           <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start gap-2">
-            <PlaceSearch className="pointer-events-auto w-full sm:w-72" onSelect={(p) => map.current?.flyTo({ center: [p.lng, p.lat], zoom: 10, duration: 700 })} />
-            <Button className="pointer-events-auto ml-auto shadow-sm" variant={current || draft ? "outline" : "default"} onClick={() => setDrawing(true)}>
-              <Pencil /> {current || draft ? "Redraw" : "Draw the area"}
+            <AreaSearch
+              className="pointer-events-auto w-full sm:w-96"
+              onPick={(a) => {
+                setDraft(a.feature);
+                setName(a.name);
+              }}
+            />
+            <Button className="pointer-events-auto ml-auto shadow-sm" variant="outline" onClick={() => setDrawing(true)}>
+              <Pencil /> {current || draft ? "Draw instead" : "Or draw it"}
             </Button>
           </div>
         )}
@@ -115,7 +120,7 @@ export function HomeAreaEditor({
           </Button>
           {draft && (
             <Button variant="ghost" onClick={() => setDraft(null)} disabled={saving}>
-              Discard drawing
+              Discard
             </Button>
           )}
           {current && !draft && removeLabel && (

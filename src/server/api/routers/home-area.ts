@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { areaOutline, findAreas } from "~/server/area-lookup";
 import { resolveActingBrand } from "~/server/api/access";
 import { adminProcedure, createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { logAudit } from "~/server/audit";
@@ -15,6 +16,14 @@ const BrandInput = z.object({ creatorId: z.string().optional() });
  * Wadzzo admins can set any platform's.
  */
 export const homeAreaRouter = createTRPCRouter({
+  /** Places with a real outline matching a name, from OpenStreetMap (public data). */
+  findPlaces: protectedProcedure.input(z.object({ query: z.string().trim().min(2).max(120) })).query(({ input }) => findAreas(input.query)),
+
+  /** The outline of a place from findPlaces, every part kept. */
+  outline: protectedProcedure
+    .input(z.object({ id: z.string().regex(/^[RW]\d{1,12}$/), spanDeg: z.number().min(0).max(360) }))
+    .query(({ input }) => areaOutline(input.id, input.spanDeg)),
+
   brand: protectedProcedure.input(BrandInput).query(async ({ ctx, input }) => {
     const { creatorId } = await resolveActingBrand(ctx, input.creatorId);
     const layers = await getHomeAreaLayers(ctx.db, creatorId);

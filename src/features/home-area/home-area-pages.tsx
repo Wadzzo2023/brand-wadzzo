@@ -39,8 +39,8 @@ export function HomeAreaTab() {
           {own
             ? "You're using your own area."
             : platform
-              ? `You're using ${platformName}'s default (${platform.name}, dashed). Draw your own to change it.`
-              : "Nothing is set yet — draw your area so the assistant knows where to look."}
+              ? `You're using ${platformName}'s default (${platform.name}, dashed). Find or draw your own to change it.`
+              : "Nothing is set yet — find your county, city or country below (or draw it) so the assistant knows where to look."}
         </p>
       </div>
       <HomeAreaEditor
@@ -76,7 +76,7 @@ export function HomeAreaAdminPage() {
       <PageHeader
         eyebrow="Admin"
         title="Home area"
-        description="The default area for every brand on the platform: the map assistant searches here unless a brand draws its own area or names another place."
+        description="The default area for every brand on the platform: the map assistant searches here unless a brand sets its own area or names another place."
         actions={
           isSuperAdmin && options.data ? (
             <Select value={platformId ?? platform.data?.id} onValueChange={setPlatformId}>

@@ -53,6 +53,16 @@ describe("home areas", () => {
     await expect(caller(ctxFor(CLINTON, "SOMEONE_ELSE")).saveBrand!({ creatorId: "CLINTON_BRAND", area: AREA })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("accepts a looked-up place in several parts", async () => {
+    const ring: number[][] = AREA.feature.geometry.coordinates[0]!;
+    const shifted = ring.map((p) => [p[0]! + 1, p[1]!]);
+    const multi = { ...AREA, feature: { type: "Feature", properties: null, geometry: { type: "MultiPolygon", coordinates: [[ring], [shifted]] } } };
+    const ctx = ctxFor(CLINTON, "CLINTON_BRAND");
+    await caller(ctx).saveBrand!({ area: multi });
+    const saved = (ctx.db.creator.update.mock.calls[0] as unknown as [{ data: { homeArea: unknown } }])[0];
+    expect(saved.data.homeArea).toEqual(multi.feature);
+  });
+
   it("rejects shapes that aren't a closed polygon", async () => {
     const bad = { ...AREA, feature: { ...AREA.feature, geometry: { type: "Polygon", coordinates: [[[41.7, -90.4], [999, 0]]] } } };
     await expect(caller(ctxFor(CLINTON, "CLINTON_BRAND")).saveBrand!({ area: bad })).rejects.toMatchObject({ code: "BAD_REQUEST" });

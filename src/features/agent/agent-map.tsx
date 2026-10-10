@@ -5,7 +5,7 @@ import { useEffect, useMemo } from "react";
 import { Layer, Marker, Source, useMap } from "react-map-gl/mapbox";
 import { create } from "zustand";
 
-import { toMapboxFeature, type StoredFeature } from "~/components/map-kit/geo";
+import { toMapboxArea, type AreaFeature } from "~/components/map-kit/geo";
 import { cn } from "~/lib/utils";
 
 export type AgentMarker = {
@@ -27,11 +27,11 @@ export const useAgentMap = create<{
   /** Which card the markers came from (re-showing the same card doesn't refit). */
   sourceId: string | null;
   focus: { id: string; lat: number; lng: number; at: number } | null;
-  homeArea: StoredFeature | null;
+  homeArea: AreaFeature | null;
   show: (sourceId: string, markers: AgentMarker[]) => void;
   clear: () => void;
   focusOn: (m: { id: string; lat: number; lng: number }) => void;
-  setHomeArea: (f: StoredFeature | null) => void;
+  setHomeArea: (f: AreaFeature | null) => void;
 }>()((set) => ({
   markers: [],
   sourceId: null,
@@ -55,7 +55,7 @@ export function AgentMapLayer() {
   const { markers, sourceId, focus, homeArea } = useAgentMap();
 
   const area = useMemo(() => {
-    const f = toMapboxFeature(homeArea);
+    const f = toMapboxArea(homeArea);
     return f ? { type: "FeatureCollection" as const, features: [f] } : null;
   }, [homeArea]);
 

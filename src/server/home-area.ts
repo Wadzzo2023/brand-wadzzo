@@ -1,15 +1,16 @@
 /**
  * Home areas: where a brand operates, so the map agent searches there by
  * default. Each platform can set a default (e.g. Clinton County); a brand may
- * draw its own instead. Stored like a hotspot area — a polygon Feature in the
- * map kit's [lat, lng] format (src/components/map-kit/geo.ts).
+ * set its own instead. Stored in the map kit's [lat, lng] format
+ * (src/components/map-kit/geo.ts): a drawn Polygon, or a looked-up place's
+ * MultiPolygon with one outer ring per part (a country's islands).
  */
 import { z } from "zod";
 
-import type { StoredFeature } from "~/components/map-kit/geo";
+import type { AreaFeature } from "~/components/map-kit/geo";
 import type { Db } from "~/server/db";
 
-export type HomeArea = { name: string; source: "brand" | "platform"; feature: StoredFeature };
+export type HomeArea = { name: string; source: "brand" | "platform"; feature: AreaFeature };
 
 const point = z.tuple([z.number().min(-90).max(90), z.number().min(-180).max(180)]);
 /** A ring point; a plain array to match GeoJSON's Position type. */
@@ -18,24 +19,29 @@ const ringPoint = z
   .length(2)
   .refine(([lat, lng]) => Math.abs(lat!) <= 90 && Math.abs(lng!) <= 180, "Point out of range");
 
-/** A drawn area: one closed ring of 4–2000 [lat, lng] points. */
-export const HomeAreaFeature = z.object({
-  type: z.literal("Feature"),
-  properties: z.object({ center: point.optional(), radiusMetres: z.number().positive().optional() }).nullable(),
-  geometry: z.object({
-    type: z.literal("Polygon"),
-    coordinates: z.array(z.array(ringPoint).min(4).max(2000)).length(1),
-  }),
-});
+const ring = z.array(ringPoint).min(4).max(5000);
+const MAX_POINTS = 6000;
+
+/** A drawn area (one ring) or a looked-up place (up to 100 parts, one outer ring each). */
+export const HomeAreaFeature = z
+  .object({
+    type: z.literal("Feature"),
+    properties: z.object({ center: point.optional(), radiusMetres: z.number().positive().optional() }).nullable(),
+    geometry: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("Polygon"), coordinates: z.array(ring).length(1) }),
+      z.object({ type: z.literal("MultiPolygon"), coordinates: z.array(z.array(ring).length(1)).min(1).max(100) }),
+    ]),
+  })
+  .refine((f) => f.geometry.coordinates.flat(2).length <= MAX_POINTS, "The area is too detailed");
 
 export const HomeAreaInput = z.object({
   name: z.string().trim().min(2, "Name the area, e.g. “Clinton County, IA”").max(80),
   feature: HomeAreaFeature,
 });
 
-function asFeature(value: unknown): StoredFeature | null {
+function asFeature(value: unknown): AreaFeature | null {
   const r = HomeAreaFeature.safeParse(value);
-  return r.success ? r.data : null;
+  return r.success ? (r.data as AreaFeature) : null;
 }
 
 /** The brand's own area, else its platform's default, else null. */
