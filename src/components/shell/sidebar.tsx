@@ -9,6 +9,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/comp
 import { cn } from "~/lib/utils";
 
 import { getPortalLandingRoute, getVisibleNavGroups } from "./access-rules";
+import { NotificationBell } from "~/components/notification/notification-bell";
+
 import { CreateMenu } from "./create-menu";
 import { isActive, type NavItem, type BrandEntry } from "./nav";
 import { UserMenu } from "./user-menu";
@@ -64,15 +66,23 @@ export function Sidebar({
               </span>
             </Link>
           )}
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-          </button>
+          <div className="flex items-center gap-0.5">
+            {!collapsed && isApprovedCreator && <NotificationBell side="right" align="start" />}
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
+            </button>
+          </div>
         </div>
+        {collapsed && isApprovedCreator && (
+          <div className="flex justify-center pt-2">
+            <NotificationBell side="right" align="start" />
+          </div>
+        )}
 
         {/* Create + balance */}
         <div className={cn("space-y-2 p-3", collapsed && "px-2")}>

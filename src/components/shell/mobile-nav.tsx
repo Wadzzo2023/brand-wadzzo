@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { NotificationBell } from "~/components/notification/notification-bell";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "~/components/shadcn/ui/drawer";
 import { cn } from "~/lib/utils";
 
@@ -13,9 +14,8 @@ import { ADMIN_NAV, adminNavFor, BRAND_NAV, CREATE_ACTIONS, isActive, brandEntry
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
 
-/** Phone top bar: logo, current section, account. */
-/** Phone top bar: logo, current section, account. */
-export function MobileTopBar({ title, homeHref = "/pins" }: { title?: string; homeHref?: string }) {
+/** Phone top bar: logo, current section, notifications, account. */
+export function MobileTopBar({ title, homeHref = "/pins", showBell = false }: { title?: string; homeHref?: string; showBell?: boolean }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 lg:hidden">
       <Link href={homeHref} className="flex items-center gap-2" aria-label="Home">
@@ -24,6 +24,7 @@ export function MobileTopBar({ title, homeHref = "/pins" }: { title?: string; ho
         </span>
       </Link>
       <span className="min-w-0 flex-1 truncate font-hud text-base font-semibold">{title ?? "Wadzzo"}</span>
+      {showBell && <NotificationBell />}
       <UserMenu compact />
     </header>
   );

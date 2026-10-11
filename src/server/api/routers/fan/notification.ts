@@ -1,13 +1,30 @@
 import { z } from "zod";
-import { Input } from "~/components/shadcn/ui/input";
 
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import * as inbox from "~/server/notification-inbox";
+
+const scope = z.enum(["brand", "fan"]);
+const ids = z.array(z.number().int()).min(1).max(200);
 
 export const notificationRouter = createTRPCRouter({
+  /** The inbox, newest first, repeats collapsed. `scope` brand = brand portal inbox, fan = fan inbox. */
+  inbox: protectedProcedure
+    .input(z.object({ scope, category: z.string().optional(), unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20), cursor: z.number().int().nullish() }))
+    .query(({ ctx, input }) => inbox.listInbox(ctx.db, ctx.session.user.id, input)),
+  inboxUnread: protectedProcedure.input(z.object({ scope })).query(({ ctx, input }) => inbox.unreadCount(ctx.db, ctx.session.user.id, input.scope)),
+  inboxUnreadByCategory: protectedProcedure.input(z.object({ scope })).query(({ ctx, input }) => inbox.unreadByCategory(ctx.db, ctx.session.user.id, input.scope)),
+  markRead: protectedProcedure.input(z.object({ ids })).mutation(async ({ ctx, input }) => void (await inbox.markRead(ctx.db, ctx.session.user.id, input.ids))),
+  markUnread: protectedProcedure.input(z.object({ ids })).mutation(async ({ ctx, input }) => void (await inbox.markUnread(ctx.db, ctx.session.user.id, input.ids))),
+  markAllRead: protectedProcedure
+    .input(z.object({ scope, category: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => void (await inbox.markAllRead(ctx.db, ctx.session.user.id, input.scope, input.category))),
+  remove: protectedProcedure.input(z.object({ ids })).mutation(async ({ ctx, input }) => void (await inbox.remove(ctx.db, ctx.session.user.id, input.ids))),
+  clearRead: protectedProcedure.input(z.object({ scope })).mutation(async ({ ctx, input }) => void (await inbox.clearRead(ctx.db, ctx.session.user.id, input.scope))),
+
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";
   }),

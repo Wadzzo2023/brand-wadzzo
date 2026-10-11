@@ -108,7 +108,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         brandEntry={access.brandEntry}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <MobileTopBar title={title} homeHref={homeHref} />
+        <MobileTopBar title={title} homeHref={homeHref} showBell={access.approved} />
         <main className="min-w-0 flex-1">{page}</main>
       </div>
       <MobileTabBar
