@@ -1,6 +1,7 @@
 "use client";
 
 import { Wallet } from "lucide-react";
+import Link from "next/link";
 
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances";
@@ -14,9 +15,11 @@ export function WalletBalance({ collapsed = false, className }: { collapsed?: bo
   const balance = useUserStellarAcc((s) => s.platformAssetBalance);
   if (!active) return null;
   return (
-    <div
-      className={cn("flex h-10 items-center gap-2.5 rounded-lg border bg-surface-2 px-2.5", collapsed && "justify-center px-0", className)}
-      title={`${fmt.format(balance)} ${PLATFORM_ASSET.code}`}
+    <Link
+      href="/wallet"
+      className={cn("flex h-10 items-center gap-2.5 rounded-lg border bg-surface-2 px-2.5 transition-colors hover:border-line-bright hover:bg-accent/50", collapsed && "justify-center px-0", className)}
+      title={`${fmt.format(balance)} ${PLATFORM_ASSET.code} · open wallet`}
+      aria-label="Open wallet"
     >
       <Wallet className="size-4 shrink-0 text-primary" />
       {!collapsed && (
@@ -24,6 +27,6 @@ export function WalletBalance({ collapsed = false, className }: { collapsed?: bo
           {fmt.format(balance)} <span className="text-xs font-medium text-muted-foreground">{PLATFORM_ASSET.code}</span>
         </span>
       )}
-    </div>
+    </Link>
   );
 }

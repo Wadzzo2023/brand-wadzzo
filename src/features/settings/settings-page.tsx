@@ -1,12 +1,13 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { Camera, Coins, Crown, Copy, ExternalLink, FileText, Link2, Loader2, MapPin, MapPinned, Package, Pencil, Target, UserRound, Users } from "lucide-react";
+import { Camera, Coins, Crown, Copy, ExternalLink, FileText, Link2, Loader2, MapPin, MapPinned, Package, Pencil, Target, UserRound, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
+import PostCard from "~/components/post/post-card";
 import { Badge } from "~/components/shadcn/ui/badge";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
@@ -14,7 +15,6 @@ import { Input } from "~/components/shadcn/ui/input";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { usePortalAccess } from "~/components/shell/use-portal-access";
-import { htmlToText } from "~/ui/ai/shared";
 import { AiTextButton } from "~/ui/ai/ai-text";
 import { BountyCard } from "~/features/bounties/bounties-page";
 import { HomeAreaTab } from "~/features/home-area/home-area-pages";
@@ -120,25 +120,18 @@ function Profile({ data }: { data: Overview }) {
               Add a bio
             </button>
           )}
-          <p className="mt-1 text-xs text-faint">Joined {format(new Date(data.joinedAt), "MMMM yyyy")}</p>
+          <p className="mt-1.5 text-sm font-medium">
+            {data.counts.followers.toLocaleString("en-US")} follower{data.counts.followers === 1 ? "" : "s"}
+          </p>
+          <p className="text-xs text-faint">Joined {format(new Date(data.joinedAt), "MMMM yyyy")}</p>
         </div>
         <Button variant="outline" onClick={() => setEditing(true)}>
           <Pencil /> Edit profile
         </Button>
       </div>
 
-      {/* Stats */}
-      <dl className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
-        <Stat label="Followers" value={data.counts.followers} icon={Users} />
-        <Stat label="Pins" value={data.counts.pins} icon={MapPin} onClick={() => setTab("pins")} />
-        <Stat label="Hotspots" value={data.counts.hotspots} icon={MapPin} href="/pins/manage" />
-        {navPermission && <Stat label="Posts" value={data.counts.posts} icon={FileText} onClick={() => setTab("posts")} />}
-        {navPermission && <Stat label="Bounties" value={data.counts.bounties} icon={Target} onClick={() => setTab("bounties")} />}
-        {navPermission && <Stat label="Store items" value={data.counts.storeItems} icon={Package} onClick={() => setTab("store")} />}
-      </dl>
-
       {/* Page asset + links */}
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
+      <div className="mt-5 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         <div className="flex items-center gap-3 rounded-xl border bg-card p-3">
           {data.pageAsset?.thumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -188,6 +181,8 @@ function Profile({ data }: { data: Overview }) {
             </a>
           </Button>
         </div>
+
+        <StorageCard />
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
@@ -205,7 +200,7 @@ function Profile({ data }: { data: Overview }) {
         {navPermission && (
           <>
             <TabsContent value="posts" className="mt-5">
-              <PostsTab creatorId={data.id} total={data.counts.posts} />
+              <PostsTab data={data} total={data.counts.posts} />
             </TabsContent>
             <TabsContent value="bounties" className="mt-5">
               <BountiesTab total={data.counts.bounties} />
@@ -480,53 +475,92 @@ function PinsTab({ pins, total }: { pins: Overview["recentPins"]; total: number 
   );
 }
 
-function PostsTab({ creatorId, total }: { creatorId: string; total: number }) {
-  const posts = api.fan.post.getPosts.useInfiniteQuery({ pubkey: creatorId, limit: 6 }, { getNextPageParam: (l) => l.nextCursor });
-  const items = posts.data?.pages[0]?.posts ?? [];
-  if (posts.isPending) return <GridSkeleton />;
-  if (posts.isError) return <ErrorState message={posts.error.message} onRetry={() => void posts.refetch()} />;
-  if (!items.length)
-    return (
-      <EmptyState
-        icon={FileText}
-        title="No posts yet"
-        description="Share news, media and perks with your followers."
-        action={
-          <Button asChild>
-            <Link href="/posts/new">New post</Link>
-          </Button>
-        }
-      />
-    );
+/** The brand's posts laid out like the fan app: feed cards on the left, About and the page link in a sticky side panel. */
+function PostsTab({ data, total }: { data: Overview; total: number }) {
+  const posts = api.fan.post.getPosts.useInfiniteQuery({ pubkey: data.id, limit: 10 }, { getNextPageParam: (l) => l.nextCursor });
+  const items = posts.data?.pages.flatMap((p) => p.posts) ?? [];
+  const newPost = (
+    <Button asChild>
+      <Link href="/posts/new">New post</Link>
+    </Button>
+  );
+
   return (
-    <>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {items.map((p) => {
-          const img = p.medias.find((m) => m.type === "IMAGE")?.url;
-          return (
-            <li key={p.id}>
-              <Link href={`/posts/${p.id}`} className="flex gap-3 rounded-xl border bg-card p-3 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary">
-                {img && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={img} alt="" className="size-20 shrink-0 rounded-lg object-cover" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium">{p.heading}</p>
-                    {p.subscription && <Badge variant="secondary">Members</Badge>}
-                  </div>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{htmlToText(p.content)}</p>
-                  <p className="mt-1 text-xs text-faint">
-                    {formatDistanceToNow(new Date(p.createdAt), { addSuffix: true })} · {p._count.likes} likes · {p._count.comments} comments
-                  </p>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      <TabFooter shown={items.length} total={total} href="/posts" label="All posts" />
-    </>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="min-w-0 space-y-4">
+        {posts.isPending ? (
+          [0, 1].map((i) => <Skeleton key={i} className="h-64 rounded-xl" />)
+        ) : posts.isError ? (
+          <ErrorState message={posts.error.message} onRetry={() => void posts.refetch()} />
+        ) : !items.length ? (
+          <EmptyState icon={FileText} title="No posts yet" description="Share news, media and perks with your followers." action={newPost} />
+        ) : (
+          <>
+            {items.map((post) => (
+              <PostCard key={post.id} post={post} creator={post.creator} likeCount={post._count.likes} commentCount={post._count.comments} locked={Boolean(post.subscription)} show media={post.medias} />
+            ))}
+            {posts.hasNextPage && (
+              <div className="flex justify-center">
+                <Button variant="outline" disabled={posts.isFetchingNextPage} onClick={() => void posts.fetchNextPage()}>
+                  {posts.isFetchingNextPage ? "Loading…" : "Load more"}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+        <section className="space-y-2 rounded-xl border bg-card p-4">
+          <h2 className="font-hud font-semibold">About</h2>
+          <p className="whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">{data.bio?.trim() ? data.bio : "No bio yet."}</p>
+          <p className="text-xs text-faint">
+            {data.counts.followers.toLocaleString("en-US")} follower{data.counts.followers === 1 ? "" : "s"} · {total.toLocaleString("en-US")} post{total === 1 ? "" : "s"}
+          </p>
+        </section>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/posts/new">New post</Link>
+        </Button>
+        <Button asChild variant="ghost" className="w-full">
+          <Link href="/posts">Manage all posts</Link>
+        </Button>
+      </aside>
+    </div>
+  );
+}
+
+/** Where the brand's item stock sits: address, XLM, and a way into the full wallet. */
+function StorageCard() {
+  const account = api.fan.storage.account.useQuery(undefined, { staleTime: 30_000 });
+  const a = account.data;
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-card p-3 md:col-span-2 xl:col-span-1">
+      <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Wallet className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Storage account</p>
+        {account.isPending ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : !a ? (
+          <p className="text-sm text-muted-foreground">Created when your brand is approved</p>
+        ) : (
+          <p className="truncate text-sm">
+            <span className="font-mono text-xs" title={a.publicKey}>
+              {addrShort(a.publicKey, 5)}
+            </span>{" "}
+            <span className="text-xs text-muted-foreground">
+              {a.active ? `${a.xlm.toLocaleString("en-US", { maximumFractionDigits: 2 })} XLM · ${a.tokens.length} asset${a.tokens.length === 1 ? "" : "s"}` : "not active yet"}
+            </span>
+          </p>
+        )}
+      </div>
+      {a && (
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/wallet">Open wallet</Link>
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -597,33 +631,6 @@ function StoreTab({ total }: { total: number }) {
   );
 }
 
-// ── Small pieces ──────────────────────────────────────────────────────────
-
-function Stat({ label, value, icon: Icon, onClick, href }: { label: string; value: number; icon: typeof Users; onClick?: () => void; href?: string }) {
-  const body = (
-    <>
-      <dt className="flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Icon className="size-3" /> {label}
-      </dt>
-      <dd className="font-hud text-lg font-semibold tabular-nums">{value.toLocaleString()}</dd>
-    </>
-  );
-  const cls = "block rounded-xl border bg-card px-3 py-2 text-left";
-  const interactive = "transition-colors hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-primary";
-  if (href)
-    return (
-      <Link href={href} className={cn(cls, interactive)}>
-        {body}
-      </Link>
-    );
-  if (onClick)
-    return (
-      <button type="button" onClick={onClick} className={cn(cls, interactive)}>
-        {body}
-      </button>
-    );
-  return <div className={cls}>{body}</div>;
-}
 
 function StatusBadge({ approved }: { approved: boolean | null }) {
   if (approved === true) return <Badge>Verified</Badge>;
