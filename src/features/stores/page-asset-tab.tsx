@@ -113,18 +113,9 @@ export function PageAssetTab() {
         </div>
       </section>
 
-      <div className="mt-8 flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-hud text-lg font-semibold">Sale listings</h2>
-          <p className="text-sm text-muted-foreground">Bundles of {pa.code} fans can buy from your store.</p>
-        </div>
-        {!pa.pending && (
-          <Button asChild variant="outline">
-            <Link href="/stores/page-asset/new">
-              <Plus /> New listing
-            </Link>
-          </Button>
-        )}
+      <div className="mt-8">
+        <h2 className="font-hud text-lg font-semibold">Sale listings</h2>
+        <p className="text-sm text-muted-foreground">Bundles of {pa.code} fans can buy from your store.</p>
       </div>
 
       {listings.isPending ? (
@@ -145,7 +136,7 @@ export function PageAssetTab() {
             !pa.pending && (
               <Button asChild>
                 <Link href="/stores/page-asset/new">
-                  <Plus /> Sell page asset
+                  <Plus /> New listing
                 </Link>
               </Button>
             )

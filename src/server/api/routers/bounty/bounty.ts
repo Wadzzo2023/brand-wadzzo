@@ -11,6 +11,7 @@ import { getAccSecretFromRubyApi } from "package/connect_wallet/src/lib/stellar/
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { assertOwnerOrAdmin } from "~/server/api/access";
+import { notify, notifyFan } from "~/server/notify";
 import { sortOptionEnum } from "~/types/bounty/bounty-type";
 import {
   checkXDRSubmitted,
@@ -685,10 +686,22 @@ export const BountyRoute = createTRPCRouter({
         throw new Error("Bounty not found");
       }
       await assertOwnerOrAdmin(ctx, bounty.creatorId);
+      const [joined, entered] = await Promise.all([
+        ctx.db.bountyParticipant.findMany({ where: { bountyId: input.BountyId }, select: { userId: true } }),
+        ctx.db.bountySubmission.findMany({ where: { bountyId: input.BountyId }, select: { userId: true } }),
+      ]);
       await ctx.db.bounty.delete({
         where: {
           id: input.BountyId,
         },
+      });
+      // The page is gone, so the title travels in the notification itself.
+      await notify(ctx.db, {
+        actorId: bounty.creatorId,
+        type: NotificationType.BOUNTY_CANCELLED,
+        entityId: input.BountyId,
+        recipients: [...joined, ...entered].map((p) => p.userId),
+        meta: { bounty: bounty.title },
       });
     }),
   getCurrentUSDFromAsset: protectedProcedure.query(async ({ ctx }) => {
@@ -836,6 +849,24 @@ export const BountyRoute = createTRPCRouter({
         },
       });
 
+      // That was the last winner: everyone else who joined or entered hears it's over.
+      if (bounty.currentWinnerCount + 1 >= bounty.totalWinner) {
+        const [joined, entered, winners, info] = await Promise.all([
+          ctx.db.bountyParticipant.findMany({ where: { bountyId: input.BountyId }, select: { userId: true } }),
+          ctx.db.bountySubmission.findMany({ where: { bountyId: input.BountyId }, select: { userId: true } }),
+          ctx.db.bountyWinner.findMany({ where: { bountyId: input.BountyId }, select: { userId: true } }),
+          ctx.db.bounty.findUnique({ where: { id: input.BountyId }, select: { title: true } }),
+        ]);
+        const won = new Set(winners.map((w) => w.userId));
+        await notify(ctx.db, {
+          actorId: bounty.creatorId,
+          type: NotificationType.BOUNTY_ENDED,
+          entityId: input.BountyId,
+          recipients: [...joined, ...entered].map((p) => p.userId).filter((id) => !won.has(id)),
+          meta: { bounty: info?.title ?? "" },
+        });
+      }
+
       await ctx.db.notificationObject.create({
         data: {
           actorId: ctx.session.user.id,
@@ -878,7 +909,7 @@ export const BountyRoute = createTRPCRouter({
         where: {
           id: input.submissionId,
         },
-        select: { bounty: { select: { creatorId: true } } },
+        select: { userId: true, bountyId: true, status: true, bounty: { select: { creatorId: true, title: true } } },
       });
       if (!submission) {
         throw new Error("Submission not found");
@@ -893,6 +924,18 @@ export const BountyRoute = createTRPCRouter({
           status: input.status,
         },
       });
+
+      // Approved, rejected or put on review: tell the person who entered ("checked" is just the brand opening it).
+      const reviewed: SubmissionViewType[] = [SubmissionViewType.APPROVED, SubmissionViewType.REJECTED, SubmissionViewType.ONREVIEW];
+      if (reviewed.includes(input.status) && input.status !== submission.status) {
+        await notifyFan(ctx.db, {
+          actorId: submission.bounty.creatorId,
+          type: NotificationType.BOUNTY_ENTRY_REVIEWED,
+          entityId: submission.bountyId,
+          userId: submission.userId,
+          meta: { status: input.status, bounty: submission.bounty.title },
+        });
+      }
     }),
 
   getDeleteXdr: protectedProcedure

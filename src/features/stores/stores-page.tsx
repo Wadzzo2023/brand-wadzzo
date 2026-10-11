@@ -50,7 +50,7 @@ export default function StoresPage() {
     tab === "page-asset" ? (
       <Button asChild>
         <Link href="/stores/page-asset/new">
-          <Coins /> Sell page asset
+          <Plus /> New listing
         </Link>
       </Button>
     ) : (
