@@ -20,7 +20,7 @@ import { EmptyState } from "~/ui/empty-state";
 import { Field, FormSection } from "~/ui/form-page";
 import { PageBody, PageHeader } from "~/ui/page-header";
 import { Skeleton } from "~/ui/skeleton";
-import { api, type RouterInputs } from "~/utils/api";
+import { api, type RouterInputs, type RouterOutputs } from "~/utils/api";
 import { fetchPubkeyfromEmail } from "~/utils/get-pubkey";
 import { addrShort } from "~/utils/utils";
 
@@ -237,6 +237,7 @@ export default function GiftsPage() {
               ))}
             </ul>
           )}
+          {!pricing && isItem && quote.data && quote.data.lines.length > 0 && <Breakdown quote={quote.data} />}
           {!pricing && isItem && quote.data?.ok && (
             <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
               {quote.data.fromStock > 0 && `${quote.data.fromStock} from your stock`}
@@ -267,8 +268,28 @@ export default function GiftsPage() {
         title="Send this gift?"
         description={
           <>
-            {qty} {asset?.code} to {resolved?.label ?? (pubkey ? addrShort(pubkey, 5) : "")}
-            {fee !== null && ` · fee ${fee} ${PLATFORM_ASSET.code}`}. Gifts can&apos;t be undone.
+            {qty} {asset?.name ?? asset?.code} to {resolved?.label ?? (pubkey ? addrShort(pubkey, 5) : "")}.
+            {isItem && quote.data ? (
+              <span className="mt-2 block space-y-0.5 text-foreground">
+                {quote.data.lines.map((l) => (
+                  <span key={l.label} className="flex justify-between gap-6">
+                    <span>{l.label}</span>
+                    <span className="tabular-nums">
+                      {l.amount.toLocaleString()} {quote.data.currency}
+                    </span>
+                  </span>
+                ))}
+                <span className="flex justify-between gap-6 border-t pt-1 font-semibold">
+                  <span>Total</span>
+                  <span className="tabular-nums">
+                    {quote.data.total.toLocaleString()} {quote.data.currency}
+                  </span>
+                </span>
+              </span>
+            ) : (
+              fee !== null && ` Fee ${fee} ${PLATFORM_ASSET.code}.`
+            )}{" "}
+            Gifts can&apos;t be undone.
           </>
         }
         confirmLabel="Send gift"
@@ -282,6 +303,42 @@ export default function GiftsPage() {
         }
       />
     </PageBody>
+  );
+}
+
+type ItemQuote = RouterOutputs["fan"]["gift"]["quote"];
+
+/** What the brand pays for an item gift, line by line, and what's left after. */
+function Breakdown({ quote }: { quote: ItemQuote }) {
+  return (
+    <div className="rounded-xl border bg-card">
+      <p className="border-b px-4 py-2.5 font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price breakdown</p>
+      <ul className="divide-y">
+        {quote.lines.map((l) => (
+          <li key={l.label} className="flex items-start justify-between gap-4 px-4 py-2.5">
+            <span className="min-w-0">
+              <span className="block text-sm">{l.label}</span>
+              {l.hint && <span className="block text-xs text-muted-foreground">{l.hint}</span>}
+            </span>
+            <span className="shrink-0 text-sm font-medium tabular-nums">
+              {l.amount.toLocaleString()} {quote.currency}
+            </span>
+          </li>
+        ))}
+        <li className="flex items-center justify-between gap-4 px-4 py-2.5">
+          <span className="text-sm font-semibold">Total you pay</span>
+          <span className="font-hud text-sm font-bold tabular-nums">
+            {quote.total.toLocaleString()} {quote.currency}
+          </span>
+        </li>
+        <li className="flex items-center justify-between gap-4 px-4 py-2 text-xs text-muted-foreground">
+          <span>Your balance after</span>
+          <span className="tabular-nums">
+            {Math.max(0, quote.balance - quote.total).toLocaleString()} {quote.currency}
+          </span>
+        </li>
+      </ul>
+    </div>
   );
 }
 
