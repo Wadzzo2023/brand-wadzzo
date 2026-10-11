@@ -8,6 +8,7 @@ import { trxRouter } from "./trx";
 import { notificationRouter } from "./notification";
 import { userRouter } from "./user";
 import { storageRouter } from "./storage";
+import { giftRouter } from "./gift";
 
 /**
  * This is the primary router for your server.
@@ -24,6 +25,7 @@ export const fanRouter = createTRPCRouter({
   notification: notificationRouter,
   user: userRouter,
   storage: storageRouter,
+  gift: giftRouter,
 });
 export type FanRouter = typeof fanRouter;
 

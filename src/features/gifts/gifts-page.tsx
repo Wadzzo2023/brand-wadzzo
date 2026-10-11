@@ -24,10 +24,11 @@ import { api, type RouterInputs } from "~/utils/api";
 import { fetchPubkeyfromEmail } from "~/utils/get-pubkey";
 import { addrShort } from "~/utils/utils";
 
-type Kind = "PAGEASSET" | "PLATFORMASSET" | "SHOPASSET";
-type Asset = { code: string; issuer: string; balance: number; kind: Kind };
+type Kind = "PAGEASSET" | "PLATFORMASSET" | "ITEM";
+/** `balance` is what can be given away now; for an item that's its stock plus what can still be minted (Infinity = open edition). */
+type Asset = { code: string; issuer: string; balance: number; kind: Kind; itemId?: number; name?: string; stock?: number };
 
-const KIND_LABEL: Record<Kind, string> = { PAGEASSET: "Page asset", PLATFORMASSET: "Platform", SHOPASSET: "Store asset" };
+const KIND_LABEL: Record<Kind, string> = { PAGEASSET: "Page asset", PLATFORMASSET: "Platform", ITEM: "Item" };
 const isPubkey = (s: string) => /^G[A-Z2-7]{55}$/.test(s.trim());
 const isEmail = (s: string) => z.string().email().safeParse(s.trim()).success;
 
@@ -38,7 +39,7 @@ export default function GiftsPage() {
   const { platformAssetBalance } = useUserStellarAcc();
 
   const pageAsset = api.fan.creator.getCreatorPageAssetBalance.useQuery(undefined, { retry: false });
-  const shop = api.fan.creator.getCreatorShopAssetBalance.useQuery(undefined, { retry: false });
+  const items = api.fan.gift.items.useQuery(undefined, { retry: false });
   const xlmFee = api.bounty.Bounty.getplatformAssetNumberForXLM.useQuery({ xlm: 1 });
 
   const [recipient, setRecipient] = useState("");
@@ -53,21 +54,27 @@ export default function GiftsPage() {
     const list: Asset[] = [];
     if (pageAsset.data) list.push({ code: pageAsset.data.assetCode, issuer: pageAsset.data.assetIssuer, balance: Number(pageAsset.data.balance), kind: "PAGEASSET" });
     list.push({ code: PLATFORM_ASSET.code, issuer: PLATFORM_ASSET.issuer, balance: platformAssetBalance, kind: "PLATFORMASSET" });
-    for (const b of shop.data ?? []) {
-      if (b.asset_type !== "credit_alphanum4" && b.asset_type !== "credit_alphanum12") continue;
-      const isPage = b.asset_code === pageAsset.data?.assetCode && b.asset_issuer === pageAsset.data?.assetIssuer;
-      const isPlatform = b.asset_code === PLATFORM_ASSET.code && b.asset_issuer === PLATFORM_ASSET.issuer;
-      if (!isPage && !isPlatform) list.push({ code: b.asset_code, issuer: b.asset_issuer, balance: Number(b.balance), kind: "SHOPASSET" });
+    for (const i of items.data ?? []) {
+      list.push({ code: i.code, issuer: i.issuer, balance: i.mintable === null ? Infinity : i.stock + i.mintable, kind: "ITEM", itemId: i.id, name: i.name, stock: i.stock });
     }
     return list;
-  }, [pageAsset.data, shop.data, platformAssetBalance]);
+  }, [pageAsset.data, items.data, platformAssetBalance]);
 
   const asset = assets.find((a) => `${a.code}-${a.issuer}` === assetKey) ?? null;
   const qty = Number(amount);
-  const fee = xlmFee.data ? Number(TrxBaseFee) + Number(TrxBaseFeeInPlatformAsset) + xlmFee.data : null;
+  const isItem = asset?.kind === "ITEM";
+  const legacyFee = xlmFee.data ? Number(TrxBaseFee) + Number(TrxBaseFeeInPlatformAsset) + xlmFee.data : null;
   const pubkey = resolved?.pubkey ?? (isPubkey(recipient) ? recipient.trim() : null);
-  const amountError = !asset ? null : !Number.isInteger(qty) || qty < 1 ? "Whole numbers from 1" : qty > asset.balance ? `You have ${asset.balance}` : null;
+  const amountError = !asset ? null : !Number.isInteger(qty) || qty < 1 ? "Whole numbers from 1" : qty > asset.balance ? `Only ${asset.balance} available` : null;
   const ready = Boolean(pubkey && asset && !amountError);
+
+  // Items are lazily minted and the brand pays everything, so ask the server what it costs and whether it will go through.
+  const quote = api.fan.gift.quote.useQuery(
+    { assetId: asset?.itemId ?? 0, pubkey: pubkey ?? "", quantity: Number.isInteger(qty) && qty > 0 ? qty : 1 },
+    { enabled: ready && isItem && Boolean(pubkey && isPubkey(pubkey)), retry: false, staleTime: 15_000 },
+  );
+  const fee = isItem ? (quote.data?.total ?? null) : legacyFee;
+  const itemBlocked = isItem && !quote.data?.ok;
 
   const lookup = async () => {
     setLooking(true);
@@ -100,7 +107,29 @@ export default function GiftsPage() {
     },
     onError: (e) => toast.error(e.message),
   });
-  const busy = send.isPending || signing;
+  const prepareItem = api.fan.gift.prepare.useMutation();
+  const confirmItem = api.fan.gift.confirm.useMutation();
+  const utils = api.useUtils();
+  const sendItem = async () => {
+    if (!asset?.itemId || !pubkey) return;
+    setSigning(true);
+    try {
+      const res = await prepareItem.mutateAsync({ assetId: asset.itemId, pubkey, quantity: qty });
+      const ok = await clientsign({ presignedxdr: res.xdr, walletType: session.data?.user?.walletType, pubkey: session.data?.user.id, test: clientSelect() });
+      if (!ok) throw new Error("The transaction wasn't signed");
+      const done = await confirmItem.mutateAsync({ txId: res.txId });
+      if (done.status === "FAILED") throw new Error("The gift didn't go through on Stellar");
+      toast.success(res.quote.delivery === "claimable" ? `Sent ${qty} ${asset.name ?? asset.code} 🎁 — they accept it from their wallet` : `Sent ${qty} ${asset.name ?? asset.code} 🎁`);
+      setConfirming(false);
+      setAmount("1");
+      void utils.fan.gift.items.invalidate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't send the gift");
+    } finally {
+      setSigning(false);
+    }
+  };
+  const busy = send.isPending || signing || prepareItem.isPending;
 
   const pickFan = (pk: string, name: string | null) => {
     setRecipient(pk);
@@ -140,7 +169,7 @@ export default function GiftsPage() {
           </FormSection>
 
           <FormSection title="What" icon={Coins}>
-            {pageAsset.isLoading || shop.isLoading ? (
+            {pageAsset.isLoading || items.isLoading ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <Skeleton key={i} className="h-16 rounded-lg" />
@@ -166,10 +195,10 @@ export default function GiftsPage() {
                     >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 font-hud text-[10px] font-semibold">{a.code.slice(0, 4)}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-hud text-sm font-semibold">{a.code}</span>
-                        <span className="block text-xs text-muted-foreground">{KIND_LABEL[a.kind]}</span>
+                        <span className="block truncate font-hud text-sm font-semibold">{a.name ?? a.code}</span>
+                        <span className="block text-xs text-muted-foreground">{a.kind === "ITEM" ? (a.balance === Infinity ? "Minted when you send it" : `${KIND_LABEL[a.kind]} · mints on demand`) : KIND_LABEL[a.kind]}</span>
                       </span>
-                      <span className="text-sm font-medium tabular-nums">{a.balance.toLocaleString()}</span>
+                      <span className="text-sm font-medium tabular-nums">{a.kind === "ITEM" ? `${(a.stock ?? 0).toLocaleString()} in stock` : a.balance.toLocaleString()}</span>
                       {on && <Check className="size-4 text-primary" />}
                     </button>
                   );
@@ -182,13 +211,30 @@ export default function GiftsPage() {
             </Field>
           </FormSection>
 
+          {isItem && quote.data && quote.data.problems.length > 0 && (
+            <ul className="space-y-1.5">
+              {quote.data.problems.map((p) => (
+                <li key={p} className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {p}
+                </li>
+              ))}
+            </ul>
+          )}
+          {isItem && quote.data?.ok && (
+            <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              {quote.data.fromStock > 0 && `${quote.data.fromStock} from your stock`}
+              {quote.data.fromStock > 0 && quote.data.toMint > 0 && " + "}
+              {quote.data.toMint > 0 && `${quote.data.toMint} minted now`} ·{" "}
+              {quote.data.delivery === "direct" ? "lands in their wallet right away" : "they don't hold it yet, so it's sent as a gift they accept"}
+            </p>
+          )}
           <div className="flex items-center justify-end gap-3">
             {fee !== null && (
               <p className="text-xs text-muted-foreground">
-                Fee {fee} {PLATFORM_ASSET.code}
+                {isItem ? "You pay" : "Fee"} {fee} {PLATFORM_ASSET.code}
               </p>
             )}
-            <Button disabled={!ready || busy} onClick={() => setConfirming(true)}>
+            <Button disabled={!ready || busy || itemBlocked} onClick={() => setConfirming(true)}>
               <Send /> Send gift
             </Button>
           </div>
@@ -211,9 +257,11 @@ export default function GiftsPage() {
         confirmLabel="Send gift"
         busy={busy}
         onConfirm={() =>
-          pubkey &&
-          asset &&
-          send.mutate({ pubkey, amount: qty, assetCode: asset.code, assetIssuer: asset.issuer, assetType: asset.kind as RouterInputs["fan"]["trx"]["giftFollowerXDR"]["assetType"], signWith: needSign() })
+          isItem
+            ? void sendItem()
+            : pubkey &&
+              asset &&
+              send.mutate({ pubkey, amount: qty, assetCode: asset.code, assetIssuer: asset.issuer, assetType: asset.kind as RouterInputs["fan"]["trx"]["giftFollowerXDR"]["assetType"], signWith: needSign() })
         }
       />
     </PageBody>

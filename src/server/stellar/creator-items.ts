@@ -49,7 +49,7 @@ function encryptSecret(secret: string) {
   return ["v1", iv.toString("base64"), cipher.getAuthTag().toString("base64"), data.toString("base64")].join(":");
 }
 
-function decryptSecret(payload: string) {
+export function decryptSecret(payload: string) {
   const [v, iv, tag, data] = payload.split(":");
   if (v !== "v1" || !iv || !tag || !data) throw new Error("Unknown secret format");
   const decipher = createDecipheriv("aes-256-gcm", key(), Buffer.from(iv, "base64"));
@@ -59,9 +59,9 @@ function decryptSecret(payload: string) {
 
 // ── chain helpers ────────────────────────────────────────────────────────────
 
-const horizon = () => new Horizon.Server(STELLAR_URL);
+export const horizon = () => new Horizon.Server(STELLAR_URL);
 
-async function loadAccount(id: string) {
+export async function loadAccount(id: string) {
   try {
     return await horizon().loadAccount(id);
   } catch {
@@ -69,7 +69,7 @@ async function loadAccount(id: string) {
   }
 }
 
-function spendableXlm(acc: Horizon.AccountResponse) {
+export function spendableXlm(acc: Horizon.AccountResponse) {
   const native = acc.balances.find((b) => b.asset_type === "native");
   const balance = Number(native?.balance ?? 0);
   const selling = Number(native && "selling_liabilities" in native ? native.selling_liabilities : 0);
@@ -80,7 +80,7 @@ function spendableXlm(acc: Horizon.AccountResponse) {
 
 const CUSTODIAL = new Set<string>([WalletType.emailPass, WalletType.google, WalletType.facebook, WalletType.apple]);
 /** Custodial creators are signed for here; wallet creators sign in the browser. */
-const signerFor = (session: Session) => (CUSTODIAL.has(session.user.walletType) && session.user.email ? { email: session.user.email } : undefined);
+export const signerFor = (session: Session) => (CUSTODIAL.has(session.user.walletType) && session.user.email ? { email: session.user.email } : undefined);
 
 /** The creator's issuer row, made (keypair generated, secret encrypted) on first use. */
 async function issuerFor(db: DbClient, creatorId: string) {
