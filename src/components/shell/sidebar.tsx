@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,37 +46,27 @@ export function Sidebar({
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-card transition-[width] duration-200 lg:flex",
+          "sticky top-0 z-40 hidden h-dvh shrink-0 flex-col border-r bg-card transition-[width] duration-200 lg:flex",
           collapsed ? "w-[72px]" : "w-64",
         )}
         aria-label="Portal navigation"
       >
         {/* Brand and Toggle */}
         <div className={cn("flex items-center border-b", collapsed ? "h-16 justify-center px-0" : "h-16 justify-between px-4")}>
-          {!collapsed && (
-            <Link href={homeHref} className="flex items-center gap-2.5" aria-label="Wadzzo portal home">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
-                <Image src="/images/loading.png" alt="" width={22} height={22} className="object-contain" />
-              </span>
+          <Link href={homeHref} className="flex items-center gap-2.5" aria-label="Wadzzo portal home">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
+              <Image src="/images/loading.png" alt="" width={22} height={22} className="object-contain" />
+            </span>
+            {!collapsed && (
               <span className="leading-tight">
                 <span className="block font-hud text-base font-bold tracking-tight">Wadzzo</span>
                 <span className="block font-hud text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {isPureAdmin ? "Admin portal" : "Brand portal"}
                 </span>
               </span>
-            </Link>
-          )}
-          <div className="flex items-center gap-0.5">
-            {!collapsed && isApprovedCreator && <NotificationBell side="right" align="start" />}
-            <button
-              type="button"
-              onClick={onToggle}
-              className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-            </button>
-          </div>
+            )}
+          </Link>
+          {!collapsed && isApprovedCreator && <NotificationBell side="right" align="start" />}
         </div>
         {collapsed && isApprovedCreator && (
           <div className="flex justify-center pt-2">
@@ -113,6 +103,18 @@ export function Sidebar({
         <div className="space-y-1 border-t p-3">
           <UserMenu collapsed={collapsed} />
         </div>
+
+        {/* chevron on the sidebar's edge, level with the logo: collapses and expands */}
+        <button
+          type="button"
+          onClick={onToggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          className="absolute -right-3 top-5 z-50 flex size-6 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        >
+          {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
+        </button>
       </aside>
     </TooltipProvider>
   );
