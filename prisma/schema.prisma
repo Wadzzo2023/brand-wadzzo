@@ -219,8 +219,6 @@ model Creator {
     LocationGroup      LocationGroup[]
     Bounty             Bounty[]
     vanitySubscription VanitySubscription?
-    Album              Album[]
-    Song               Song[]
     SellPageAsset      SellPageAsset[]
     pinAgentSessions   PinAgentChatSession[] @relation("pinAgentSessions")
     pinAgentMessages   PinAgentChatHistory[] @relation("pinAgentMessages")
@@ -233,6 +231,8 @@ model Creator {
     announcements CreatorAnnouncement[]
     mapEmbeds          MapEmbed[]
     agentConversations AgentConversation[]
+    issuer             CreatorIssuer?
+    royaltyTransactions AssetTransaction[] @relation("TxCreator")
 
     // The brand's own home area; overrides its platform's (see Platform.homeArea).
     homeArea     Json?
@@ -331,7 +331,6 @@ model User {
     comments         Comment[]
     assets           User_Asset[]
     Admin            Admin[]
-    songs            User_Song[]
     followings       Follow[]
     LocationConsumer LocationConsumer[]
 
@@ -357,6 +356,8 @@ model User {
     muralScanSessions MuralScanSession[]
     coinBalances      CoinBalance[] // one per platform
     coinLedger        CoinLedger[]
+    purchases         AssetTransaction[] @relation("TxBuyer")
+    sales             AssetTransaction[] @relation("TxSeller")
     // platform the user first signed up on; every platform joined is in UserPlatform
     signupPlatformId String         @default("wadzzo")
     signupPlatform   Platform       @relation("SignupPlatform", fields: [signupPlatformId], references: [id])
@@ -369,51 +370,6 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
-}
-
-// ------------------------MUSIC SCHEMA-------------------------
-
-model Album {
-    id          Int      @id @default(autoincrement())
-    name        String
-    description String
-    coverImgUrl String
-    creatorId   String?
-    creator     Creator? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
-    createdAt   DateTime @default(now())
-    songs       Song[]
-}
-
-model Song {
-    id Int @id @default(autoincrement())
-
-    artist String
-
-    assetId Int   @unique
-    asset   Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-
-    creatorId String?
-    creator   Creator? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
-
-    price    Float
-    priceUSD Float
-
-    albumId Int
-    album   Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
-
-    createdAt DateTime @default(now())
-
-    User_Song User_Song[]
-}
-
-model User_Song {
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    songId Int
-    song   Song @relation(fields: [songId], references: [id], onDelete: Cascade)
-
-    @@id([userId, songId])
 }
 
 enum ItemPrivacy {
@@ -432,10 +388,18 @@ model Asset {
     name        String
     description String?
 
-    limit Int? // if null then it is unlimited
+    /// Max copies that may ever exist; null = unlimited. Enforced by the server
+    /// when it mints (the issuer stays unlocked so copies can be minted on demand).
+    limit Int?
+    /// Copies issued on-chain so far (into storage or straight to a buyer/claimer).
+    mintedCount Int @default(0)
+    /// % of every resale price paid to the creator (0–15).
+    royaltyPercent Float @default(0)
 
     code          String
     issuer        String
+    /// Legacy per-asset issuer secret. New assets are issued by the creator's
+    /// CreatorIssuer and leave this empty.
     issuerPrivate String?
 
     mediaType MediaType
@@ -450,11 +414,15 @@ model Asset {
     tierId Int?
     tier   Subscription? @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
-    song          Song?
     buyers        User_Asset[]
     marketItems   MarketAsset[]
     LocationGroup LocationGroup[]
     Redeem        Redeem[]
+    transactions  AssetTransaction[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
+
     // white-label platform this row belongs to (see model Platform)
     platformId String   @default("wadzzo")
     platform   Platform @relation(fields: [platformId], references: [id])
@@ -466,7 +434,6 @@ model Asset {
 
 // this will eliminate asset buy modal overhead.
 enum MarketType {
-    SONG
     ADMIN
     FAN
 }
@@ -490,11 +457,108 @@ model MarketAsset {
 
     placerId String? // admin placing this assets
     placer   Creator? @relation(fields: [placerId], references: [id], onDelete: Cascade)
+
+    transactions AssetTransaction[]
+
     // white-label platform this row belongs to (see model Platform)
     platformId String   @default("wadzzo")
     platform   Platform @relation(fields: [platformId], references: [id])
 
     @@unique([assetId, placerId])
+    @@index([platformId])
+}
+
+/// A creator's Stellar issuer account. One per creator, set up (and paid for by
+/// the creator) before their first on-demand asset; every later asset of theirs
+/// is issued by it, so new assets cost no issuer account. The secret is kept
+/// encrypted (AES-256-GCM, key ISSUER_ENCRYPTION_KEY) and never leaves the server.
+model CreatorIssuer {
+    creatorId       String   @id
+    creator         Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    publicKey       String   @unique
+    secretEncrypted String
+    /// true once the account exists on-chain
+    active          Boolean  @default(false)
+    createdAt       DateTime @default(now())
+}
+
+enum AssetTxType {
+    ISSUER_SETUP // creator opens their issuer account
+    STORAGE_SETUP // user opens a storage (resale) account
+    MINT_TO_STORAGE // creator mints copies into their own storage
+    PURCHASE // fan buys from the creator (from stock or minted on demand)
+    RESALE_PURCHASE // fan buys from another fan's resale listing
+    PAGE_ASSET_PURCHASE // fan buys a creator's page tokens
+    CLAIM // fan claims from a pin (minted on demand if needed)
+    GIFT // creator sends a copy to a fan
+    LIST // seller moves copies into storage to sell
+    UNLIST // seller takes copies back from storage
+}
+
+enum AssetTxStatus {
+    PENDING // built, waiting for signature/submission (void after expiresAt)
+    SUCCESS
+    FAILED
+}
+
+enum PaymentMethod {
+    PLATFORM_ASSET
+    XLM
+    CARD
+    NONE
+}
+
+/// Every on-chain action on an item, with what it cost. Built by the server
+/// (status PENDING, hash known before signing), then confirmed against Horizon.
+/// Drives activity/transaction history and reserves supply while pending.
+model AssetTransaction {
+    id     String        @id @default(cuid())
+    type   AssetTxType
+    status AssetTxStatus @default(PENDING)
+
+    assetId       Int?
+    asset         Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
+    marketAssetId Int?
+    marketAsset   MarketAsset? @relation(fields: [marketAssetId], references: [id], onDelete: SetNull)
+
+    quantity Int @default(1)
+    /// copies newly minted by this transaction (counted toward Asset.limit)
+    minted   Int @default(0)
+
+    buyerId   String?
+    buyer     User?    @relation("TxBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+    sellerId  String?
+    seller    User?    @relation("TxSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+    /// the item's creator (receives price or royalty)
+    creatorId String?
+    creator   Creator? @relation("TxCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+
+    method   PaymentMethod @default(NONE)
+    /// currency of the amounts below: platform asset code, "XLM" or "USD"
+    currency String
+    price         Float @default(0)
+    royaltyAmount Float @default(0)
+    platformFee   Float @default(0)
+    networkFee    Float @default(0)
+    /// XLM reserves (trustline/account) the payer covered, in `currency`
+    reserveCost   Float @default(0)
+    total         Float @default(0)
+
+    /// Stellar transaction hash (known before signing)
+    txHash    String?   @unique
+    error     String?
+    expiresAt DateTime?
+
+    // white-label platform this row belongs to (see model Platform)
+    platformId String   @default("wadzzo")
+    platform   Platform @relation(fields: [platformId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([buyerId, createdAt])
+    @@index([sellerId, createdAt])
+    @@index([assetId, status])
     @@index([platformId])
 }
 
@@ -1483,6 +1547,7 @@ model Platform {
     redeems            Redeem[]
     admins             Admin[]
     coinBalances       CoinBalance[]
+    assetTransactions  AssetTransaction[]
 }
 
 /// History of every platform a user has used (first and last seen).
