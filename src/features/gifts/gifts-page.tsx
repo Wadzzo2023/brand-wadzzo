@@ -75,6 +75,8 @@ export default function GiftsPage() {
   );
   const fee = isItem ? (quote.data?.total ?? null) : legacyFee;
   const itemBlocked = isItem && !quote.data?.ok;
+  // True from the moment an item and amount are chosen until the server has priced it.
+  const pricing = isItem && ready && (quote.isFetching || quote.isPending);
 
   const lookup = async () => {
     setLooking(true);
@@ -221,7 +223,12 @@ export default function GiftsPage() {
             </Field>
           </FormSection>
 
-          {isItem && quote.data && quote.data.problems.length > 0 && (
+          {pricing && (
+            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+              <Loader2 className="size-4 animate-spin" /> Checking stock and what it will cost…
+            </div>
+          )}
+          {!pricing && isItem && quote.data && quote.data.problems.length > 0 && (
             <ul className="space-y-1.5">
               {quote.data.problems.map((p) => (
                 <li key={p} className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -230,7 +237,7 @@ export default function GiftsPage() {
               ))}
             </ul>
           )}
-          {isItem && quote.data?.ok && (
+          {!pricing && isItem && quote.data?.ok && (
             <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
               {quote.data.fromStock > 0 && `${quote.data.fromStock} from your stock`}
               {quote.data.fromStock > 0 && quote.data.toMint > 0 && " + "}
@@ -239,13 +246,13 @@ export default function GiftsPage() {
             </p>
           )}
           <div className="flex items-center justify-end gap-3">
-            {fee !== null && (
+            {fee !== null && !pricing && (
               <p className="text-xs text-muted-foreground">
                 {isItem ? "You pay" : "Fee"} {fee} {PLATFORM_ASSET.code}
               </p>
             )}
-            <Button disabled={!ready || busy || itemBlocked} onClick={() => setConfirming(true)}>
-              <Send /> Send gift
+            <Button disabled={!ready || busy || itemBlocked || pricing} onClick={() => setConfirming(true)}>
+              {pricing ? <Loader2 className="animate-spin" /> : <Send />} {pricing ? "Checking…" : "Send gift"}
             </Button>
           </div>
         </div>
