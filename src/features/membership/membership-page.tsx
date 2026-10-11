@@ -1,19 +1,18 @@
 "use client";
 
 import type { Subscription } from "@prisma/client";
-import { Crown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Crown, Loader2, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-import { Preview } from "~/components/common/quill-preview";
-import { Editor } from "~/components/common/quill-editor";
-import { plainText } from "~/components/common/enhance-button";
 import { Button } from "~/components/shadcn/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
 import { Input } from "~/components/shadcn/ui/input";
+import { Switch } from "~/components/shadcn/ui/switch";
+import { Textarea } from "~/components/shadcn/ui/textarea";
+import { cn } from "~/lib/utils";
 import { BADWORDS } from "~/utils/banned-word";
-import { AiTextButton } from "~/ui/ai/ai-text";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { EmptyState } from "~/ui/empty-state";
 import { ErrorState } from "~/ui/error-state";
@@ -23,6 +22,18 @@ import { Skeleton } from "~/ui/skeleton";
 import { api } from "~/utils/api";
 
 export type SubscriptionType = Omit<Subscription, "issuerPrivate" | "platformId">;
+
+const TIER_COLORS = ["green", "blue", "purple", "gold", "rose", "slate"] as const;
+type TierColor = (typeof TIER_COLORS)[number];
+/** The same palette names the fan apps use for tier colors. */
+const SWATCH: Record<TierColor, { bar: string }> = {
+  green: { bar: "bg-emerald-500" },
+  blue: { bar: "bg-sky-500" },
+  purple: { bar: "bg-violet-500" },
+  gold: { bar: "bg-amber-500" },
+  rose: { bar: "bg-rose-500" },
+  slate: { bar: "bg-slate-500" },
+};
 const MAX_TIERS = 3;
 
 /** Membership: up to three tiers fans unlock by holding your page asset. */
@@ -109,11 +120,20 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
           </div>
           <ul className="grid gap-4 md:grid-cols-3">
             {list.map((t, i) => (
-              <li key={t.id} className="flex flex-col rounded-xl border bg-card p-5">
+              <li key={t.id} className={cn("relative flex flex-col overflow-hidden rounded-xl border bg-card p-5", t.popular && "border-primary/50", !t.isActive && "opacity-70")}>
+                <span className={cn("absolute inset-x-0 top-0 h-1", SWATCH[t.color as TierColor]?.bar ?? SWATCH.green.bar)} />
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-hud text-xs font-semibold uppercase tracking-wide text-primary">Tier {i + 1}</p>
-                    <h3 className="mt-1 font-hud text-xl font-semibold">{t.name}</h3>
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-1.5 font-hud text-xs font-semibold uppercase tracking-wide text-primary">
+                      Tier {i + 1}
+                      {t.popular && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
+                          <Star className="size-3" /> Most popular
+                        </span>
+                      )}
+                      {!t.isActive && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-muted-foreground">Hidden</span>}
+                    </p>
+                    <h3 className="mt-1 truncate font-hud text-xl font-semibold">{t.name}</h3>
                   </div>
                   <div className="flex gap-1">
                     <Button size="icon-sm" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => setEditing(t)}>
@@ -125,12 +145,17 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
                   </div>
                 </div>
                 <p className="mt-3">
-                  <span className="font-hud text-3xl font-semibold tabular-nums">{t.price}</span>{" "}
+                  <span className="font-hud text-3xl font-semibold tabular-nums">{t.price.toLocaleString("en-US")}</span>{" "}
                   <span className="text-sm text-muted-foreground">{code} to hold</span>
                 </p>
-                <div className="prose prose-sm mt-4 max-w-none border-t pt-4 dark:prose-invert">
-                  <Preview value={t.features} />
-                </div>
+                {t.description && <p className="mt-2 text-sm text-muted-foreground">{t.description}</p>}
+                <ul className="mt-4 space-y-1.5 border-t pt-4 text-sm">
+                  {t.features.map((f) => (
+                    <li key={f} className="flex gap-2">
+                      <Check className="mt-0.5 size-4 shrink-0 text-primary" /> {f}
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
             {canAdd && (
@@ -161,19 +186,17 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
   );
 }
 
+const MAX_PERKS = 8;
+
 function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; code: string; onClose: () => void }) {
-  const [name, setNameRaw] = useState(tier?.name ?? "");
-  const [price, setPriceRaw] = useState(tier ? String(tier.price) : "");
-  const [features, setFeaturesRaw] = useState(tier?.features ?? "");
-  const [errors, setErrors] = useState<Partial<Record<"name" | "price" | "features", string>>>({});
-  // Editing a field clears the previous save attempt's errors.
-  const edited = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setErrors({});
-  };
-  const setName = edited(setNameRaw);
-  const setPrice = edited(setPriceRaw);
-  const setFeatures = edited(setFeaturesRaw);
+  const [name, setName] = useState(tier?.name ?? "");
+  const [price, setPrice] = useState(tier ? String(tier.price) : "");
+  const [description, setDescription] = useState(tier?.description ?? "");
+  const [perks, setPerks] = useState<string[]>(tier?.features.length ? tier.features : [""]);
+  const [color, setColor] = useState<TierColor>((tier?.color as TierColor) ?? "green");
+  const [popular, setPopular] = useState(tier?.popular ?? false);
+  const [isActive, setIsActive] = useState(tier?.isActive ?? true);
+  const [errors, setErrors] = useState<Partial<Record<"name" | "price" | "description" | "features", string>>>({});
 
   const utils = api.useUtils();
   const done = (msg: string) => {
@@ -185,45 +208,95 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
   const update = api.fan.member.editTierModal.useMutation({ onSuccess: () => done("Tier updated"), onError: (e) => toast.error(e.message) });
   const saving = create.isPending || update.isPending;
 
+  const setPerk = (i: number, v: string) => setPerks((ps) => ps.map((p, j) => (j === i ? v : p)));
   const save = () => {
     const n = name.trim();
     const p = Number(price);
+    const features = perks.map((f) => f.trim()).filter(Boolean);
     const e: typeof errors = {};
-    if (n.length < 4 || n.length > 12) e.name = "4–12 characters";
-    else if (!/^\w+$/.test(n)) e.name = "One word — letters, numbers or _";
-    else if (BADWORDS.some((w) => n.includes(w))) e.name = "That name isn't allowed";
+    if (n.length < 2 || n.length > 24) e.name = "2–24 characters";
+    else if (BADWORDS.some((w) => n.toLowerCase().includes(w))) e.name = "That name isn't allowed";
     if (!Number.isFinite(p) || p < 1) e.price = "At least 1";
-    if (plainText(features).length < 20) e.features = "Describe the perks in at least 20 characters";
+    if (description.trim().length > 160) e.description = "Keep it under 160 characters";
+    if (!features.length) e.features = "Add at least one perk";
+    else if (features.some((f) => f.length > 80)) e.features = "Keep each perk under 80 characters";
     setErrors(e);
     if (Object.keys(e).length) return;
-    if (tier) update.mutate({ id: tier.id, name: n, price: p, featureDescription: features });
-    else create.mutate({ name: n, price: p, featureDescription: features });
+    const data = { name: n, price: p, description: description.trim(), features, color, popular, isActive };
+    if (tier) update.mutate({ id: tier.id, ...data });
+    else create.mutate(data);
   };
 
   return (
     <Dialog open onOpenChange={(o) => !o && !saving && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-hud">{tier ? `Edit ${tier.name}` : "New tier"}</DialogTitle>
           <DialogDescription>Fans holding at least this much {code} get these perks.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name" htmlFor="tier-name" required error={errors.name} hint="One word, e.g. Insider">
-              <Input id="tier-name" value={name} maxLength={12} onChange={(e) => setName(e.target.value)} />
+            <Field label="Name" htmlFor="tier-name" required error={errors.name} hint="e.g. Insider, VIP">
+              <Input id="tier-name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label={`Price (${code})`} htmlFor="tier-price" required error={errors.price}>
+            <Field label={`Price (${code})`} htmlFor="tier-price" required error={errors.price} hint="Tokens a fan must hold">
               <Input id="tier-price" type="number" min={1} step="any" value={price} onChange={(e) => setPrice(e.target.value)} />
             </Field>
           </div>
-          <Field
-            label="Perks"
-            required
-            error={errors.features}
-            action={<AiTextButton form="post" field="membership tier perks" format="html" value={features} context={{ tier: name, price: price ? `${price} ${code}` : "" }} onChange={setFeatures} />}
-          >
-            <Editor value={features} onChange={setFeatures} placeholder="Members-only posts, early access to drops, a monthly shout-out…" />
+          <Field label="Description" htmlFor="tier-desc" error={errors.description} hint={`${description.length}/160`}>
+            <Textarea id="tier-desc" value={description} maxLength={160} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder="Who this tier is for" className="resize-none" />
           </Field>
+          <Field label="Perks" required error={errors.features} hint={`One per line, up to ${MAX_PERKS}`}>
+            <div className="space-y-2">
+              {perks.map((p, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input value={p} maxLength={80} onChange={(e) => setPerk(i, e.target.value)} placeholder={i === 0 ? "Members-only posts" : "Another perk"} aria-label={`Perk ${i + 1}`} />
+                  <Button type="button" size="icon" variant="ghost" aria-label={`Remove perk ${i + 1}`} disabled={perks.length === 1} onClick={() => setPerks((ps) => ps.filter((_, j) => j !== i))}>
+                    <X />
+                  </Button>
+                </div>
+              ))}
+              {perks.length < MAX_PERKS && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setPerks((ps) => [...ps, ""])}>
+                  <Plus /> Add perk
+                </Button>
+              )}
+            </div>
+          </Field>
+          <Field label="Color">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Tier color">
+              {TIER_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={color === c}
+                  aria-label={c}
+                  title={c}
+                  onClick={() => setColor(c)}
+                  className={cn("flex size-8 items-center justify-center rounded-full ring-offset-2 ring-offset-background transition-shadow", SWATCH[c].bar, color === c && "ring-2 ring-foreground")}
+                >
+                  {color === c && <Check className="size-4 text-white" />}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <div className="space-y-3 rounded-lg border p-3">
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span>
+                <span className="block font-medium">Most popular</span>
+                <span className="text-xs text-muted-foreground">Highlights this tier (only one at a time)</span>
+              </span>
+              <Switch checked={popular} onCheckedChange={setPopular} />
+            </label>
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span>
+                <span className="block font-medium">Active</span>
+                <span className="text-xs text-muted-foreground">Hidden tiers aren&apos;t shown to fans</span>
+              </span>
+              <Switch checked={isActive} onCheckedChange={setIsActive} />
+            </label>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>

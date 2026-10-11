@@ -204,40 +204,6 @@ async function updateCreatorPageAsset() {
   }
 }
 
-async function updateAlbumTable() {
-  const albums = await db.album.findMany({
-    where: {
-      coverImgUrl: {
-        contains: "https://utfs.io",
-      },
-    },
-  });
-
-  // In your main loop:
-  for (const album of albums) {
-    const newCoverUrl = await getNewUrl(album.coverImgUrl);
-
-    if (newCoverUrl) {
-      await db.album.update({
-        where: { id: album.id },
-        data: {
-          coverImgUrl: newCoverUrl,
-        },
-      });
-    }
-  }
-
-  const newAlbumss = await db.album.findMany({
-    where: {
-      coverImgUrl: {
-        contains: "https://utfs.io",
-      },
-    },
-  });
-
-  //console.log(`remaning utfs.io`, newAlbumss.length);
-}
-
 async function updateAssetTable() {
   const assets = await db.asset.findMany({
     where: {
@@ -462,7 +428,6 @@ async function updateSubmissionAtachement() {
 // await updateUserTable();
 // await updateCreatorTable();
 // await updateCreatorPageAsset();
-// await updateAlbumTable();
 // await updateAssetTable();
 // await updateAdmin();
 // await updateLocationGroup();

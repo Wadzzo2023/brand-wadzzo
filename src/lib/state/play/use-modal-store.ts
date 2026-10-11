@@ -5,7 +5,6 @@ import {
   type ItemPrivacy,
   type LocationGroup,
   type MarketAsset,
-  type Song,
   type SubmissionAttachment,
   type Location,
   type LocationConsumer,
@@ -14,7 +13,6 @@ import {
 import { type Horizon } from "@stellar/stellar-sdk";
 export type AssetRightType = AssetType & { copies: number };
 
-export type SongItemType = Song & { asset: AssetType };
 export type AssetType = Omit<Asset, "issuerPrivate" | "platformId">;
 
 export type MarketAssetType = Omit<MarketAsset, "platformId"> & {
@@ -85,7 +83,6 @@ export type ModalType =
   | "transaction history"
   | "buy modal"
   | "my asset info modal"
-  | "song buy modal"
   | "creator asset info"
   | "view admin asset"
   | "pin info modal";
@@ -121,7 +118,6 @@ export interface ModalData {
   privacy?: ItemPrivacy;
   Asset?: MarketAssetType;
   MyAsset?: AssetType;
-  Song?: SongItemType;
   creatorStoreAsset?: MarketAssetType;
   adminAssetNtag?: AdminAssetWithTag;
   collectedPinInfo?: collectedPinInfoType;

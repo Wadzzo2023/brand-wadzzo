@@ -1,6 +1,5 @@
 import { createTRPCRouter } from "~/server/api/trpc";
 import { fanRouter } from "./routers/fan/root";
-import { musicRouter } from "./routers/music/root";
 import { marketplaceRouter } from "./routers/marketplace/root";
 import { wallateRouter } from "./routers/wallate/root";
 import { authRouter } from "./routers/auth/root";
@@ -26,7 +25,6 @@ import { homeAreaRouter } from "./routers/home-area";
  */
 export const appRouter = createTRPCRouter({
   fan: fanRouter,
-  music: musicRouter,
   marketplace: marketplaceRouter,
   wallate: wallateRouter,
   auth: authRouter,

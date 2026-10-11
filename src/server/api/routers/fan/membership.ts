@@ -5,34 +5,31 @@ import { AccountSchema } from "~/lib/stellar/fan/utils";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { MAX_ASSET_LIMIT } from "../admin/creator";
 import { BADWORDS } from "~/utils/banned-word";
-export const EditTierSchema = z.object({
+/** Palette names the fan apps map to theme-safe classes. */
+export const TIER_COLORS = ["green", "blue", "purple", "gold", "rose", "slate"] as const;
+
+/** A membership tier: what it's called, what it costs to hold, what members get. */
+export const TierSchema = z.object({
   name: z
     .string()
-    .min(4, { message: "Must be a minimum of 4 characters" })
-    .max(12, { message: "Must be a maximum of 12 characters" })
-    .refine(
-      (value) => {
-        // Check if the input is a single word
-        return /^\w+$/.test(value);
-      },
-      {
-        message: "Input must be a single word",
-      },
-    ),
-
+    .trim()
+    .min(2, { message: "At least 2 characters" })
+    .max(24, { message: "At most 24 characters" })
+    .refine((v) => !BADWORDS.some((w) => v.toLowerCase().includes(w)), { message: "That name isn't allowed" }),
+  description: z.string().trim().max(160, { message: "Keep it under 160 characters" }).default(""),
+  features: z
+    .array(z.string().trim().min(1).max(80, { message: "Keep each perk under 80 characters" }))
+    .min(1, { message: "Add at least one perk" })
+    .max(8, { message: "Up to 8 perks" }),
+  color: z.enum(TIER_COLORS).default("green"),
+  popular: z.boolean().default(false),
+  isActive: z.boolean().default(true),
   price: z
-    .number({
-      required_error: "Price must be entered as a number",
-      invalid_type_error: "Price must be entered as a number",
-    })
-    .min(1, {
-      message: "Price must be greater than 0",
-    }),
-  featureDescription: z
-    .string()
-    .min(20, { message: "Description must be longer than 20 characters" }),
-  id: z.number(),
+    .number({ required_error: "Price must be entered as a number", invalid_type_error: "Price must be entered as a number" })
+    .min(1, { message: "Price must be at least 1" }),
 });
+
+export const EditTierSchema = TierSchema.extend({ id: z.number() });
 
 export const CreatorAboutShema = z.object({
   description: z
@@ -89,44 +86,15 @@ export const CreatorPageAssetSchema = z.object({
 
   thumbnail: z.string(),
 });
-export const TierSchema = z.object({
-  name: z
-    .string()
-    .min(4, { message: "Must be a minimum of 4 characters" })
-    .max(12, { message: "Must be a maximum of 12 characters" })
-    .refine(
-      (value) => {
-        // Check if the input is a single word
-        return /^\w+$/.test(value);
-      },
-      {
-        message: "Input must be a single word",
-      },
-    )
-    .refine(
-      (value) => {
-        return !BADWORDS.some((word) => value.includes(word));
-      },
-      {
-        message: "Input contains banned words.",
-      },
-    ),
-  price: z
-    .number({
-      required_error: "Price must be entered as a number",
-      invalid_type_error: "Price must be entered as a number",
-    })
-    .min(1, {
-      message: "Price must be greater than 0",
-    }),
-  featureDescription: z
-    .string()
-    .min(10, { message: "Make description longer" }),
-});
 const selectedColumn = {
   name: true,
+  description: true,
   price: true,
   features: true,
+  color: true,
+  popular: true,
+  isActive: true,
+  createdAt: true,
   id: true,
   creatorId: true,
   creator: {
@@ -145,15 +113,11 @@ export const membershipRouter = createTRPCRouter({
   createMembership: protectedProcedure
     .input(TierSchema)
     .mutation(async ({ ctx, input }) => {
-      const { featureDescription, name, price } = input;
-      await ctx.db.subscription.create({
-        data: {
-          creatorId: ctx.session.user.id,
-          platformId: ctx.platform.id,
-          name,
-          features: featureDescription,
-          price,
-        },
+      const creatorId = ctx.session.user.id;
+      await ctx.db.$transaction(async (tx) => {
+        // only one tier is highlighted as "most popular"
+        if (input.popular) await tx.subscription.updateMany({ where: { creatorId }, data: { popular: false } });
+        await tx.subscription.create({ data: { ...input, creatorId, platformId: ctx.platform.id } });
       });
     }),
 
@@ -210,17 +174,12 @@ export const membershipRouter = createTRPCRouter({
   editTierModal: protectedProcedure
     .input(EditTierSchema)
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.subscription.update({
-        data: {
-          features: input.featureDescription,
-          name: input.name,
-          price: input.price,
-        },
+      const creatorId = ctx.session.user.id;
+      const { id, ...data } = input;
+      await ctx.db.$transaction(async (tx) => {
+        if (data.popular) await tx.subscription.updateMany({ where: { creatorId, NOT: { id } }, data: { popular: false } });
         // Only the brand's own tier.
-        where: {
-          id: input.id,
-          creatorId: ctx.session.user.id,
-        },
+        await tx.subscription.update({ data, where: { id, creatorId } });
       });
     }),
 
