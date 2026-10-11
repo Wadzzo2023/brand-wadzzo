@@ -449,6 +449,7 @@ export const shopRouter = createTRPCRouter({
           select: {
             id: true, name: true, description: true, code: true, issuer: true, mediaType: true,
             mediaUrl: true, thumbnail: true, limit: true, privacy: true, creatorId: true,
+            mintedCount: true, royaltyPercent: true,
             tier: { select: { name: true } },
           },
         },

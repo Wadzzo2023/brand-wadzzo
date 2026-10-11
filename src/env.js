@@ -37,6 +37,8 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string(),
     STORAGE_SECRET: z.string(),
     MOTHER_SECRET: z.string(),
+    /** AES-256 key (64 hex chars or base64) for creator issuer secrets — must match the fan app's. */
+    ISSUER_ENCRYPTION_KEY: z.string().min(32).optional(),
     RUBY_ACCOUNTS_SECRET: z.string(),
     PINATA_JWT: z.string(),
     // squire
@@ -111,6 +113,7 @@ export const env = createEnv({
     NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL,
     MOTHER_SECRET: process.env.MOTHER_SECRET,
     STORAGE_SECRET: process.env.STORAGE_SECRET,
+    ISSUER_ENCRYPTION_KEY: process.env.ISSUER_ENCRYPTION_KEY,
     RUBY_ACCOUNTS_SECRET: process.env.RUBY_ACCOUNTS_SECRET,
     PINATA_JWT: process.env.PINATA_JWT,
     // squire

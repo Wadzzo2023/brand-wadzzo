@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Copy, DollarSign, Film, Image as ImageIcon, Loader2, Lock, Music, Package, Tag } from "lucide-react";
+import { Box, Copy, DollarSign, Film, Image as ImageIcon, Loader2, Lock, Music, Package, Pencil, Tag } from "lucide-react";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,11 +10,13 @@ import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
+import { Textarea } from "~/components/shadcn/ui/textarea";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 import { EmptyState } from "~/ui/empty-state";
 import { Field, FormPage, FormSection } from "~/ui/form-page";
 import { FormSkeleton } from "~/ui/skeleton";
 import { StatusPill } from "~/ui/status-pill";
+import { Dropzone } from "~/ui/upload/dropzone";
 import { api, type RouterOutputs } from "~/utils/api";
 import { addrShort } from "~/utils/utils";
 
@@ -52,44 +55,66 @@ export default function EditAssetPage({ id }: { id: number }) {
 
 function EditForm({ item }: { item: Item }) {
   const router = useRouter();
+  const session = useSession();
   const a = item.asset;
   const media = MEDIA[a.mediaType] ?? MEDIA.IMAGE;
   const copies = api.marketplace.market.getMarketAssetAvailableCopy.useQuery({ id: item.id }, { refetchOnWindowFocus: false });
+  // Brands edit their own items fully; admin-placed items only by price.
+  const mine = a.creatorId != null && a.creatorId === session.data?.user.id;
 
+  const [name, setName] = useState(a.name);
+  const [description, setDescription] = useState(a.description ?? "");
+  const [thumbnail, setThumbnail] = useState(a.thumbnail);
   const [price, setPrice] = useState(String(item.price));
   const [priceUSD, setPriceUSD] = useState(String(item.priceUSD));
-  const [errors, setErrors] = useState<Partial<Record<"price" | "priceUSD", string>>>({});
+  const [openEdition, setOpenEdition] = useState(a.limit == null);
+  const [limit, setLimit] = useState(a.limit != null ? String(a.limit) : "");
+  const [royalty, setRoyalty] = useState(String(a.royaltyPercent));
+  const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<"name" | "price" | "priceUSD" | "limit" | "royalty", string>>>({});
 
   const utils = api.useUtils();
-  const update = api.fan.asset.updateAsset.useMutation({
-    onSuccess: () => {
-      void utils.fan.asset.getMyMarketAsset.invalidate(item.id);
-      void utils.marketplace.market.getACreatorNfts.invalidate();
-      toast.success("Price updated");
-      router.push("/stores");
-    },
-    onError: (e) => toast.error(e.message),
-  });
+  const onSaved = () => {
+    void utils.fan.asset.getMyMarketAsset.invalidate(item.id);
+    void utils.marketplace.market.getACreatorNfts.invalidate();
+    toast.success("Item updated");
+    router.push("/stores");
+  };
+  const updatePrice = api.fan.asset.updateAsset.useMutation({ onSuccess: onSaved, onError: (e) => toast.error(e.message) });
+  const updateItem = api.fan.item.update.useMutation({ onSuccess: onSaved, onError: (e) => toast.error(e.message) });
+  const saving = updatePrice.isPending || updateItem.isPending;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const p = Number(price);
     const u = Number(priceUSD);
+    const l = openEdition ? null : Number(limit);
+    const r = Number(royalty);
     const next: typeof errors = {};
     if (!Number.isFinite(p) || p < 0) next.price = "Enter a price of 0 or more";
     if (!Number.isFinite(u) || u < 0) next.priceUSD = "Enter a price of 0 or more";
+    if (mine) {
+      if (!name.trim()) next.name = "Give it a name";
+      if (l != null && !(Number.isInteger(l) && l >= 1)) next.limit = "At least 1";
+      else if (l != null && l < a.mintedCount) next.limit = `${a.mintedCount} copies already exist`;
+      if (!(r >= 0 && r <= 50)) next.royalty = "0–50%";
+    }
     setErrors(next);
     if (Object.keys(next).length) return;
-    update.mutate({ assetId: item.id, price: p, priceUSD: u });
+    if (mine) updateItem.mutate({ assetId: a.id, name: name.trim(), description: description.trim(), thumbnail, price: p, priceUSD: u, limit: l, royaltyPercent: r });
+    else updatePrice.mutate({ assetId: item.id, price: p, priceUSD: u });
   };
 
   const left = copies.data;
-  const dirty = Number(price) !== item.price || Number(priceUSD) !== item.priceUSD;
+  const dirty =
+    Number(price) !== item.price ||
+    Number(priceUSD) !== item.priceUSD ||
+    (mine && (name !== a.name || description !== (a.description ?? "") || thumbnail !== a.thumbnail || openEdition !== (a.limit == null) || (!openEdition && Number(limit) !== a.limit) || Number(royalty) !== a.royaltyPercent));
 
   return (
     <FormPage
       title={a.name}
-      description="What fans get when they buy it, and what it costs."
+      description={mine ? "Edit the details, supply, royalty and price." : "What fans get when they buy it, and what it costs."}
       back={{ href: "/stores", label: "Stores" }}
       onSubmit={submit}
       actions={
@@ -97,8 +122,8 @@ function EditForm({ item }: { item: Item }) {
           <Button type="button" variant="ghost" onClick={() => router.push("/stores")}>
             Cancel
           </Button>
-          <Button type="submit" disabled={update.isPending || !dirty}>
-            {update.isPending && <Loader2 className="animate-spin" />} Save price
+          <Button type="submit" disabled={saving || uploading || !dirty}>
+            {saving && <Loader2 className="animate-spin" />} {mine ? "Save changes" : "Save price"}
           </Button>
         </>
       }
@@ -106,7 +131,7 @@ function EditForm({ item }: { item: Item }) {
         <section className="overflow-hidden rounded-xl border bg-card">
           <div className="relative aspect-square bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={a.thumbnail} alt="" className="size-full object-cover" />
+            <img src={thumbnail} alt="" className="size-full object-cover" />
             <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium backdrop-blur">
               <media.icon className="size-3.5" /> {media.label}
             </span>
@@ -131,6 +156,14 @@ function EditForm({ item }: { item: Item }) {
                 <dd className="mt-0.5">{a.limit ? `${a.limit.toLocaleString()} total` : "Unlimited"}</dd>
               </div>
               <div>
+                <dt className="label-caps">Minted</dt>
+                <dd className="mt-0.5">{a.mintedCount.toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="label-caps">Royalty</dt>
+                <dd className="mt-0.5">{a.royaltyPercent}%</dd>
+              </div>
+              <div>
                 <dt className="label-caps">Code</dt>
                 <dd className="mt-0.5 font-mono text-xs">{a.code}</dd>
               </div>
@@ -151,6 +184,39 @@ function EditForm({ item }: { item: Item }) {
         </section>
       }
     >
+      {mine && (
+        <FormSection title="Details" icon={Pencil} description="What everyone sees in your store.">
+          <Field label="Name" htmlFor="name" required error={errors.name}>
+            <Input id="name" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Description" htmlFor="description">
+            <Textarea id="description" rows={4} className="resize-none" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
+          <Field label="Cover" hint="The store card image. PNG or JPG.">
+            <Dropzone endpoint="imageUploader" shape="square" className="max-w-56" accept="image/png,image/jpeg" value={thumbnail} onUploadingChange={setUploading} onChange={(url) => url && setThumbnail(url)} />
+          </Field>
+        </FormSection>
+      )}
+
+      {mine && (
+        <FormSection title="Supply & royalty" icon={Package} description="Supply can't go below the copies already minted. Royalty applies to future resales.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Supply" htmlFor="limit" error={errors.limit} hint={`${a.mintedCount.toLocaleString()} minted so far`}>
+              <Input id="limit" type="number" min={Math.max(1, a.mintedCount)} step={1} disabled={openEdition} placeholder={openEdition ? "Unlimited" : undefined} value={openEdition ? "" : limit} onChange={(e) => setLimit(e.target.value)} />
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={openEdition} onChange={(e) => setOpenEdition(e.target.checked)} className="size-4 accent-primary" /> Open edition (no limit)
+              </label>
+            </Field>
+            <Field label="Royalty" htmlFor="royalty" error={errors.royalty} hint="Your share of every resale, 0–50%.">
+              <div className="relative">
+                <Input id="royalty" type="number" min={0} max={50} step="any" className="pr-8" value={royalty} onChange={(e) => setRoyalty(e.target.value)} />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+              </div>
+            </Field>
+          </div>
+        </FormSection>
+      )}
+
       <FormSection title="Price" icon={DollarSign} description="Fans pay in either currency. Changing the price doesn't affect copies already sold.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={`Price in ${code}`} htmlFor="price" required error={errors.price}>
