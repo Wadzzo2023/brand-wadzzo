@@ -84,9 +84,16 @@ model NotificationObject {
 model Subscription {
     id Int @id @default(autoincrement())
 
-    name     String
-    features String
-    price    Float // here price is the copy of creator page asset
+    name        String
+    description String   @default("")
+    features    String[] // one perk per entry
+    /// palette name the UI maps to theme-safe classes: green | blue | purple | gold | rose | slate
+    color       String   @default("green")
+    popular     Boolean  @default(false)
+    isActive    Boolean  @default(true)
+    /// page tokens a fan must hold to be in this tier
+    price       Float
+    createdAt   DateTime @default(now())
 
     creatorId String
     creator   Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -544,6 +551,8 @@ model AssetTransaction {
     reserveCost   Float @default(0)
     total         Float @default(0)
 
+    /// card payment id (Square) when method = CARD; the card is charged before delivery
+    paymentRef String?   @unique
     /// Stellar transaction hash (known before signing)
     txHash    String?   @unique
     error     String?
