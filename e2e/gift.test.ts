@@ -92,7 +92,7 @@ describe("gift an item (testnet)", () => {
       console.log("QUOTE A", JSON.stringify({ ok: qa.ok, delivery: qa.delivery, toMint: qa.toMint, fromStock: qa.fromStock, total: qa.total, lines: qa.lines.map((l) => `${l.label}=${l.amount}`), problems: qa.problems }));
       expect(qa.ok).toBe(true);
       expect(qa.delivery).toBe("claimable");
-      const pa = await prepareGiftItem(ctx as never, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 2 });
+      const pa = await prepareGiftItem(ctx, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 2 });
       await submit(pa.xdr);
       expect((await confirmGiftItem(db, brand.publicKey(), pa.txId)).status).toBe("SUCCESS");
       const cbs = await server.claimableBalances().claimant(fan.publicKey()).call();
@@ -105,7 +105,7 @@ describe("gift an item (testnet)", () => {
       await send(fan, (t) => t.addOperation(Operation.changeTrust({ asset: item })));
       const qb = await quoteGiftItem(db, brand.publicKey(), { assetId: asset.id, pubkey: fan.publicKey(), quantity: 1 });
       expect(qb.delivery).toBe("direct");
-      const pb = await prepareGiftItem(ctx as never, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 1 });
+      const pb = await prepareGiftItem(ctx, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 1 });
       await submit(pb.xdr);
       expect((await confirmGiftItem(db, brand.publicKey(), pb.txId)).status).toBe("SUCCESS");
       expect(await bal(fan.publicKey(), code, issuer.publicKey())).toBe(1);
@@ -118,7 +118,7 @@ describe("gift an item (testnet)", () => {
       console.log("QUOTE C", JSON.stringify({ ok: qc.ok, fromStock: qc.fromStock, toMint: qc.toMint, problems: qc.problems }));
       expect(qc.fromStock).toBe(2);
       expect(qc.toMint).toBe(0);
-      const pc = await prepareGiftItem(ctx as never, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 2 });
+      const pc = await prepareGiftItem(ctx, { assetId: asset.id, pubkey: fan.publicKey(), quantity: 2 });
       await submit(pc.xdr);
       expect((await confirmGiftItem(db, brand.publicKey(), pc.txId)).status).toBe("SUCCESS");
       expect(await bal(fan.publicKey(), code, issuer.publicKey())).toBe(3);
