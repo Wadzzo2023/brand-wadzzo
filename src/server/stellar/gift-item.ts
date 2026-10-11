@@ -109,9 +109,12 @@ export async function giftableItems(db: DbClient, creatorId: string) {
   ]);
   if (!assets.length || !creator) return [];
   const storage = await loadAccount(creator.storagePub);
-  const canMint = Boolean(env.ISSUER_ENCRYPTION_KEY) && Boolean((await db.creatorIssuer.findUnique({ where: { creatorId } }))?.active);
+  // Minting needs the encryption key and an issuer that exists on-chain (it opens with the first item).
+  const issuerRow = env.ISSUER_ENCRYPTION_KEY ? await db.creatorIssuer.findUnique({ where: { creatorId } }) : null;
+  const issuerLive = Boolean(issuerRow && (issuerRow.active || (await loadAccount(issuerRow.publicKey))));
   return assets.map((a) => {
     const stock = Math.floor(balanceOf(storage, a.code, a.issuer));
+    const canMint = issuerLive && issuerRow?.publicKey === a.issuer;
     const mintable = canMint ? (a.limit == null ? null : Math.max(0, a.limit - a.mintedCount)) : 0;
     return { id: a.id, name: a.name, code: a.code, issuer: a.issuer, thumbnail: a.thumbnail, stock, mintable, giftable: stock > 0 || mintable === null || mintable > 0 };
   });
