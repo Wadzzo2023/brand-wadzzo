@@ -113,17 +113,27 @@ export default function GiftsPage() {
   const sendItem = async () => {
     if (!asset?.itemId || !pubkey) return;
     setSigning(true);
+    const walletType = session.data?.user?.walletType;
     try {
+      console.info("[gift] preparing", { item: asset.itemId, qty, walletType });
       const res = await prepareItem.mutateAsync({ assetId: asset.itemId, pubkey, quantity: qty });
-      const ok = await clientsign({ presignedxdr: res.xdr, walletType: session.data?.user?.walletType, pubkey: session.data?.user.id, test: clientSelect() });
+      console.info("[gift] prepared; signing and submitting", { txId: res.txId, delivery: res.quote.delivery });
+      // A wallet popup that never answers would otherwise leave this spinning forever.
+      const ok = await Promise.race([
+        clientsign({ presignedxdr: res.xdr, walletType, pubkey: session.data?.user.id, test: clientSelect() }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Signing took too long. Check your wallet window or network and try again.")), 90_000)),
+      ]);
+      console.info("[gift] signed and submitted", { ok });
       if (!ok) throw new Error("The transaction wasn't signed");
       const done = await confirmItem.mutateAsync({ txId: res.txId });
+      console.info("[gift] confirmed", done);
       if (done.status === "FAILED") throw new Error("The gift didn't go through on Stellar");
       toast.success(res.quote.delivery === "claimable" ? `Sent ${qty} ${asset.name ?? asset.code} 🎁 — they accept it from their wallet` : `Sent ${qty} ${asset.name ?? asset.code} 🎁`);
       setConfirming(false);
       setAmount("1");
       void utils.fan.gift.items.invalidate();
     } catch (e) {
+      console.error("[gift] failed", e);
       toast.error(e instanceof Error ? e.message : "Couldn't send the gift");
     } finally {
       setSigning(false);
