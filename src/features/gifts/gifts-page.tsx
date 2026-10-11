@@ -90,6 +90,7 @@ export default function GiftsPage() {
     }
   };
 
+  const confirmToken = api.fan.gift.confirmToken.useMutation();
   const send = api.fan.trx.giftFollowerXDR.useMutation({
     onSuccess: async (xdr) => {
       if (!xdr) return;
@@ -97,6 +98,8 @@ export default function GiftsPage() {
       try {
         const ok = await clientsign({ presignedxdr: xdr, walletType: session.data?.user?.walletType, pubkey: session.data?.user.id, test: clientSelect() });
         if (ok) {
+          // tell the server it landed, so the fan is notified
+          confirmToken.mutate({ xdr });
           toast.success(`Sent ${qty} ${asset?.code} 🎁`);
           setConfirming(false);
           setAmount("1");

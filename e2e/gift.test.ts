@@ -124,6 +124,18 @@ describe("gift an item (testnet)", () => {
       expect(await bal(fan.publicKey(), code, issuer.publicKey())).toBe(3);
       expect(await bal(storage.publicKey(), code, issuer.publicKey())).toBe(1);
 
+      // E. a platform-token gift (signed in the browser): confirming it records it and tells the fan once
+      const { sendGitfAsPlatformAsset } = await import("~/lib/stellar/fan/send_gift");
+      const { confirmTokenGift } = await import("~/server/stellar/token-gift");
+      await send(fan, (t) => t.addOperation(Operation.changeTrust({ asset: PLATFORM_ASSET })));
+      const giftXdr = await sendGitfAsPlatformAsset({ reciver: fan.publicKey(), creatorId: brand.publicKey(), amount: 5, assetCode: PLATFORM_ASSET.code, assetIssuer: PLATFORM_ASSET.issuer, signWith: undefined });
+      await submit(giftXdr);
+      const before = await db.notification.count({ where: { notifierId: fan.publicKey() } });
+      expect((await confirmTokenGift(db, brand.publicKey(), giftXdr, "wadzzo")).status).toBe("SUCCESS");
+      expect((await confirmTokenGift(db, brand.publicKey(), giftXdr, "wadzzo")).status).toBe("SUCCESS"); // again: no second notification
+      expect(await db.notification.count({ where: { notifierId: fan.publicKey() } })).toBe(before + 1);
+      expect(await bal(fan.publicKey(), PLATFORM_ASSET.code, PLATFORM_ASSET.issuer)).toBe(5);
+
       // D. not a follower
       const stranger = Keypair.random();
       const qd = await quoteGiftItem(db, brand.publicKey(), { assetId: asset.id, pubkey: stranger.publicKey(), quantity: 1 });
