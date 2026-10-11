@@ -296,7 +296,7 @@ export const creatorRouter = createTRPCRouter({
     const [pins, hotspots, storeItems, recentPins] = await Promise.all([
       ctx.db.locationGroup.count({ where: { creatorId: id, hotspotId: null } }),
       ctx.db.hotspot.count({ where: { creatorId: id, hidden: false } }),
-      ctx.db.marketAsset.count({ where: { asset: { creatorId: id, song: null } } }),
+      ctx.db.marketAsset.count({ where: { asset: { creatorId: id } } }),
       ctx.db.locationGroup.findMany({
         where: { creatorId: id, hotspotId: null },
         orderBy: { createdAt: "desc" },
