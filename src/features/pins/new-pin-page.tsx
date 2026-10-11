@@ -354,7 +354,7 @@ function Summary({
         {row("Limit per pin", values.pinCollectionLimit ?? 0)}
         {row("Starts", values.startDate ? values.startDate.toLocaleString() : "—")}
         {row("Ends", values.endDate ? values.endDate.toLocaleString() : "—")}
-        {token && row("Token", `${token.code} · ${token.bal} held`)}
+        {token && row("Token", `${token.code} · ${token.bal >= 1_000_000 ? "open edition" : `${token.bal} available`}`)}
         {token && row("Left after", <span className={remaining < 0 ? "text-destructive" : undefined}>{remaining}</span>)}
       </div>
     </section>

@@ -32,6 +32,8 @@ export type AssetType = {
 }
 
 export const PAGE_ASSET_NUM = -10
+/** Stands in for "no cap": an open-edition item can be minted as long as fans claim it. */
+export const OPEN_EDITION = 1_000_000
 export const NO_ASSET = -99
 
 export const createPinFormSchema = z.object({
@@ -95,6 +97,8 @@ export function CollectionInputs({
 }) {
     const { control, register, formState: { errors } } = useFormContext<z.infer<typeof createPinFormSchema>>()
     const { getAssetBalance } = useCreatorStorageAcc()
+    // Items are minted when a fan claims them, so what a pin can hand out is the stock plus what the item's limit still lets us mint.
+    const items = api.fan.gift.items.useQuery(undefined, { retry: false })
 
     return (
         <div className="space-y-4">
@@ -141,10 +145,15 @@ export function CollectionInputs({
                                     (asset: AssetType) => asset.id === selectedAssetId,
                                 )
                                 if (selectedAsset) {
-                                    const bal = getAssetBalance({
-                                        code: selectedAsset.code,
-                                        issuer: selectedAsset.issuer,
-                                    })
+                                    const item = items.data?.find((i) => i.id === selectedAsset.id)
+                                    const bal = item
+                                        ? item.mintable === null
+                                            ? OPEN_EDITION
+                                            : item.stock + item.mintable
+                                        : getAssetBalance({
+                                              code: selectedAsset.code,
+                                              issuer: selectedAsset.issuer,
+                                          })
                                     setSelectedToken({ ...selectedAsset, bal: bal })
                                     setRemainingBalance(bal)
                                 }

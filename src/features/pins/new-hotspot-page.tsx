@@ -198,7 +198,7 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                     ["Each pin lasts", LIFETIME.find(([d]) => d === values.pinDurationDays)?.[1] ?? `${values.pinDurationDays} days`],
                     ["Pins per drop", values.pinNumber ?? 1],
                     ["Est. drops", drops ?? "—"],
-                    ...(selectedToken ? ([["Token", `${selectedToken.code} · ${selectedToken.bal} held`]] as const) : []),
+                    ...(selectedToken ? ([["Token", `${selectedToken.code} · ${selectedToken.bal >= 1_000_000 ? "open edition" : `${selectedToken.bal} available`}`]] as const) : []),
                   ] as const
                 ).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3 py-1.5">
