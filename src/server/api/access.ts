@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 
 import type { Db } from "~/server/db";
-import { canAdminPlatform, inPlatformScope, type ScopePlatform } from "~/server/platform-scope";
+import { brandWorksOnPlatform, canAdminPlatform, inPlatformScope, type ScopePlatform } from "~/server/platform-scope";
 
 type AuthCtx = {
   db: Db;
@@ -60,7 +60,8 @@ export async function assertCreatorInScope(ctx: AuthCtx, creatorId: string) {
 
 /**
  * The brand a request acts for. With no `requestedId` (or the caller's own id) it
- * is the caller's own brand, which must be approved and on this platform. Any
+ * is the caller's own brand, which must be approved and work on this platform
+ * (its own, or any brand on the root platform). Any
  * other brand needs an admin of this platform whose scope covers it.
  */
 export async function resolveActingBrand(ctx: AuthCtx, requestedId?: string | null) {
@@ -72,7 +73,7 @@ export async function resolveActingBrand(ctx: AuthCtx, requestedId?: string | nu
   });
 
   if (creatorId === userId) {
-    if (!creator?.aprovalSend || creator.approved !== true || creator.platformId !== ctx.platform.id) {
+    if (!creator?.aprovalSend || creator.approved !== true || !brandWorksOnPlatform(ctx.platform, creator.platformId)) {
       throw new TRPCError({ code: "FORBIDDEN", message: "Creator access requires an approved brand account" });
     }
   } else {

@@ -16,7 +16,7 @@ import { ZodError } from "zod";
 
 import { getServerAuthSession } from "~/server/auth";
 import { db } from "~/server/db";
-import { canAdminPlatform, getCurrentPlatform } from "~/server/platform";
+import { brandWorksOnPlatform, canAdminPlatform, getCurrentPlatform } from "~/server/platform";
 
 /**
  * 1. CONTEXT
@@ -185,8 +185,8 @@ export const creatorProcedure = t.procedure.use(async ({ ctx, next }) => {
     });
   }
 
-  // A brand belongs to exactly one platform and only works in that platform's panel.
-  if (creator.platformId !== ctx.platform.id) {
+  // A brand belongs to one platform and works in that platform's panel, or in the root (Wadzzo) one.
+  if (!brandWorksOnPlatform(ctx.platform, creator.platformId)) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: `This brand belongs to another platform (${creator.platformId})`,

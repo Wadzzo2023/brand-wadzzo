@@ -42,6 +42,16 @@ export function canAdminPlatform(
 }
 
 /**
+ * Whether a brand of `brandPlatformId` may work in this deployment's brand
+ * portal: its own platform's portal, or the root (Wadzzo) portal, where every
+ * platform's brands can manage and drop pins (the pins keep the brand's own
+ * platform, so they show on both).
+ */
+export function brandWorksOnPlatform(platform: ScopePlatform, brandPlatformId: string | null | undefined) {
+  return platform.isRoot || platform.id === brandPlatformId;
+}
+
+/**
  * `platformScope` for an optional relation (e.g. `location.locationGroup`):
  * undefined when unscoped, so rows without the relation stay visible on Wadzzo.
  */

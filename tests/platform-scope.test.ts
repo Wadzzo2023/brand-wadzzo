@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getVisibleNavGroups } from "../src/components/shell/access-rules";
 import {
   assertInPlatformScope,
+  brandWorksOnPlatform,
   canAdminPlatform,
   inPlatformScope,
   platformScope,
@@ -56,6 +57,21 @@ describe("canAdminPlatform", () => {
   it("keeps a sub-platform's admins on their own panel", () => {
     expect(canAdminPlatform(clintonAdmin, clinton.platform)).toBe(true);
     expect(canAdminPlatform(clintonAdmin, wadzzo.platform)).toBe(false);
+  });
+});
+
+describe("brandWorksOnPlatform", () => {
+  it("lets a brand work on its own platform's portal", () => {
+    expect(brandWorksOnPlatform(clinton.platform, "clintoncounty")).toBe(true);
+    expect(brandWorksOnPlatform(wadzzo.platform, "wadzzo")).toBe(true);
+  });
+
+  it("lets any platform's brand work on the root (Wadzzo) portal", () => {
+    expect(brandWorksOnPlatform(wadzzo.platform, "clintoncounty")).toBe(true);
+  });
+
+  it("keeps a Wadzzo brand off a partner platform's portal", () => {
+    expect(brandWorksOnPlatform(clinton.platform, "wadzzo")).toBe(false);
   });
 });
 

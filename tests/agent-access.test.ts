@@ -122,9 +122,14 @@ describe("a brand", () => {
     expect(taskClient.enqueue).not.toHaveBeenCalled();
   });
 
-  it("cannot run the agent until approved, or on another platform's site", async () => {
+  it("cannot run the agent until approved, or for a Wadzzo brand on a partner platform's site", async () => {
     await expect(caller(ctxFor(CLINTON, "PENDING_BRAND")).send!(ask)).rejects.toMatchObject(forbidden);
-    await expect(caller(ctxFor(WADZZO, "CLINTON_BRAND")).send!(ask)).rejects.toMatchObject(forbidden);
+    await expect(caller(ctxFor(CLINTON, "WADZZO_BRAND")).send!(ask)).rejects.toMatchObject(forbidden);
+  });
+
+  it("can run the agent from the Wadzzo site too", async () => {
+    await caller(ctxFor(WADZZO, "CLINTON_BRAND")).send!(ask);
+    expect(taskClient.enqueue).toHaveBeenCalledWith("agent_run", "CLINTON_BRAND", expect.objectContaining({ platformId: "clintoncounty" }), 1);
   });
 
   it("can't continue a conversation that isn't its own", async () => {

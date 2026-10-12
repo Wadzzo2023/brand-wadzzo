@@ -36,7 +36,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { platformScope } from "~/server/platform";
+import { brandWorksOnPlatform, platformScope } from "~/server/platform";
 import { BADWORDS } from "~/utils/banned-word";
 import { truncateString } from "~/utils/string";
 import { PaymentMethodEnum } from "../bounty/bounty";
@@ -268,8 +268,8 @@ export const creatorRouter = createTRPCRouter({
         platform: { select: { id: true, name: true } },
       },
     });
-    // A brand belongs to one platform; on any other one it is read-only context, not a working account.
-    return creator && { ...creator, onThisPlatform: creator.platformId === ctx.platform.id };
+    // A brand belongs to one platform; on another (non-root) one it is read-only context, not a working account.
+    return creator && { ...creator, onThisPlatform: brandWorksOnPlatform(ctx.platform, creator.platformId) };
   }),
   /** Everything the brand profile page header needs, in one call (no secrets). */
   profileOverview: protectedProcedure.query(async ({ ctx }) => {
