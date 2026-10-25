@@ -6,10 +6,13 @@ import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
 import { Toaster } from "~/components/shadcn/ui/toaster";
+import { DialogProfileSync } from "~/components/shell/dialog-profile-sync";
 import { TRPCReactProvider } from "~/trpc/provider";
 
 // connect_wallet's global dialogs (wallet connect, toasts). Browser-only.
-const WalletPopups = dynamic(() => import("package/connect_wallet/src/components/popup_imports"), { ssr: false });
+const WalletPopups = dynamic(() => import("package/connect_wallet/src/components/popup_imports"), {
+  ssr: false,
+});
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -19,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
           {children}
           <Toaster />
           <WalletPopups className="font-sans" />
+          <DialogProfileSync />
         </TRPCReactProvider>
       </ThemeProvider>
     </SessionProvider>

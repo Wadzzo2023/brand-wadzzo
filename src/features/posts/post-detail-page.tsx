@@ -1,7 +1,17 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Copy, FileText, Globe, Heart, Lock, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import {
+  Copy,
+  FileText,
+  Globe,
+  Heart,
+  Lock,
+  MessageCircle,
+  MoreHorizontal,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -15,7 +25,13 @@ import { SinglePostCommentSection } from "~/components/post/comment/single-post-
 import MediaGallery from "~/components/post/media-gallary";
 import { Badge } from "~/components/shadcn/ui/badge";
 import { Button } from "~/components/shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/shadcn/ui/dropdown-menu";
 import { cn } from "~/lib/utils";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
 import { EmptyState } from "~/ui/empty-state";
@@ -30,14 +46,21 @@ const back = { href: "/posts", label: "Posts" };
 /** One post: the full text and media, likes, and the comment thread. */
 export default function PostDetailPage() {
   const id = Number(useParams<{ id: string }>()?.id);
-  const post = api.fan.post.getAPost.useQuery(id, { enabled: Number.isInteger(id), refetchOnWindowFocus: false });
+  const post = api.fan.post.getAPost.useQuery(id, {
+    enabled: Number.isInteger(id),
+    refetchOnWindowFocus: false,
+  });
 
   if (post.isLoading) return <PostSkeleton />;
   if (post.isError)
     return (
       <PageBody className="max-w-3xl">
         <PageHeader title="Post" back={back} />
-        <ErrorState className="mt-6" message={post.error.message} onRetry={() => void post.refetch()} />
+        <ErrorState
+          className="mt-6"
+          message={post.error.message}
+          onRetry={() => void post.refetch()}
+        />
       </PageBody>
     );
   if (!post.data)
@@ -71,8 +94,12 @@ function PostView({ post }: { post: PostData }) {
   const liked = api.fan.post.isLiked.useQuery(post.id);
   const [likes, setLikes] = useState(post._count.likes);
   const refreshLike = () => void utils.fan.post.isLiked.invalidate(post.id);
-  const like = api.fan.post.likeApost.useMutation({ onSuccess: () => (setLikes((n) => n + 1), refreshLike()) });
-  const unlike = api.fan.post.unLike.useMutation({ onSuccess: () => (setLikes((n) => Math.max(0, n - 1)), refreshLike()) });
+  const like = api.fan.post.likeApost.useMutation({
+    onSuccess: () => (setLikes((n) => n + 1), refreshLike()),
+  });
+  const unlike = api.fan.post.unLike.useMutation({
+    onSuccess: () => (setLikes((n) => Math.max(0, n - 1)), refreshLike()),
+  });
   const liking = like.isPending || unlike.isPending;
 
   const [deleting, setDeleting] = useState(false);
@@ -103,14 +130,19 @@ function PostView({ post }: { post: PostData }) {
     <PageBody className="max-w-3xl">
       <PageHeader title={post.heading} back={back} />
 
-      <article className="mt-6 overflow-hidden rounded-xl border bg-card">
+      <article className="bg-card border-foreground/10 mt-6 overflow-hidden rounded-[1.4rem] border-2">
         <header className="flex items-center gap-3 p-4 sm:p-5">
           <CustomAvatar url={post.creator.profileUrl} className="size-10" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{post.creator.name}</p>
-            <p className="text-xs text-muted-foreground">
-              <time dateTime={new Date(post.createdAt).toISOString()} title={new Date(post.createdAt).toLocaleString()}>
-                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+            <p className="text-muted-foreground text-xs">
+              <time
+                dateTime={new Date(post.createdAt).toISOString()}
+                title={new Date(post.createdAt).toLocaleString()}
+              >
+                {formatDistanceToNow(new Date(post.createdAt), {
+                  addSuffix: true,
+                })}
               </time>
             </p>
           </div>
@@ -136,7 +168,10 @@ function PostView({ post }: { post: PostData }) {
               {isOwner && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setDeleting(true)} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onClick={() => setDeleting(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
                     <Trash2 /> Delete post
                   </DropdownMenuItem>
                 </>
@@ -146,13 +181,13 @@ function PostView({ post }: { post: PostData }) {
         </header>
 
         {post.content && (
-          <div className="prose prose-sm max-w-none px-4 pb-4 dark:prose-invert sm:px-5">
+          <div className="prose prose-sm dark:prose-invert max-w-none px-4 pb-4 sm:px-5">
             <Preview value={post.content} />
           </div>
         )}
 
         {post.medias.length > 0 && (
-          <div className="border-y bg-muted/40">
+          <div className="bg-muted/40 border-y">
             <MediaGallery media={post.medias} />
           </div>
         )}
@@ -165,7 +200,11 @@ function PostView({ post }: { post: PostData }) {
             disabled={liking || liked.isLoading}
             onClick={() => (liked.data ? unlike.mutate(post.id) : like.mutate(post.id))}
           >
-            {liking ? <Spinner className="size-4" /> : <Heart className={cn(liked.data && "fill-destructive text-destructive")} />}
+            {liking ? (
+              <Spinner className="size-4" />
+            ) : (
+              <Heart className={cn(liked.data && "fill-destructive text-destructive")} />
+            )}
             <span className="tabular-nums">{likes.toLocaleString()}</span>
             <span className="sr-only">likes</span>
           </Button>
@@ -182,8 +221,13 @@ function PostView({ post }: { post: PostData }) {
         </div>
       </article>
 
-      <section id="comments" className="mt-6 scroll-mt-20 rounded-xl border bg-card p-4 sm:p-5">
-        <h2 className="font-hud text-sm font-semibold uppercase tracking-wider text-muted-foreground">Comments</h2>
+      <section
+        id="comments"
+        className="bg-card border-foreground/10 mt-6 scroll-mt-20 rounded-[1.4rem] border-2 p-4 sm:p-5"
+      >
+        <h2 className="font-hud text-muted-foreground text-sm font-semibold tracking-wider uppercase">
+          Comments
+        </h2>
         <div className="mt-3">
           <AddPostComment postId={post.id} />
         </div>
@@ -207,7 +251,7 @@ function PostSkeleton() {
     <PageBody className="max-w-3xl">
       <Skeleton className="h-4 w-16" />
       <Skeleton className="mt-3 h-8 w-2/3" />
-      <div className="mt-6 space-y-4 rounded-xl border bg-card p-5">
+      <div className="bg-card border-foreground/10 mt-6 space-y-4 rounded-[1.4rem] border-2 p-5">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-full" />
           <div className="space-y-1.5">

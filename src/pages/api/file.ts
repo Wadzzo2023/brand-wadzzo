@@ -1,4 +1,3 @@
-import PinataClient from "@pinata/sdk";
 import formidable from "formidable";
 import fs from "fs";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -6,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { env } from "~/env";
 import { getServerAuthSession } from "~/server/auth";
 
-const pinata = new PinataClient({ pinataJWTKey: env.PINATA_JWT });
+import { pinataClient, type PinataResponse } from "~/server/pinata";
 
 export const config = {
   api: {
@@ -14,15 +13,11 @@ export const config = {
   },
 };
 
-export interface PinataResponse {
-  IpfsHash: string;
-  PinSize: number;
-  Timestamp: string;
-}
+export type { PinataResponse };
 
 async function saveFile(file: formidable.File): Promise<PinataResponse> {
   const stream = fs.createReadStream(file.filepath);
-  const response = await pinata.pinFileToIPFS(stream, { pinataMetadata: { name: file.originalFilename ?? "upload" } });
+  const response = await (await pinataClient(env.PINATA_JWT)).pinFileToIPFS(stream, { pinataMetadata: { name: file.originalFilename ?? "upload" } });
   fs.unlinkSync(file.filepath);
   return response;
 }
@@ -53,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (req.method === "GET") {
     try {
-      const response = await pinata.pinList({ pageLimit: 1 });
+      const response = await (await pinataClient(env.PINATA_JWT)).pinList({ pageLimit: 1 });
       return res.json(response.rows[0]);
     } catch (e) {
       console.error("[api/file] list failed", e);

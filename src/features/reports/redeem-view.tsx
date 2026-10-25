@@ -2,7 +2,22 @@
 
 import { keepPreviousData } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { AlertCircle, CheckCircle2, ChevronDown, Clock, Landmark, Loader2, MapPin, PartyPopper, RotateCcw, Search, ShieldCheck, Ticket, Users, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Landmark,
+  Loader2,
+  MapPin,
+  PartyPopper,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Ticket,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -25,7 +40,8 @@ type Redeemed = RouterOutputs["maps"]["pin"]["getRedeemedByCreator"]["items"][nu
 type Tab = "rewards" | "history";
 
 const CODE_LEN = 6;
-const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /**
  * Redeem: a fan shows the 6-character code they got when collecting a
@@ -37,48 +53,63 @@ export default function RedeemView() {
   const search = useSearchParams();
   const pathname = usePathname() ?? "";
   const tab: Tab = search?.get("tab") === "history" ? "history" : "rewards";
-  const setTab = (t: string) => router.replace(t === "rewards" ? pathname : `${pathname}?tab=${t}`, { scroll: false });
+  const setTab = (t: string) =>
+    router.replace(t === "rewards" ? pathname : `${pathname}?tab=${t}`, {
+      scroll: false,
+    });
   const summary = api.maps.pin.getRedeemSummary.useQuery();
 
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4 sm:p-5">
+        <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <Ticket className="size-5 text-primary" />
+            <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <Ticket className="text-primary size-5" />
             </div>
             <div>
               <p className="font-hud text-2xl font-bold tracking-tight">
-                {summary.data ? summary.data.rewards.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
+                {summary.data ? (
+                  summary.data.rewards.toLocaleString()
+                ) : (
+                  <span className="skeleton inline-block h-7 w-10 rounded-md align-middle" />
+                )}
               </p>
-              <p className="text-xs font-medium text-muted-foreground">Total rewards</p>
+              <p className="text-muted-foreground text-xs font-medium">Total rewards</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 sm:p-5">
+        <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
-              <Users className="size-5 text-warning" />
+            <div className="bg-warning/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <Users className="text-warning size-5" />
             </div>
             <div>
-              <p className="font-hud text-2xl font-bold tracking-tight text-warning">
-                {summary.data ? summary.data.waiting.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
+              <p className="font-hud text-warning text-2xl font-bold tracking-tight">
+                {summary.data ? (
+                  summary.data.waiting.toLocaleString()
+                ) : (
+                  <span className="skeleton inline-block h-7 w-10 rounded-md align-middle" />
+                )}
               </p>
-              <p className="text-xs font-medium text-muted-foreground">Waiting to redeem</p>
+              <p className="text-muted-foreground text-xs font-medium">Waiting to redeem</p>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 sm:p-5">
+        <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <CheckCircle2 className="size-5 text-primary" />
+            <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <CheckCircle2 className="text-primary size-5" />
             </div>
             <div>
               <p className="font-hud text-2xl font-bold tracking-tight">
-                {summary.data ? summary.data.redeemed.toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
+                {summary.data ? (
+                  summary.data.redeemed.toLocaleString()
+                ) : (
+                  <span className="skeleton inline-block h-7 w-10 rounded-md align-middle" />
+                )}
               </p>
-              <p className="text-xs font-medium text-muted-foreground">Total redeemed</p>
+              <p className="text-muted-foreground text-xs font-medium">Total redeemed</p>
             </div>
           </div>
         </div>
@@ -153,15 +184,18 @@ function CodeChecker() {
     lookup.mutate({ code });
   };
 
-  const found = result && (result.status === "pending" || result.status === "already_redeemed") ? result : null;
+  const found =
+    result && (result.status === "pending" || result.status === "already_redeemed") ? result : null;
 
   return (
-    <section className="grid gap-4 rounded-xl border bg-card p-4 sm:p-6 lg:grid-cols-[minmax(0,380px)_1fr]">
+    <section className="bg-card border-foreground/10 grid gap-4 rounded-[1.4rem] border-2 p-4 sm:p-6 lg:grid-cols-[minmax(0,380px)_1fr]">
       <form onSubmit={check} className="flex flex-col">
-        <h2 className="flex items-center gap-2 font-hud text-lg font-semibold">
-          <Ticket className="size-5 text-primary" /> Redeem a code
+        <h2 className="font-hud flex items-center gap-2 text-lg font-semibold">
+          <Ticket className="text-primary size-5" /> Redeem a code
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Ask the fan for the 6-character code from their collected pin.</p>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Ask the fan for the 6-character code from their collected pin.
+        </p>
         <label htmlFor="redeem-code" className="sr-only">
           Redeem code
         </label>
@@ -176,43 +210,93 @@ function CodeChecker() {
           maxLength={CODE_LEN}
           placeholder="ABC123"
           onChange={(e) => {
-            setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, CODE_LEN));
+            setCode(
+              e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")
+                .slice(0, CODE_LEN),
+            );
             if (result) setResult(null);
           }}
-          className="mt-4 h-14 text-center font-mono text-2xl font-semibold tracking-[0.35em] placeholder:tracking-[0.35em] placeholder:text-faint"
+          className="placeholder:text-faint mt-4 h-14 text-center font-mono text-2xl font-semibold tracking-[0.35em] placeholder:tracking-[0.35em]"
         />
         <div className="mt-2 flex justify-center gap-1.5" aria-hidden>
           {Array.from({ length: CODE_LEN }).map((_, i) => (
-            <span key={i} className={cn("h-1 w-5 rounded-full transition-colors", i < code.length ? "bg-primary" : "bg-muted")} />
+            <span
+              key={i}
+              className={cn(
+                "h-1 w-5 rounded-full transition-colors",
+                i < code.length ? "bg-primary" : "bg-muted",
+              )}
+            />
           ))}
         </div>
-        <Button type="submit" className="mt-4" disabled={code.length !== CODE_LEN || lookup.isPending}>
+        <Button
+          type="submit"
+          className="mt-4"
+          disabled={code.length !== CODE_LEN || lookup.isPending}
+        >
           {lookup.isPending ? <Loader2 className="animate-spin" /> : <Search />} Check code
         </Button>
       </form>
 
-      <div className="min-h-44 rounded-lg border border-dashed bg-muted/30 p-4" aria-live="polite">
+      <div className="bg-muted/30 min-h-44 rounded-lg border border-dashed p-4" aria-live="polite">
         {redeemedNow && found ? (
-          <ResultShell tone="success" icon={CheckCircle2} title="Redeemed — hand over the reward" onReset={reset} resetLabel="Redeem another">
+          <ResultShell
+            tone="success"
+            icon={CheckCircle2}
+            title="Redeemed — hand over the reward"
+            onReset={reset}
+            resetLabel="Redeem another"
+          >
             <FanAndReward data={found} />
-            <p className="mt-3 text-xs text-muted-foreground">Redeemed {format(new Date(redeemedNow), "PPp")}</p>
+            <p className="text-muted-foreground mt-3 text-xs">
+              Redeemed {format(new Date(redeemedNow), "PPp")}
+            </p>
           </ResultShell>
         ) : result?.status === "not_found" ? (
-          <ResultShell tone="error" icon={XCircle} title="Code not found" onReset={reset} resetLabel="Try again">
-            <p className="text-sm text-muted-foreground">Check the code with the fan — it&apos;s 6 letters and numbers, shown after they collect the pin.</p>
+          <ResultShell
+            tone="error"
+            icon={XCircle}
+            title="Code not found"
+            onReset={reset}
+            resetLabel="Try again"
+          >
+            <p className="text-muted-foreground text-sm">
+              Check the code with the fan — it&apos;s 6 letters and numbers, shown after they
+              collect the pin.
+            </p>
           </ResultShell>
         ) : result?.status === "wrong_location" ? (
-          <ResultShell tone="warning" icon={AlertCircle} title="Code is for another pin" onReset={reset} resetLabel="Try again">
-            <p className="text-sm text-muted-foreground">This code belongs to {result.actualLocation.groupTitle ?? "another pin"}.</p>
+          <ResultShell
+            tone="warning"
+            icon={AlertCircle}
+            title="Code is for another pin"
+            onReset={reset}
+            resetLabel="Try again"
+          >
+            <p className="text-muted-foreground text-sm">
+              This code belongs to {result.actualLocation.groupTitle ?? "another pin"}.
+            </p>
           </ResultShell>
         ) : found?.status === "already_redeemed" ? (
-          <ResultShell tone="warning" icon={AlertCircle} title="Already redeemed" onReset={reset} resetLabel="Check another">
+          <ResultShell
+            tone="warning"
+            icon={AlertCircle}
+            title="Already redeemed"
+            onReset={reset}
+            resetLabel="Check another"
+          >
             <FanAndReward data={found} />
-            {found.redeemedAt && <p className="mt-3 text-xs text-muted-foreground">Redeemed {format(new Date(found.redeemedAt), "PPp")}</p>}
+            {found.redeemedAt && (
+              <p className="text-muted-foreground mt-3 text-xs">
+                Redeemed {format(new Date(found.redeemedAt), "PPp")}
+              </p>
+            )}
           </ResultShell>
         ) : found ? (
           <div>
-            <p className="flex items-center gap-2 font-semibold text-primary">
+            <p className="text-primary flex items-center gap-2 font-semibold">
               <ShieldCheck className="size-5" /> Valid code — ready to redeem
             </p>
             <div className="mt-3">
@@ -228,8 +312,8 @@ function CodeChecker() {
             </div>
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-            <Ticket className="size-7 text-faint" />
+          <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-center text-sm">
+            <Ticket className="text-faint size-7" />
             The fan and their reward show here, so you can check before redeeming.
           </div>
         )}
@@ -253,7 +337,8 @@ function ResultShell({
   onReset: () => void;
   resetLabel: string;
 }) {
-  const color = tone === "success" ? "text-primary" : tone === "warning" ? "text-warning" : "text-destructive";
+  const color =
+    tone === "success" ? "text-primary" : tone === "warning" ? "text-warning" : "text-destructive";
   return (
     <div>
       <p className={cn("flex items-center gap-2 font-semibold", color)}>
@@ -267,21 +352,39 @@ function ResultShell({
   );
 }
 
-function FanAndReward({ data }: { data: Extract<Lookup, { status: "pending" | "already_redeemed" }> }) {
+function FanAndReward({
+  data,
+}: {
+  data: Extract<Lookup, { status: "pending" | "already_redeemed" }>;
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Person user={data.user} sub={data.claimedAt ? `Collected ${formatDistanceToNow(new Date(data.claimedAt), { addSuffix: true })}` : undefined} />
-      <div className="flex items-start gap-3 rounded-lg border bg-card p-3">
+      <Person
+        user={data.user}
+        sub={
+          data.claimedAt
+            ? `Collected ${formatDistanceToNow(new Date(data.claimedAt), { addSuffix: true })}`
+            : undefined
+        }
+      />
+      <div className="bg-card flex items-start gap-3 rounded-lg border p-3">
         {data.location?.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.location.image} alt="" className="size-10 shrink-0 rounded-md object-cover" />
+          <img
+            src={data.location.image}
+            alt=""
+            className="size-10 shrink-0 rounded-md object-cover"
+          />
         ) : (
           <TypeIcon type={data.location?.type} />
         )}
         <div className="min-w-0 text-sm">
           <p className="truncate font-medium">{data.location?.title ?? "Pin"}</p>
-          <div className="text-xs text-muted-foreground">
-            <LocationAddressDisplay latitude={data.locationData.latitude} longitude={data.locationData.longitude} />
+          <div className="text-muted-foreground text-xs">
+            <LocationAddressDisplay
+              latitude={data.locationData.latitude}
+              longitude={data.locationData.longitude}
+            />
           </div>
         </div>
       </div>
@@ -289,21 +392,27 @@ function FanAndReward({ data }: { data: Extract<Lookup, { status: "pending" | "a
   );
 }
 
-function Person({ user, sub }: { user: { name: string | null; image: string | null; email: string | null }; sub?: string }) {
+function Person({
+  user,
+  sub,
+}: {
+  user: { name: string | null; image: string | null; email: string | null };
+  sub?: string;
+}) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+    <div className="bg-card flex items-center gap-3 rounded-lg border p-3">
       {user.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={user.image} alt="" className="size-10 shrink-0 rounded-full object-cover" />
       ) : (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+        <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full font-semibold">
           {(user.name ?? user.email ?? "?").slice(0, 1).toUpperCase()}
         </span>
       )}
       <div className="min-w-0 text-sm">
         <p className="truncate font-medium">{user.name ?? "Fan"}</p>
-        {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
-        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+        {user.email && <p className="text-muted-foreground truncate text-xs">{user.email}</p>}
+        {sub && <p className="text-muted-foreground text-xs">{sub}</p>}
       </div>
     </div>
   );
@@ -312,7 +421,12 @@ function Person({ user, sub }: { user: { name: string | null; image: string | nu
 function TypeIcon({ type, className }: { type?: string | null; className?: string }) {
   const Icon = type === "EVENT" ? PartyPopper : Landmark;
   return (
-    <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary", className)}>
+    <span
+      className={cn(
+        "bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-md",
+        className,
+      )}
+    >
       <Icon className="size-4" />
     </span>
   );
@@ -343,7 +457,9 @@ function Filters({
       onClick={() => onType(value)}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-        type === value ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground",
+        type === value
+          ? "border-primary bg-primary text-primary-foreground"
+          : "bg-card text-muted-foreground hover:text-foreground",
       )}
     >
       {Icon && <Icon className="size-3.5" />} {label}
@@ -352,14 +468,24 @@ function Filters({
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={search} onChange={(e) => onSearch(e.target.value)} placeholder={placeholder} className="pl-9" aria-label="Search" />
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder={placeholder}
+          className="pl-9"
+          aria-label="Search"
+        />
       </div>
       <div role="radiogroup" aria-label="Pin type" className="flex items-center gap-1.5">
         {chip(undefined, "All")}
         {chip("LANDMARK", "Landmarks", Landmark)}
         {chip("EVENT", "Events", PartyPopper)}
-        {total !== undefined && <span className="ml-2 whitespace-nowrap text-xs text-muted-foreground">{plural(total, "result")}</span>}
+        {total !== undefined && (
+          <span className="text-muted-foreground ml-2 text-xs whitespace-nowrap">
+            {plural(total, "result")}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -373,13 +499,23 @@ function RewardsTab() {
   const debounced = useDebounce(search.trim(), 300);
   const list = api.maps.pin.getLocationGroupsWithConsumers.useInfiniteQuery(
     { search: debounced || undefined, type, limit: 10 },
-    { getNextPageParam: (l) => l.nextCursor, placeholderData: keepPreviousData },
+    {
+      getNextPageParam: (l) => l.nextCursor,
+      placeholderData: keepPreviousData,
+    },
   );
   const groups = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="space-y-4">
-      <Filters search={search} onSearch={setSearch} type={type} onType={setType} placeholder="Search rewards by title" total={list.data?.pages[0]?.total} />
+      <Filters
+        search={search}
+        onSearch={setSearch}
+        type={type}
+        onType={setType}
+        placeholder="Search rewards by title"
+        total={list.data?.pages[0]?.total}
+      />
       {list.isPending ? (
         <ListSkeleton />
       ) : list.isError ? (
@@ -388,7 +524,11 @@ function RewardsTab() {
         <EmptyState
           icon={Ticket}
           title={debounced ? "No matches" : "No rewards yet"}
-          description={debounced ? `Nothing called “${debounced}”.` : "Landmark and event pins give fans a code to redeem with you. Drop one to get started."}
+          description={
+            debounced
+              ? `Nothing called “${debounced}”.`
+              : "Landmark and event pins give fans a code to redeem with you. Drop one to get started."
+          }
         />
       ) : (
         <>
@@ -406,13 +546,20 @@ function RewardsTab() {
 
 function RewardRow({ group: g }: { group: Group }) {
   const [open, setOpen] = useState(false);
-  const fans = g.locations.flatMap((l) => l.consumers).sort((a, b) => (b.claimedAt ?? "").localeCompare(a.claimedAt ?? ""));
+  const fans = g.locations
+    .flatMap((l) => l.consumers)
+    .sort((a, b) => (b.claimedAt ?? "").localeCompare(a.claimedAt ?? ""));
   const waiting = g.totalConsumers - g.totalRedeemed;
   const pct = g.totalConsumers ? Math.round((g.totalRedeemed / g.totalConsumers) * 100) : 0;
 
   return (
-    <li className="overflow-hidden rounded-xl border bg-card">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 p-3 text-left sm:p-4">
+    <li className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 p-3 text-left sm:p-4"
+      >
         {g.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={g.image} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
@@ -422,13 +569,18 @@ function RewardRow({ group: g }: { group: Group }) {
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2">
             <span className="truncate font-medium">{g.title}</span>
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{g.type === "EVENT" ? "Event" : "Landmark"}</span>
+            <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+              {g.type === "EVENT" ? "Event" : "Landmark"}
+            </span>
           </p>
           <div className="mt-1.5 flex items-center gap-3">
-            <div className="h-1.5 max-w-48 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
-              <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+            <div
+              className="bg-muted h-1.5 max-w-48 flex-1 overflow-hidden rounded-full"
+              aria-hidden
+            >
+              <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
             </div>
-            <span className="text-xs tabular-nums text-muted-foreground">
+            <span className="text-muted-foreground text-xs tabular-nums">
               {g.totalRedeemed}/{g.totalConsumers} redeemed
             </span>
           </div>
@@ -438,30 +590,49 @@ function RewardRow({ group: g }: { group: Group }) {
           <Stat label="Waiting" value={waiting} highlight={waiting > 0} />
           <Stat label="Limit" value={g.limit} />
         </div>
-        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "text-muted-foreground size-4 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
-        <div className="border-t bg-muted/30 p-3 sm:p-4">
-          <p className="mb-2 text-xs text-muted-foreground">
-            {fmtRange(g.startDate, g.endDate)} · {plural(g.locations.length, "pin")} · {plural(fans.length, "fan")} collected
+        <div className="bg-muted/30 border-t p-3 sm:p-4">
+          <p className="text-muted-foreground mb-2 text-xs">
+            {fmtRange(g.startDate, g.endDate)} · {plural(g.locations.length, "pin")} ·{" "}
+            {plural(fans.length, "fan")} collected
           </p>
           {fans.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">Nobody has collected this yet.</p>
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              Nobody has collected this yet.
+            </p>
           ) : (
-            <ul className="divide-y rounded-lg border bg-card">
+            <ul className="bg-card divide-y rounded-lg border">
               {fans.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{c.user.name ?? c.user.email ?? "Fan"}</span>
-                    {c.claimedAt && <span className="text-xs text-muted-foreground">Collected {formatDistanceToNow(new Date(c.claimedAt), { addSuffix: true })}</span>}
+                    <span className="block truncate font-medium">
+                      {c.user.name ?? c.user.email ?? "Fan"}
+                    </span>
+                    {c.claimedAt && (
+                      <span className="text-muted-foreground text-xs">
+                        Collected{" "}
+                        {formatDistanceToNow(new Date(c.claimedAt), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                    )}
                   </span>
                   {c.isRedeemed ? (
-                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    <span className="bg-primary/10 text-primary flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold">
                       <CheckCircle2 className="size-3" /> Redeemed
                     </span>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">Waiting</span>
+                    <span className="bg-warning/10 text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+                      Waiting
+                    </span>
                   )}
                 </li>
               ))}
@@ -476,8 +647,10 @@ function RewardRow({ group: g }: { group: Group }) {
 function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div>
-      <p className={cn("font-hud text-lg font-semibold tabular-nums", highlight && "text-warning")}>{value.toLocaleString()}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className={cn("font-hud text-lg font-semibold tabular-nums", highlight && "text-warning")}>
+        {value.toLocaleString()}
+      </p>
+      <p className="text-muted-foreground text-[11px]">{label}</p>
     </div>
   );
 }
@@ -490,22 +663,36 @@ function HistoryTab() {
   const debounced = useDebounce(search.trim(), 300);
   const list = api.maps.pin.getRedeemedByCreator.useInfiniteQuery(
     { search: debounced || undefined, type, limit: 20 },
-    { getNextPageParam: (l) => l.nextCursor, placeholderData: keepPreviousData },
+    {
+      getNextPageParam: (l) => l.nextCursor,
+      placeholderData: keepPreviousData,
+    },
   );
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="space-y-4">
-      <Filters search={search} onSearch={setSearch} type={type} onType={setType} placeholder="Search by fan, email, code or reward" total={list.data?.pages[0]?.total} />
+      <Filters
+        search={search}
+        onSearch={setSearch}
+        type={type}
+        onType={setType}
+        placeholder="Search by fan, email, code or reward"
+        total={list.data?.pages[0]?.total}
+      />
       {list.isPending ? (
         <ListSkeleton />
       ) : list.isError ? (
         <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />
       ) : !items.length ? (
-        <EmptyState icon={Users} title={debounced ? "No matches" : "No redemptions yet"} description={debounced ? "Try another search." : "Codes you redeem show up here."} />
+        <EmptyState
+          icon={Users}
+          title={debounced ? "No matches" : "No redemptions yet"}
+          description={debounced ? "Try another search." : "Codes you redeem show up here."}
+        />
       ) : (
         <>
-          <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+          <ul className="bg-card border-foreground/10 divide-y overflow-hidden rounded-[1.4rem] border-2">
             {items.map((i) => (
               <HistoryRow key={i.id} item={i} />
             ))}
@@ -521,25 +708,43 @@ function HistoryRow({ item: i }: { item: Redeemed }) {
   const [open, setOpen] = useState(false);
   return (
     <li>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/40 sm:px-4">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="hover:bg-muted/40 flex w-full items-center gap-3 px-3 py-2.5 text-left sm:px-4"
+      >
         {i.user.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={i.user.image} alt="" className="size-9 shrink-0 rounded-full object-cover" />
         ) : (
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+          <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
             {(i.user.name ?? i.user.email ?? "?").slice(0, 1).toUpperCase()}
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{i.user.name ?? i.user.email ?? "Fan"}</span>
-          <span className="block truncate text-xs text-muted-foreground">{i.location?.title ?? "Pin"}</span>
+          <span className="block truncate text-sm font-medium">
+            {i.user.name ?? i.user.email ?? "Fan"}
+          </span>
+          <span className="text-muted-foreground block truncate text-xs">
+            {i.location?.title ?? "Pin"}
+          </span>
         </span>
-        <span className="hidden font-mono text-xs tracking-widest text-muted-foreground sm:block">{i.redeemCode}</span>
-        <span className="shrink-0 text-right text-xs text-muted-foreground">{i.redeemedAt ? format(new Date(i.redeemedAt), "MMM d, HH:mm") : "—"}</span>
-        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <span className="text-muted-foreground hidden font-mono text-xs tracking-widest sm:block">
+          {i.redeemCode}
+        </span>
+        <span className="text-muted-foreground shrink-0 text-right text-xs">
+          {i.redeemedAt ? format(new Date(i.redeemedAt), "MMM d, HH:mm") : "—"}
+        </span>
+        <ChevronDown
+          className={cn(
+            "text-muted-foreground size-4 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
       {open && (
-        <dl className="grid gap-3 border-t bg-muted/30 px-4 py-3 text-sm sm:grid-cols-4">
+        <dl className="bg-muted/30 grid gap-3 border-t px-4 py-3 text-sm sm:grid-cols-4">
           <Info label="Code">
             <span className="font-mono tracking-widest">{i.redeemCode}</span>
           </Info>
@@ -547,10 +752,13 @@ function HistoryRow({ item: i }: { item: Redeemed }) {
           <Info label="Collected">{i.claimedAt ? format(new Date(i.claimedAt), "PPp") : "—"}</Info>
           <Info label="Redeemed">{i.redeemedAt ? format(new Date(i.redeemedAt), "PPp") : "—"}</Info>
           <div className="sm:col-span-4">
-            <dt className="text-xs text-muted-foreground">Pin</dt>
+            <dt className="text-muted-foreground text-xs">Pin</dt>
             <dd className="flex items-center gap-1.5">
-              <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
-              <LocationAddressDisplay latitude={i.locationData.latitude} longitude={i.locationData.longitude} />
+              <MapPin className="text-muted-foreground size-3.5 shrink-0" />
+              <LocationAddressDisplay
+                latitude={i.locationData.latitude}
+                longitude={i.locationData.longitude}
+              />
             </dd>
           </div>
         </dl>
@@ -564,7 +772,7 @@ function HistoryRow({ item: i }: { item: Redeemed }) {
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="truncate">{children}</dd>
     </div>
   );
@@ -574,11 +782,23 @@ function fmtRange(start: Date | string, end: Date | string) {
   return `${format(new Date(start), "MMM d")} – ${format(new Date(end), "MMM d, yyyy")}`;
 }
 
-function LoadMore({ query }: { query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown } }) {
+function LoadMore({
+  query,
+}: {
+  query: {
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => unknown;
+  };
+}) {
   if (!query.hasNextPage) return null;
   return (
     <div className="flex justify-center">
-      <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
+      <Button
+        variant="outline"
+        onClick={() => void query.fetchNextPage()}
+        disabled={query.isFetchingNextPage}
+      >
         {query.isFetchingNextPage && <Spinner className="size-4" />}
         {query.isFetchingNextPage ? "Loading…" : "Load more"}
       </Button>

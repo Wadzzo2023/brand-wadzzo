@@ -1,8 +1,7 @@
 // Self-hosted fonts (same families as the fan apps): Sora body, Chakra Petch display.
 import "@fontsource-variable/sora";
-import "@fontsource/chakra-petch/500.css";
-import "@fontsource/chakra-petch/600.css";
-import "@fontsource/chakra-petch/700.css";
+import "@fontsource/anton/400.css";
+import "@fontsource/permanent-marker/400.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "react-quill-new/dist/quill.snow.css";
 import "~/styles/globals.css";
@@ -12,9 +11,11 @@ import type { ReactNode } from "react";
 
 import { Providers } from "./providers";
 
-
 export const metadata: Metadata = {
-  title: { default: "Wadzzo Brand Portal", template: "%s · Wadzzo Brand Portal" },
+  title: {
+    default: "Wadzzo Brand Portal",
+    template: "%s · Wadzzo Brand Portal",
+  },
   description: "Create and manage your drops, stores, posts, bounties and events on Wadzzo.",
   icons: { icon: "/favicon.ico" },
 };

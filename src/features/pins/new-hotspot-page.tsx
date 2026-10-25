@@ -21,7 +21,13 @@ import {
 } from "~/components/pins/pin-form-parts";
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { cn } from "~/lib/utils";
 import { useHotspotDraft } from "~/store/hotspot-draft";
@@ -40,7 +46,6 @@ type HotspotForm = z.infer<typeof createHotspotFormSchema>;
 
 const typeLabel = (t: string) => t.charAt(0) + t.slice(1).toLowerCase();
 
-
 /**
  * Pins › New hotspot. The area drawn on the map, then one page: how fans
  * collect, the drop schedule, what each pin is, and the collection rules.
@@ -51,7 +56,11 @@ const noSubscribe = () => () => undefined;
 export default function NewHotspotPage() {
   const { feature, shape } = useHotspotDraft();
   // The draft lives in sessionStorage: wait for the client before deciding.
-  const ready = useSyncExternalStore(noSubscribe, () => true, () => false);
+  const ready = useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  );
 
   if (!ready) return <CenteredSpinner />;
   if (!feature)
@@ -72,10 +81,26 @@ export default function NewHotspotPage() {
   return <HotspotForm feature={feature} shape={shape} />;
 }
 
-function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: HotspotForm["hotspotShape"] }) {
+function HotspotForm({
+  feature,
+  shape,
+}: {
+  feature: StoredFeature;
+  shape: HotspotForm["hotspotShape"];
+}) {
   const router = useRouter();
   const today = useMemo(() => new Date(), []);
-  const inOneYear = useMemo(() => new Date(today.getFullYear() + 1, today.getMonth(), today.getDate(), today.getHours(), today.getMinutes()), [today]);
+  const inOneYear = useMemo(
+    () =>
+      new Date(
+        today.getFullYear() + 1,
+        today.getMonth(),
+        today.getDate(),
+        today.getHours(),
+        today.getMinutes(),
+      ),
+    [today],
+  );
 
   const methods = useForm<HotspotForm>({
     resolver: zodResolver(createHotspotFormSchema),
@@ -106,9 +131,11 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
     description: values.description ?? "",
     area: `${shape} hotspot near ${featureCenter(feature).lat.toFixed(4)}, ${featureCenter(feature).lng.toFixed(4)}`,
   };
-  const imagePrompt = imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
+  const imagePrompt =
+    imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
   const DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30];
-  const nearestDays = (n: number) => DAY_OPTIONS.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a));
+  const nearestDays = (n: number) =>
+    DAY_OPTIONS.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a));
   const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>();
   const [remainingBalance, setRemainingBalance] = useState(0);
   const assetsQuery = api.fan.asset.myAssets.useQuery();
@@ -133,10 +160,18 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
       return;
     }
     if (selectedToken && data.pinCollectionLimit > selectedToken.bal) {
-      setError("pinCollectionLimit", { message: "Collection limit can't be more than your token balance" });
+      setError("pinCollectionLimit", {
+        message: "Collection limit can't be more than your token balance",
+      });
       return;
     }
-    create.mutate({ ...data, autoCollect: collectionMode === "auto", description: data.description ?? "", url: data.url ?? "", geoJson: feature });
+    create.mutate({
+      ...data,
+      autoCollect: collectionMode === "auto",
+      description: data.description ?? "",
+      url: data.url ?? "",
+      geoJson: feature,
+    });
   });
 
   const drops = (() => {
@@ -176,17 +211,25 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
         actions={actions}
         aside={
           <>
-            <FormSection title="Area" icon={Hexagon} description={<AreaSize feature={feature} shape={shape} />}>
+            <FormSection
+              title="Area"
+              icon={Hexagon}
+              description={<AreaSize feature={feature} shape={shape} />}
+            >
               <AreaPreview feature={feature} />
               <Button type="button" variant="outline" size="sm" className="w-full" asChild>
                 <Link href={`/pins?draw=1&shape=${shape}`}>Redraw on the map</Link>
               </Button>
             </FormSection>
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-3 font-hud text-base font-semibold">Summary</h2>
+            <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-5">
+              <h2 className="font-hud mb-3 text-base font-semibold">Summary</h2>
               {values.image && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={values.image} alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" />
+                <img
+                  src={values.image}
+                  alt=""
+                  className="mb-3 aspect-video w-full rounded-lg object-cover"
+                />
               )}
               <p className="font-hud text-sm font-semibold">{values.title || "Untitled hotspot"}</p>
               <div className="mt-2 divide-y text-sm">
@@ -194,11 +237,26 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                   [
                     ["Collection", collectionMode === "auto" ? "Auto" : "Manual"],
                     ["First drop", values.hotspotStartDate?.toLocaleString() ?? "—"],
-                    ["Frequency", DROP_EVERY.find(([d]) => d === values.dropEveryDays)?.[1] ?? `Every ${values.dropEveryDays} days`],
-                    ["Each pin lasts", LIFETIME.find(([d]) => d === values.pinDurationDays)?.[1] ?? `${values.pinDurationDays} days`],
+                    [
+                      "Frequency",
+                      DROP_EVERY.find(([d]) => d === values.dropEveryDays)?.[1] ??
+                        `Every ${values.dropEveryDays} days`,
+                    ],
+                    [
+                      "Each pin lasts",
+                      LIFETIME.find(([d]) => d === values.pinDurationDays)?.[1] ??
+                        `${values.pinDurationDays} days`,
+                    ],
                     ["Pins per drop", values.pinNumber ?? 1],
                     ["Est. drops", drops ?? "—"],
-                    ...(selectedToken ? ([["Token", `${selectedToken.code} · ${selectedToken.bal >= 1_000_000 ? "open edition" : `${selectedToken.bal} available`}`]] as const) : []),
+                    ...(selectedToken
+                      ? ([
+                          [
+                            "Token",
+                            `${selectedToken.code} · ${selectedToken.bal >= 1_000_000 ? "open edition" : `${selectedToken.bal} available`}`,
+                          ],
+                        ] as const)
+                      : []),
                   ] as const
                 ).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3 py-1.5">
@@ -214,7 +272,11 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
         <AiFillCard
           form="hotspot"
           context={aiContext}
-          examples={["Daily coffee coupons around our 3 cafés for a month", "Weekly art drops in the park all summer", "Festival weekend: new pins every day, auto collect"]}
+          examples={[
+            "Daily coffee coupons around our 3 cafés for a month",
+            "Weekly art drops in the park all summer",
+            "Festival weekend: new pins every day, auto collect",
+          ]}
           apply={(r) => {
             const before = { ...values, mode: collectionMode };
             setValue("title", r.title, { shouldValidate: true });
@@ -234,7 +296,19 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
             setImageBrief(r.imagePrompt);
             return () => {
               (
-                ["title", "description", "type", "url", "hotspotStartDate", "hotspotEndDate", "dropEveryDays", "pinDurationDays", "pinNumber", "pinCollectionLimit", "multiPin"] as const
+                [
+                  "title",
+                  "description",
+                  "type",
+                  "url",
+                  "hotspotStartDate",
+                  "hotspotEndDate",
+                  "dropEveryDays",
+                  "pinDurationDays",
+                  "pinNumber",
+                  "pinCollectionLimit",
+                  "multiPin",
+                ] as const
               ).forEach((k) => setValue(k, before[k] as never));
               setCollectionMode(before.mode);
             };
@@ -255,24 +329,44 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 role="radio"
                 aria-checked={collectionMode === id}
                 onClick={() => setCollectionMode(id)}
-                className={cn("rounded-lg border p-3 text-left transition-colors", collectionMode === id ? "border-primary bg-primary/5" : "hover:border-line-bright")}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  collectionMode === id
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-line-bright",
+                )}
               >
-                <span className="block font-hud text-sm font-semibold">{label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{text}</span>
+                <span className="font-hud block text-sm font-semibold">{label}</span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">{text}</span>
               </button>
             ))}
           </div>
         </FormSection>
 
-        <FormSection title="Drop schedule" icon={CalendarClock} description="When the hotspot runs and how often it drops a new pin.">
+        <FormSection
+          title="Drop schedule"
+          icon={CalendarClock}
+          description="When the hotspot runs and how often it drops a new pin."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             {(["hotspotStartDate", "hotspotEndDate"] as const).map((name) => (
-              <Field key={name} label={name === "hotspotStartDate" ? "Starts" : "Ends"} required error={errors[name]?.message}>
+              <Field
+                key={name}
+                label={name === "hotspotStartDate" ? "Starts" : "Ends"}
+                required
+                error={errors[name]?.message}
+              >
                 <Controller
                   name={name}
                   control={control}
                   render={({ field }) => (
-                    <Input type="datetime-local" value={toInput(field.value)} onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
+                    <Input
+                      type="datetime-local"
+                      value={toInput(field.value)}
+                      onChange={(e) =>
+                        field.onChange(e.target.value ? new Date(e.target.value) : undefined)
+                      }
+                    />
                   )}
                 />
               </Field>
@@ -282,7 +376,10 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 name="dropEveryDays"
                 control={control}
                 render={({ field }) => (
-                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -302,7 +399,10 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 name="pinDurationDays"
                 control={control}
                 render={({ field }) => (
-                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -320,13 +420,26 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
           </div>
         </FormSection>
 
-        <FormSection title="Pin details" icon={Sparkles} description="What every dropped pin looks like.">
+        <FormSection
+          title="Pin details"
+          icon={Sparkles}
+          description="What every dropped pin looks like."
+        >
           <Field
             label="Title"
             htmlFor="title"
             required
             error={errors.title?.message}
-            action={<AiTextButton form="hotspot" field="title" maxChars={60} value={values.title ?? ""} context={aiContext} onChange={(t) => setValue("title", t, { shouldValidate: true })} />}
+            action={
+              <AiTextButton
+                form="hotspot"
+                field="title"
+                maxChars={60}
+                value={values.title ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("title", t, { shouldValidate: true })}
+              />
+            }
           >
             <Input id="title" placeholder="A catchy name fans will see" {...register("title")} />
           </Field>
@@ -334,9 +447,23 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
             label="Description"
             htmlFor="description"
             error={errors.description?.message}
-            action={<AiTextButton form="hotspot" field="description" value={values.description ?? ""} context={aiContext} onChange={(t) => setValue("description", t)} />}
+            action={
+              <AiTextButton
+                form="hotspot"
+                field="description"
+                value={values.description ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("description", t)}
+              />
+            }
           >
-            <Textarea id="description" rows={4} className="resize-none" placeholder="Why should fans come here?" {...register("description")} />
+            <Textarea
+              id="description"
+              rows={4}
+              className="resize-none"
+              placeholder="Why should fans come here?"
+              {...register("description")}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Pin type">
@@ -359,14 +486,27 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 )}
               />
             </Field>
-            <Field label="Link" htmlFor="url" error={errors.url?.message} hint="Optional — where the pin sends fans.">
+            <Field
+              label="Link"
+              htmlFor="url"
+              error={errors.url?.message}
+              hint="Optional — where the pin sends fans."
+            >
               <Input id="url" type="url" placeholder="https://example.com" {...register("url")} />
             </Field>
           </div>
-          <ImageUploadField value={values.image} onChange={(url) => setValue("image", url)} ai={{ form: "hotspot", suggestedPrompt: imagePrompt }} />
+          <ImageUploadField
+            value={values.image}
+            onChange={(url) => setValue("image", url)}
+            ai={{ form: "hotspot", suggestedPrompt: imagePrompt }}
+          />
         </FormSection>
 
-        <FormSection title="Collection & tier" icon={Tag} description="Who can collect, how many, and what they get.">
+        <FormSection
+          title="Collection & tier"
+          icon={Tag}
+          description="Who can collect, how many, and what they get."
+        >
           <TiersOptions />
           <CollectionInputs
             setSelectedToken={setSelectedToken}
@@ -378,10 +518,8 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
           <PinTypeToggles />
         </FormSection>
 
-        {create.isError && <p className="text-sm text-destructive">{create.error.message}</p>}
+        {create.isError && <p className="text-destructive text-sm">{create.error.message}</p>}
       </FormPage>
     </FormProvider>
   );
 }
-
-

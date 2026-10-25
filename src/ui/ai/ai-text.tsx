@@ -1,6 +1,16 @@
 "use client";
 
-import { ChevronDown, Loader2, Minimize2, PenLine, Briefcase, PartyPopper, Sparkles, Maximize2, Undo2 } from "lucide-react";
+import {
+  ChevronDown,
+  Loader2,
+  Minimize2,
+  PenLine,
+  Briefcase,
+  PartyPopper,
+  Sparkles,
+  Maximize2,
+  Undo2,
+} from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
@@ -62,7 +72,15 @@ export function AiTextButton({
 
   const run = (mode: Mode) => {
     setPrevious(value);
-    write.mutate({ form, field, mode, current: value, format, maxChars, context: context ?? {} });
+    write.mutate({
+      form,
+      field,
+      mode,
+      current: value,
+      format,
+      maxChars,
+      context: context ?? {},
+    });
   };
 
   return (
@@ -82,15 +100,36 @@ export function AiTextButton({
         </Button>
       )}
       {empty ? (
-        <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 px-2.5 text-xs" disabled={write.isPending} onClick={() => run("write")}>
-          {write.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <PenLine className="size-3.5 text-primary" />}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 px-2.5 text-xs"
+          disabled={write.isPending}
+          onClick={() => run("write")}
+        >
+          {write.isPending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <PenLine className="text-primary size-3.5" />
+          )}
           Write with AI
         </Button>
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 px-2.5 text-xs" disabled={write.isPending}>
-              {write.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 text-primary" />}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              disabled={write.isPending}
+            >
+              {write.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="text-primary size-3.5" />
+              )}
               AI
               <ChevronDown className="size-3 opacity-60" />
             </Button>
@@ -103,12 +142,12 @@ export function AiTextButton({
             <DropdownMenuSeparator />
             {REWRITES.map((r) => (
               <DropdownMenuItem key={r.mode} onSelect={() => run(r.mode)}>
-                <r.icon className="size-4 text-muted-foreground" /> {r.label}
+                <r.icon className="text-muted-foreground size-4" /> {r.label}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => run("write")}>
-              <PenLine className="size-4 text-muted-foreground" /> Write a new one
+              <PenLine className="text-muted-foreground size-4" /> Write a new one
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

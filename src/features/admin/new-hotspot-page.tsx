@@ -12,7 +12,12 @@ import { Layer, Source, type MapRef } from "react-map-gl/mapbox";
 import type { z } from "zod";
 
 import { BaseMap } from "~/components/map-kit/base-map";
-import { featureCenter, haversineMetres, toMapboxFeature, type StoredFeature } from "~/components/map-kit/geo";
+import {
+  featureCenter,
+  haversineMetres,
+  toMapboxFeature,
+  type StoredFeature,
+} from "~/components/map-kit/geo";
 import {
   CollectionInputs,
   ImageUploadField,
@@ -23,7 +28,13 @@ import {
 } from "~/components/pins/pin-form-parts";
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { cn } from "~/lib/utils";
 import { useHotspotDraft } from "~/store/hotspot-draft";
@@ -97,22 +108,42 @@ export default function AdminNewHotspotPage() {
   return <HotspotForm feature={feature} shape={shape} />;
 }
 
-function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: HotspotForm["hotspotShape"] }) {
+function HotspotForm({
+  feature,
+  shape,
+}: {
+  feature: StoredFeature;
+  shape: HotspotForm["hotspotShape"];
+}) {
   const router = useRouter();
   const search = useSearchParams();
   const today = useMemo(() => new Date(), []);
-  const inOneYear = useMemo(() => new Date(today.getFullYear() + 1, today.getMonth(), today.getDate(), today.getHours(), today.getMinutes()), [today]);
+  const inOneYear = useMemo(
+    () =>
+      new Date(
+        today.getFullYear() + 1,
+        today.getMonth(),
+        today.getDate(),
+        today.getHours(),
+        today.getMinutes(),
+      ),
+    [today],
+  );
 
   const creatorsQuery = api.fan.creator.getCreators.useQuery();
   const { data: storeCreator, setData: setStoreCreator } = useSelectCreatorStore();
   const qCreatorId = search?.get("creatorId");
 
-  const [selectedCreatorId, setSelectedCreatorId] = useState<string>(qCreatorId ?? storeCreator?.id ?? "");
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string>(
+    qCreatorId ?? storeCreator?.id ?? "",
+  );
 
   // Sync creator selection
   useEffect(() => {
     if (!selectedCreatorId && creatorsQuery.data && creatorsQuery.data.length > 0) {
-      const first = qCreatorId ? creatorsQuery.data.find((c) => c.id === qCreatorId) : creatorsQuery.data[0];
+      const first = qCreatorId
+        ? creatorsQuery.data.find((c) => c.id === qCreatorId)
+        : creatorsQuery.data[0];
       if (first) {
         setSelectedCreatorId(first.id);
         setStoreCreator(first);
@@ -152,9 +183,11 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
     description: values.description ?? "",
     area: `${shape} hotspot near ${featureCenter(feature).lat.toFixed(4)}, ${featureCenter(feature).lng.toFixed(4)}`,
   };
-  const imagePrompt = imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
+  const imagePrompt =
+    imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
   const DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30];
-  const nearestDays = (n: number) => DAY_OPTIONS.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a));
+  const nearestDays = (n: number) =>
+    DAY_OPTIONS.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a));
   const [selectedToken, setSelectedToken] = useState<(AssetType & { bal: number }) | undefined>();
   const [remainingBalance, setRemainingBalance] = useState(0);
 
@@ -187,7 +220,9 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
       return;
     }
     if (selectedToken && data.pinCollectionLimit > selectedToken.bal) {
-      setError("pinCollectionLimit", { message: "Collection limit can't be more than your token balance" });
+      setError("pinCollectionLimit", {
+        message: "Collection limit can't be more than your token balance",
+      });
       return;
     }
     create.mutate({
@@ -220,7 +255,10 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
       >
         Cancel
       </Button>
-      <Button type="submit" disabled={create.isPending || !selectedCreatorId || remainingBalance < 0}>
+      <Button
+        type="submit"
+        disabled={create.isPending || !selectedCreatorId || remainingBalance < 0}
+      >
         {create.isPending && <Loader2 className="animate-spin" />}
         {create.isPending ? "Creating hotspot…" : "Create hotspot"}
       </Button>
@@ -237,17 +275,25 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
         actions={actions}
         aside={
           <>
-            <FormSection title="Area" icon={Hexagon} description={<AreaSize feature={feature} shape={shape} />}>
+            <FormSection
+              title="Area"
+              icon={Hexagon}
+              description={<AreaSize feature={feature} shape={shape} />}
+            >
               <AreaPreview feature={feature} />
               <Button type="button" variant="outline" size="sm" className="w-full" asChild>
                 <Link href={`/admin/maps?draw=1&shape=${shape}`}>Redraw on the map</Link>
               </Button>
             </FormSection>
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-3 font-hud text-base font-semibold">Summary</h2>
+            <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-5">
+              <h2 className="font-hud mb-3 text-base font-semibold">Summary</h2>
               {values.image && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={values.image} alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" />
+                <img
+                  src={values.image}
+                  alt=""
+                  className="mb-3 aspect-video w-full rounded-lg object-cover"
+                />
               )}
               <p className="font-hud text-sm font-semibold">{values.title ?? "Untitled hotspot"}</p>
               <div className="mt-2 divide-y text-sm">
@@ -261,11 +307,26 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                   [
                     ["Collection", collectionMode === "auto" ? "Auto" : "Manual"],
                     ["First drop", values.hotspotStartDate?.toLocaleString() ?? "—"],
-                    ["Frequency", DROP_EVERY.find(([d]) => d === values.dropEveryDays)?.[1] ?? `Every ${values.dropEveryDays} days`],
-                    ["Each pin lasts", LIFETIME.find(([d]) => d === values.pinDurationDays)?.[1] ?? `${values.pinDurationDays} days`],
+                    [
+                      "Frequency",
+                      DROP_EVERY.find(([d]) => d === values.dropEveryDays)?.[1] ??
+                        `Every ${values.dropEveryDays} days`,
+                    ],
+                    [
+                      "Each pin lasts",
+                      LIFETIME.find(([d]) => d === values.pinDurationDays)?.[1] ??
+                        `${values.pinDurationDays} days`,
+                    ],
                     ["Pins per drop", values.pinNumber ?? 1],
                     ["Est. drops", drops ?? "—"],
-                    ...(selectedToken ? ([["Token", `${selectedToken.code} · ${selectedToken.bal >= 1_000_000 ? "open edition" : `${selectedToken.bal} available`}`]] as const) : []),
+                    ...(selectedToken
+                      ? ([
+                          [
+                            "Token",
+                            `${selectedToken.code} · ${selectedToken.bal >= 1_000_000 ? "open edition" : `${selectedToken.bal} available`}`,
+                          ],
+                        ] as const)
+                      : []),
                   ] as const
                 ).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3 py-1.5">
@@ -297,7 +358,11 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
         <AiFillCard
           form="hotspot"
           context={aiContext}
-          examples={["Daily coffee coupons around our 3 cafés for a month", "Weekly art drops in the park all summer", "Festival weekend: new pins every day, auto collect"]}
+          examples={[
+            "Daily coffee coupons around our 3 cafés for a month",
+            "Weekly art drops in the park all summer",
+            "Festival weekend: new pins every day, auto collect",
+          ]}
           apply={(r) => {
             const before = { ...values, mode: collectionMode };
             setValue("title", r.title, { shouldValidate: true });
@@ -315,9 +380,20 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
             setCollectionMode(r.autoCollect ? "auto" : "manual");
             setImageBrief(r.imagePrompt);
             return () => {
-              (["title", "description", "type", "url", "hotspotStartDate", "hotspotEndDate", "dropEveryDays", "pinDurationDays", "pinNumber", "pinCollectionLimit"] as const).forEach(
-                (k) => setValue(k, before[k] as never),
-              );
+              (
+                [
+                  "title",
+                  "description",
+                  "type",
+                  "url",
+                  "hotspotStartDate",
+                  "hotspotEndDate",
+                  "dropEveryDays",
+                  "pinDurationDays",
+                  "pinNumber",
+                  "pinCollectionLimit",
+                ] as const
+              ).forEach((k) => setValue(k, before[k] as never));
               setCollectionMode(before.mode);
             };
           }}
@@ -339,24 +415,33 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 onClick={() => setCollectionMode(id)}
                 className={cn(
                   "rounded-lg border p-3 text-left transition-colors",
-                  collectionMode === id ? "border-primary bg-primary/5" : "hover:border-line-bright",
+                  collectionMode === id
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-line-bright",
                 )}
               >
-                <span className="block font-hud text-sm font-semibold">{label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{text}</span>
+                <span className="font-hud block text-sm font-semibold">{label}</span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">{text}</span>
               </button>
             ))}
           </div>
         </FormSection>
 
-        <FormSection title="Drop schedule" icon={CalendarClock} description="When the hotspot is active, how often it drops, and how long each pin stays live.">
+        <FormSection
+          title="Drop schedule"
+          icon={CalendarClock}
+          description="When the hotspot is active, how often it drops, and how long each pin stays live."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Drop frequency" hint="How often new pins appear inside the area.">
               <Controller
                 name="dropEveryDays"
                 control={control}
                 render={({ field }) => (
-                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -376,7 +461,10 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 name="pinDurationDays"
                 control={control}
                 render={({ field }) => (
-                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -396,7 +484,13 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 name="hotspotStartDate"
                 control={control}
                 render={({ field }) => (
-                  <Input type="datetime-local" value={toInput(field.value)} onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
+                  <Input
+                    type="datetime-local"
+                    value={toInput(field.value)}
+                    onChange={(e) =>
+                      field.onChange(e.target.value ? new Date(e.target.value) : undefined)
+                    }
+                  />
                 )}
               />
             </Field>
@@ -405,20 +499,39 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 name="hotspotEndDate"
                 control={control}
                 render={({ field }) => (
-                  <Input type="datetime-local" value={toInput(field.value)} onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
+                  <Input
+                    type="datetime-local"
+                    value={toInput(field.value)}
+                    onChange={(e) =>
+                      field.onChange(e.target.value ? new Date(e.target.value) : undefined)
+                    }
+                  />
                 )}
               />
             </Field>
           </div>
         </FormSection>
 
-        <FormSection title="Pin details" icon={Sparkles} description="Every drop from this hotspot shares these details.">
+        <FormSection
+          title="Pin details"
+          icon={Sparkles}
+          description="Every drop from this hotspot shares these details."
+        >
           <Field
             label="Title"
             htmlFor="title"
             required
             error={errors.title?.message}
-            action={<AiTextButton form="hotspot" field="title" maxChars={60} value={values.title ?? ""} context={aiContext} onChange={(t) => setValue("title", t, { shouldValidate: true })} />}
+            action={
+              <AiTextButton
+                form="hotspot"
+                field="title"
+                maxChars={60}
+                value={values.title ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("title", t, { shouldValidate: true })}
+              />
+            }
           >
             <Input id="title" placeholder="A catchy name fans will see" {...register("title")} />
           </Field>
@@ -426,9 +539,23 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
             label="Description"
             htmlFor="description"
             error={errors.description?.message}
-            action={<AiTextButton form="hotspot" field="description" value={values.description ?? ""} context={aiContext} onChange={(t) => setValue("description", t)} />}
+            action={
+              <AiTextButton
+                form="hotspot"
+                field="description"
+                value={values.description ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("description", t)}
+              />
+            }
           >
-            <Textarea id="description" rows={4} className="resize-none" placeholder="What makes this drop worth walking to?" {...register("description")} />
+            <Textarea
+              id="description"
+              rows={4}
+              className="resize-none"
+              placeholder="What makes this drop worth walking to?"
+              {...register("description")}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Pin type">
@@ -451,14 +578,27 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
                 )}
               />
             </Field>
-            <Field label="Link" htmlFor="url" error={errors.url?.message} hint="Optional — where the pin sends fans.">
+            <Field
+              label="Link"
+              htmlFor="url"
+              error={errors.url?.message}
+              hint="Optional — where the pin sends fans."
+            >
               <Input id="url" type="url" placeholder="https://example.com" {...register("url")} />
             </Field>
           </div>
-          <ImageUploadField value={values.image} onChange={(url) => setValue("image", url)} ai={{ form: "hotspot", suggestedPrompt: imagePrompt }} />
+          <ImageUploadField
+            value={values.image}
+            onChange={(url) => setValue("image", url)}
+            ai={{ form: "hotspot", suggestedPrompt: imagePrompt }}
+          />
         </FormSection>
 
-        <FormSection title="Collection & tier" icon={Settings} description="Who can collect it, how many, and what they get.">
+        <FormSection
+          title="Collection & tier"
+          icon={Settings}
+          description="Who can collect it, how many, and what they get."
+        >
           <TiersOptions creatorId={selectedCreatorId} />
           {assetsQuery.data && (
             <CollectionInputs
@@ -475,7 +615,7 @@ function HotspotForm({ feature, shape }: { feature: StoredFeature; shape: Hotspo
           <PinTypeToggles />
         </FormSection>
 
-        {create.isError && <p className="text-sm text-destructive">{create.error.message}</p>}
+        {create.isError && <p className="text-destructive text-sm">{create.error.message}</p>}
       </FormPage>
     </FormProvider>
   );
@@ -503,11 +643,25 @@ function AreaPreview({ feature }: { feature: StoredFeature }) {
 
   return (
     <div className="h-56 overflow-hidden rounded-xl border">
-      <BaseMap ref={map} initialViewState={{ latitude: c.lat, longitude: c.lng, zoom: 14 }} onLoad={fit} interactive={false} controls={false}>
+      <BaseMap
+        ref={map}
+        initialViewState={{ latitude: c.lat, longitude: c.lng, zoom: 14 }}
+        onLoad={fit}
+        interactive={false}
+        controls={false}
+      >
         {shape && (
           <Source id="hotspot-preview" type="geojson" data={shape}>
-            <Layer id="hotspot-preview-fill" type="fill" paint={{ "fill-color": "#22c55e", "fill-opacity": 0.2 }} />
-            <Layer id="hotspot-preview-line" type="line" paint={{ "line-color": "#16a34a", "line-width": 2 }} />
+            <Layer
+              id="hotspot-preview-fill"
+              type="fill"
+              paint={{ "fill-color": "#22c55e", "fill-opacity": 0.2 }}
+            />
+            <Layer
+              id="hotspot-preview-line"
+              type="line"
+              paint={{ "line-color": "#16a34a", "line-width": 2 }}
+            />
           </Source>
         )}
       </BaseMap>
@@ -515,17 +669,27 @@ function AreaPreview({ feature }: { feature: StoredFeature }) {
   );
 }
 
-function AreaSize({ feature, shape }: { feature: StoredFeature; shape: HotspotForm["hotspotShape"] }) {
+function AreaSize({
+  feature,
+  shape,
+}: {
+  feature: StoredFeature;
+  shape: HotspotForm["hotspotShape"];
+}) {
   const r = feature.properties?.radiusMetres;
-  if (shape === "circle" && r) return <>Circle · {r >= 1000 ? `${(r / 1000).toFixed(2)} km` : `${Math.round(r)} m`} radius</>;
+  if (shape === "circle" && r)
+    return <>Circle · {r >= 1000 ? `${(r / 1000).toFixed(2)} km` : `${Math.round(r)} m`} radius</>;
   // Rough extent: the ring's widest span.
   const ring = feature.geometry.coordinates[0] ?? [];
   let max = 0;
-  for (const a of ring) for (const b of ring) max = Math.max(max, haversineMetres({ lat: a[0]!, lng: a[1]! }, { lat: b[0]!, lng: b[1]! }));
+  for (const a of ring)
+    for (const b of ring)
+      max = Math.max(max, haversineMetres({ lat: a[0]!, lng: a[1]! }, { lat: b[0]!, lng: b[1]! }));
   const label = shape === "rectangle" ? "Rectangle" : "Polygon";
   return (
     <>
-      {label} · about {max >= 1000 ? `${(max / 1000).toFixed(2)} km` : `${Math.round(max)} m`} across
+      {label} · about {max >= 1000 ? `${(max / 1000).toFixed(2)} km` : `${Math.round(max)} m`}{" "}
+      across
     </>
   );
 }

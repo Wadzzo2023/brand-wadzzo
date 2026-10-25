@@ -7,14 +7,21 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/shadcn/ui/dropdown-menu";
 import { cn } from "~/lib/utils";
 import { EmptyState } from "~/ui/empty-state";
 import { ErrorState } from "~/ui/error-state";
 import { Skeleton } from "~/ui/skeleton";
 
 /** What a column's loading placeholder looks like, so skeletons match the real rows. */
-export type CellShape = "text" | "short" | "person" | "pill" | "number" | "mono" | "toggle" | "image";
+export type CellShape =
+  "text" | "short" | "person" | "pill" | "number" | "mono" | "toggle" | "image";
 
 export type Column<T> = {
   id: string;
@@ -41,7 +48,11 @@ export type RowAction = {
   separator?: boolean;
 };
 
-const ALIGN = { left: "text-left", right: "text-right", center: "text-center" } as const;
+const ALIGN = {
+  left: "text-left",
+  right: "text-right",
+  center: "text-center",
+} as const;
 
 /**
  * The one table for the portal. Loading shows the real header with rows of
@@ -73,7 +84,12 @@ export function DataTable<T>({
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
-  empty: { icon: LucideIcon; title: string; description?: ReactNode; action?: ReactNode };
+  empty: {
+    icon: LucideIcon;
+    title: string;
+    description?: ReactNode;
+    action?: ReactNode;
+  };
   rowHref?: (row: T) => string | undefined;
   onRowClick?: (row: T) => void;
   actions?: (row: T) => RowAction[];
@@ -104,27 +120,57 @@ export function DataTable<T>({
     else next.delete(id);
     onSelectedChange?.(next);
   };
-  const toggleAll = (on: boolean) => onSelectedChange?.(on ? new Set([...(selected ?? []), ...ids]) : new Set([...(selected ?? [])].filter((id) => !ids.includes(id))));
+  const toggleAll = (on: boolean) =>
+    onSelectedChange?.(
+      on
+        ? new Set([...(selected ?? []), ...ids])
+        : new Set([...(selected ?? [])].filter((id) => !ids.includes(id))),
+    );
 
   if (error) return <ErrorState message={error} onRetry={onRetry} className={className} />;
   if (!loading && rows?.length === 0)
-    return <EmptyState icon={empty.icon} title={empty.title} description={empty.description} action={empty.action} className={className} />;
+    return (
+      <EmptyState
+        icon={empty.icon}
+        title={empty.title}
+        description={empty.description}
+        action={empty.action}
+        className={className}
+      />
+    );
 
   return (
     <div className={className}>
       {/* ── Desktop / tablet: a real table ─────────────────────────────── */}
-      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+      <div className="bg-card border-foreground/10 hidden overflow-hidden rounded-[1.4rem] border-2 md:block">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm" aria-label={label} aria-busy={loading ? true : undefined}>
-            <thead className="border-b bg-muted/50">
+          <table
+            className="w-full text-sm"
+            aria-label={label}
+            aria-busy={loading ? true : undefined}
+          >
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {selectable && (
                   <th className="w-10 pl-4">
-                    <Check checked={allOn} indeterminate={someOn} onChange={toggleAll} label="Select all rows" />
+                    <Check
+                      checked={allOn}
+                      indeterminate={someOn}
+                      onChange={toggleAll}
+                      label="Select all rows"
+                    />
                   </th>
                 )}
                 {columns.map((c) => (
-                  <th key={c.id} scope="col" className={cn("label-caps h-10 whitespace-nowrap px-4 font-semibold", ALIGN[c.align ?? "left"], c.className)}>
+                  <th
+                    key={c.id}
+                    scope="col"
+                    className={cn(
+                      "label-caps h-10 px-4 font-semibold whitespace-nowrap",
+                      ALIGN[c.align ?? "left"],
+                      c.className,
+                    )}
+                  >
                     {c.header}
                   </th>
                 ))}
@@ -146,7 +192,11 @@ export function DataTable<T>({
                       )}
                       {columns.map((c, i) => (
                         <td key={c.id} className={cn("px-4 py-3", c.className)}>
-                          <CellSkeleton shape={c.skeleton ?? (i === 0 ? "person" : "text")} align={c.align} seed={r + i} />
+                          <CellSkeleton
+                            shape={c.skeleton ?? (i === 0 ? "person" : "text")}
+                            align={c.align}
+                            seed={r + i}
+                          />
                         </td>
                       ))}
                       {actions && (
@@ -161,21 +211,38 @@ export function DataTable<T>({
                       key={rowKey(row)}
                       onClick={clickable ? () => open(row) : undefined}
                       className={cn(
-                        "group transition-colors hover:bg-muted/40",
+                        "group hover:bg-muted/40 transition-colors",
                         clickable && "cursor-pointer",
-                        selectable && selected!.has(String(rowKey(row))) && "bg-primary/5 hover:bg-primary/8",
+                        selectable &&
+                          selected!.has(String(rowKey(row))) &&
+                          "bg-primary/5 hover:bg-primary/8",
                       )}
                     >
                       {selectable && (
                         <td className="pl-4" onClick={(e) => e.stopPropagation()}>
-                          <Check checked={selected!.has(String(rowKey(row)))} onChange={(on) => toggle(String(rowKey(row)), on)} label="Select row" />
+                          <Check
+                            checked={selected!.has(String(rowKey(row)))}
+                            onChange={(on) => toggle(String(rowKey(row)), on)}
+                            label="Select row"
+                          />
                         </td>
                       )}
                       {columns.map((c, i) => (
-                        <td key={c.id} className={cn("px-4 py-3 align-middle", ALIGN[c.align ?? "left"], c.className)}>
+                        <td
+                          key={c.id}
+                          className={cn(
+                            "px-4 py-3 align-middle",
+                            ALIGN[c.align ?? "left"],
+                            c.className,
+                          )}
+                        >
                           {i === 0 && rowHref?.(row) ? (
                             // A real link in the first cell: keyboard and middle-click work.
-                            <Link href={rowHref(row)!} onClick={(e) => e.stopPropagation()} className="block rounded-sm focus-visible:outline-2 focus-visible:outline-primary">
+                            <Link
+                              href={rowHref(row)!}
+                              onClick={(e) => e.stopPropagation()}
+                              className="focus-visible:outline-primary block rounded-sm focus-visible:outline-2"
+                            >
                               {c.cell(row)}
                             </Link>
                           ) : (
@@ -199,7 +266,10 @@ export function DataTable<T>({
       <ul className="space-y-2 md:hidden" aria-label={label} aria-busy={loading ? true : undefined}>
         {loading
           ? Array.from({ length: Math.min(skeletonRows, 5) }).map((_, r) => (
-              <li key={r} className="space-y-3 rounded-xl border bg-card p-4">
+              <li
+                key={r}
+                className="bg-card border-foreground/10 space-y-3 rounded-[1.4rem] border-2 p-4"
+              >
                 <CellSkeleton shape={primary?.skeleton ?? "person"} seed={r} />
                 <div className="grid grid-cols-2 gap-3">
                   {rest.slice(0, 4).map((c, i) => (
@@ -212,11 +282,23 @@ export function DataTable<T>({
               </li>
             ))
           : rows?.map((row) => (
-              <li key={rowKey(row)} className={cn("rounded-xl border bg-card", selectable && selected!.has(String(rowKey(row))) && "border-primary/50 bg-primary/5")}>
+              <li
+                key={rowKey(row)}
+                className={cn(
+                  "bg-card border-foreground/10 rounded-[1.4rem] border-2",
+                  selectable &&
+                    selected!.has(String(rowKey(row))) &&
+                    "border-primary/50 bg-primary/5",
+                )}
+              >
                 <div className="flex items-start gap-2 p-4 pb-3">
                   {selectable && (
                     <div className="pt-2.5">
-                      <Check checked={selected!.has(String(rowKey(row)))} onChange={(on) => toggle(String(rowKey(row)), on)} label="Select row" />
+                      <Check
+                        checked={selected!.has(String(rowKey(row)))}
+                        onChange={(on) => toggle(String(rowKey(row)), on)}
+                        label="Select row"
+                      />
                     </div>
                   )}
                   <button
@@ -255,7 +337,12 @@ export function RowMenu({ items }: { items: RowAction[] }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Row actions" className="text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Row actions"
+          className="text-muted-foreground"
+        >
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -264,7 +351,11 @@ export function RowMenu({ items }: { items: RowAction[] }) {
           <div key={a.label}>
             {a.separator && i > 0 && <DropdownMenuSeparator />}
             {a.href ? (
-              <DropdownMenuItem asChild disabled={a.disabled} className={cn(a.destructive && "text-destructive focus:text-destructive")}>
+              <DropdownMenuItem
+                asChild
+                disabled={a.disabled}
+                className={cn(a.destructive && "text-destructive focus:text-destructive")}
+              >
                 <Link href={a.href}>
                   {a.icon && <a.icon />} {a.label}
                 </Link>
@@ -288,7 +379,15 @@ export function RowMenu({ items }: { items: RowAction[] }) {
 /** Varied but stable widths so a loading table doesn't look like a barcode. */
 const TEXT_WIDTHS = ["w-24", "w-32", "w-20", "w-28", "w-16"];
 
-function CellSkeleton({ shape, align, seed }: { shape: CellShape; align?: "left" | "right" | "center"; seed: number }) {
+function CellSkeleton({
+  shape,
+  align,
+  seed,
+}: {
+  shape: CellShape;
+  align?: "left" | "right" | "center";
+  seed: number;
+}) {
   const w = TEXT_WIDTHS[seed % TEXT_WIDTHS.length];
   const justify = align === "right" ? "ml-auto" : align === "center" ? "mx-auto" : "";
   switch (shape) {
@@ -325,7 +424,17 @@ function CellSkeleton({ shape, align, seed }: { shape: CellShape; align?: "left"
 }
 
 /** A plain checkbox (supports the "some selected" state for select-all). */
-export function Check({ checked, indeterminate, onChange, label }: { checked: boolean; indeterminate?: boolean; onChange: (on: boolean) => void; label: string }) {
+export function Check({
+  checked,
+  indeterminate,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (on: boolean) => void;
+  label: string;
+}) {
   return (
     <input
       type="checkbox"
@@ -335,7 +444,7 @@ export function Check({ checked, indeterminate, onChange, label }: { checked: bo
         if (el) el.indeterminate = Boolean(indeterminate);
       }}
       onChange={(e) => onChange(e.target.checked)}
-      className="size-4 cursor-pointer rounded accent-primary"
+      className="accent-primary size-4 cursor-pointer rounded"
     />
   );
 }

@@ -1,10 +1,9 @@
 "use client";
 
-import { Loader2, ShieldAlert } from "lucide-react";
-import Image from "next/image";
+import { Loader2, ShieldAlert, LogIn } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ConnectWalletButton } from "package/connect_wallet";
+import { useDialogStore } from "package/connect_wallet/src/state/connect_wallet_dialog";
 import { useEffect, type ReactNode } from "react";
 
 import { BannedCreatorCard } from "~/components/brand/ban-artist";
@@ -15,24 +14,36 @@ import { Button } from "~/components/shadcn/ui/button";
 import { PageSkeleton } from "~/ui/skeleton";
 
 import type { usePortalAccess } from "./use-portal-access";
+import { WadzzoMark } from "~/ui/wadzzo-mark";
 
 type Access = ReturnType<typeof usePortalAccess>;
 
 /** Signed out: one clear screen with the wallet/email sign-in. */
+/** Opens the shared sign-in dialog (email, Google, Apple or a Stellar wallet). */
+function SignInButton() {
+  const open = useDialogStore((s) => s.setIsOpen);
+  return (
+    <Button size="lg" onClick={() => open(true)}>
+      <LogIn className="size-5" strokeWidth={2.6} />
+      <span className="marker text-base">Sign in / Sign up</span>
+    </Button>
+  );
+}
+
 export function SignInScreen() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-2xl border bg-card p-8 text-center">
-        <span className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Image src="/images/loading.png" alt="" width={32} height={32} className="object-contain" />
+    <div className="bg-background flex min-h-dvh items-center justify-center px-4">
+      <div className="bg-card border-foreground/10 w-full max-w-sm rounded-[1.6rem] border-2 p-8 text-center shadow-[8px_9px_0_0_hsl(var(--primary))]">
+        <span className="bg-side-ink text-side mx-auto mb-5 flex size-14 -rotate-3 items-center justify-center rounded-2xl">
+          <WadzzoMark className="h-7" />
         </span>
-        <p className="font-hud text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Brand portal</p>
-        <h1 className="mt-1 font-hud text-2xl font-bold">Sign in to Wadzzo</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="marker text-primary text-sm">Brand portal</p>
+        <h1 className="display mt-1 text-5xl">Sign in to Wadzzo</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
           Create drops, run bounties and stores, and see how fans engage with your brand.
         </p>
         <div className="mt-6 flex justify-center [&_button]:w-full">
-          <ConnectWalletButton />
+          <SignInButton />
         </div>
       </div>
     </div>
@@ -71,8 +82,8 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
   if (shouldRedirectAdmin) {
     return (
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-center">
-        <Loader2 className="size-6 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Redirecting to admin portal...</p>
+        <Loader2 className="text-primary size-6 animate-spin" />
+        <p className="text-muted-foreground text-sm">Redirecting to admin portal...</p>
       </div>
     );
   }
@@ -98,11 +109,11 @@ export function CreatorGate({ access, children }: { access: Access; children: Re
 function OtherPlatformCard({ platformName }: { platformName: string }) {
   return (
     <div className="max-w-sm text-center">
-      <ShieldAlert className="mx-auto mb-3 size-8 text-muted-foreground" />
-      <h1 className="font-hud text-xl font-bold">This brand is on {platformName}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Your account is already a brand on {platformName}, and a brand belongs to one platform only. Sign in with a different
-        account to create a brand here.
+      <ShieldAlert className="text-muted-foreground mx-auto mb-3 size-8" />
+      <h1 className="display text-4xl">This brand is on {platformName}</h1>
+      <p className="text-muted-foreground mt-1 text-sm">
+        Your account is already a brand on {platformName}, and a brand belongs to one platform only.
+        Sign in with a different account to create a brand here.
       </p>
     </div>
   );
@@ -115,9 +126,11 @@ export function AdminGate({ access, children }: { access: Access; children: Reac
   return (
     <div className="flex min-h-[70dvh] items-center justify-center px-4">
       <div className="max-w-sm text-center">
-        <ShieldAlert className="mx-auto mb-3 size-8 text-muted-foreground" />
-        <h1 className="font-hud text-xl font-bold">Admins only</h1>
-        <p className="mt-1 text-sm text-muted-foreground">This area is for Wadzzo admins. Your account doesn&apos;t have admin access.</p>
+        <ShieldAlert className="text-muted-foreground mx-auto mb-3 size-8" />
+        <h1 className="display text-4xl">Admins only</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          This area is for Wadzzo admins. Your account doesn&apos;t have admin access.
+        </p>
         <Button asChild variant="outline" className="mt-5">
           <Link href="/pins">Back to your portal</Link>
         </Button>
@@ -163,8 +176,8 @@ export function OnboardingGate({ access, children }: { access: Access; children:
   if (hasSubmittedOrIsCreator) {
     return (
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-center">
-        <Loader2 className="size-6 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Redirecting to your portal...</p>
+        <Loader2 className="text-primary size-6 animate-spin" />
+        <p className="text-muted-foreground text-sm">Redirecting to your portal...</p>
       </div>
     );
   }

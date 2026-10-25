@@ -1,6 +1,17 @@
 "use client";
 
-import { CalendarDays, CalendarX, Clock, Globe, Link2, Loader2, MapPin, Search, Sparkles, Users } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarX,
+  Clock,
+  Globe,
+  Link2,
+  Loader2,
+  MapPin,
+  Search,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -50,7 +61,12 @@ function initialState(event: EditableEvent | null): FormState {
       start: toLocalInput(event.startDate),
       end: toLocalInput(event.endDate),
       inPerson: event.latitude != null || !!event.venueName || !!event.address,
-      venue: { venueName: event.venueName ?? "", address: event.address ?? "", latitude: event.latitude, longitude: event.longitude },
+      venue: {
+        venueName: event.venueName ?? "",
+        address: event.address ?? "",
+        latitude: event.latitude,
+        longitude: event.longitude,
+      },
       link: event.link ?? "",
       linkLabel: event.linkLabel ?? "",
       limitSpots: event.capacity != null,
@@ -90,9 +106,7 @@ export function NewEventPage() {
 export function EditEventPage({ id }: { id: string }) {
   const event = api.events.myEvent.useQuery({ id }, { retry: false });
   if (event.isLoading) {
-    return (
-      <FormSkeleton />
-    );
+    return <FormSkeleton />;
   }
   if (!event.data)
     return (
@@ -115,7 +129,8 @@ export function EditEventPage({ id }: { id: string }) {
 function EventForm({ event }: { event: EditableEvent | null }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initialState(event));
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
   const [uploading, setUploading] = useState(false);
 
   const utils = api.useUtils();
@@ -124,8 +139,12 @@ function EventForm({ event }: { event: EditableEvent | null }) {
     void utils.events.myEvents.invalidate();
     router.push("/events");
   };
-  const create = api.events.createEvent.useMutation({ onSuccess: () => done("Event published") });
-  const update = api.events.updateEvent.useMutation({ onSuccess: () => done("Event updated") });
+  const create = api.events.createEvent.useMutation({
+    onSuccess: () => done("Event published"),
+  });
+  const update = api.events.updateEvent.useMutation({
+    onSuccess: () => done("Event updated"),
+  });
   const saving = create.isPending || update.isPending;
   const error = create.error ?? update.error;
 
@@ -135,7 +154,8 @@ function EventForm({ event }: { event: EditableEvent | null }) {
     const startDate = fromLocalInput(form.start);
     const endDate = fromLocalInput(form.end);
     if (!startDate || !endDate) return void toast.error("Set when the event starts and ends");
-    if (!form.inPerson && !form.link.trim()) return void toast.error("An online event needs a link — or switch on In person");
+    if (!form.inPerson && !form.link.trim())
+      return void toast.error("An online event needs a link — or switch on In person");
     const data = {
       title: form.title,
       description: form.description,
@@ -165,13 +185,21 @@ function EventForm({ event }: { event: EditableEvent | null }) {
     title: form.title,
     description: form.description,
     when: form.start ? `${form.start} to ${form.end}` : "",
-    where: form.inPerson ? [form.venue.venueName, form.venue.address].filter(Boolean).join(", ") : "online",
+    where: form.inPerson
+      ? [form.venue.venueName, form.venue.address].filter(Boolean).join(", ")
+      : "online",
   };
-  const imagePrompt = imageBrief || [form.title, form.description.slice(0, 400)].filter(Boolean).join(". ");
+  const imagePrompt =
+    imageBrief || [form.title, form.description.slice(0, 400)].filter(Boolean).join(". ");
 
   const actions = (
     <>
-      <Button type="button" variant="ghost" onClick={() => router.push("/events")} disabled={saving}>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => router.push("/events")}
+        disabled={saving}
+      >
         Cancel
       </Button>
       <Button type="submit" disabled={saving || uploading}>
@@ -189,29 +217,44 @@ function EventForm({ event }: { event: EditableEvent | null }) {
       onSubmit={submit}
       actions={actions}
       aside={
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
           {form.coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={form.coverImage} alt="" className="aspect-video w-full object-cover" />
           ) : (
-            <div className="flex aspect-video w-full items-center justify-center bg-surface-2 text-faint">
+            <div className="bg-surface-2 text-faint flex aspect-video w-full items-center justify-center">
               <CalendarDays className="size-10" />
             </div>
           )}
           <div className="space-y-2 p-5">
-            <p className="font-hud text-xs font-semibold uppercase tracking-wide text-primary">Preview</p>
-            <p className="font-hud text-lg font-semibold leading-snug">{form.title || "Untitled event"}</p>
-            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <p className="font-hud text-primary text-xs font-semibold tracking-wide uppercase">
+              Preview
+            </p>
+            <p className="font-hud text-lg leading-snug font-semibold">
+              {form.title || "Untitled event"}
+            </p>
+            <p className="text-muted-foreground flex items-start gap-2 text-sm">
               <Clock className="mt-0.5 size-4 shrink-0" />
-              {start ? start.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—"}
+              {start
+                ? start.toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
+                : "—"}
               {end && ` – ${end.toLocaleTimeString(undefined, { timeStyle: "short" })}`}
             </p>
-            <p className="flex items-start gap-2 text-sm text-muted-foreground">
-              {form.inPerson ? <MapPin className="mt-0.5 size-4 shrink-0" /> : <Globe className="mt-0.5 size-4 shrink-0" />}
-              {form.inPerson ? form.venue.venueName || form.venue.address || "Venue not set" : "Online"}
+            <p className="text-muted-foreground flex items-start gap-2 text-sm">
+              {form.inPerson ? (
+                <MapPin className="mt-0.5 size-4 shrink-0" />
+              ) : (
+                <Globe className="mt-0.5 size-4 shrink-0" />
+              )}
+              {form.inPerson
+                ? form.venue.venueName || form.venue.address || "Venue not set"
+                : "Online"}
             </p>
             {form.limitSpots && form.capacity && (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <p className="text-muted-foreground flex items-center gap-2 text-sm">
                 <Users className="size-4" /> {form.capacity} spots
               </p>
             )}
@@ -227,7 +270,11 @@ function EventForm({ event }: { event: EditableEvent | null }) {
       <AiFillCard
         form="event"
         context={aiContext}
-        examples={["Rooftop listening party next Saturday 8–11pm, 80 spots", "Free online Q&A with the band on Thursday at 7", "Pop-up market at our store all day Sunday"]}
+        examples={[
+          "Rooftop listening party next Saturday 8–11pm, 80 spots",
+          "Free online Q&A with the band on Thursday at 7",
+          "Pop-up market at our store all day Sunday",
+        ]}
         apply={(r) => {
           const before = form;
           setForm((f) => ({
@@ -238,7 +285,11 @@ function EventForm({ event }: { event: EditableEvent | null }) {
             end: r.end ?? f.end,
             inPerson: r.inPerson,
             venue: r.inPerson
-              ? { ...f.venue, venueName: r.venueName ?? f.venue.venueName, address: r.address ?? f.venue.address }
+              ? {
+                  ...f.venue,
+                  venueName: r.venueName ?? f.venue.venueName,
+                  address: r.address ?? f.venue.address,
+                }
               : f.venue,
             link: r.link ?? f.link,
             linkLabel: r.linkLabel ?? f.linkLabel,
@@ -254,22 +305,61 @@ function EventForm({ event }: { event: EditableEvent | null }) {
         <Field
           label="Cover image"
           hint="Wide images work best."
-          action={<AiImageButton form="event" aspect="wide" className="h-7 px-2.5 text-xs" label="Generate" suggestedPrompt={imagePrompt} onImage={(url) => set("coverImage", url)} />}
+          action={
+            <AiImageButton
+              form="event"
+              aspect="wide"
+              className="h-7 px-2.5 text-xs"
+              label="Generate"
+              suggestedPrompt={imagePrompt}
+              onImage={(url) => set("coverImage", url)}
+            />
+          }
         >
-          <Dropzone endpoint="coverUploader" shape="wide" value={form.coverImage} onUploadingChange={setUploading} onChange={(url) => set("coverImage", url ?? null)} />
+          <Dropzone
+            endpoint="coverUploader"
+            shape="wide"
+            value={form.coverImage}
+            onUploadingChange={setUploading}
+            onChange={(url) => set("coverImage", url ?? null)}
+          />
         </Field>
         <Field
           label="Title"
           htmlFor="ev-title"
           required
-          action={<AiTextButton form="event" field="title" maxChars={120} value={form.title} context={aiContext} onChange={(t) => set("title", t)} />}
+          action={
+            <AiTextButton
+              form="event"
+              field="title"
+              maxChars={120}
+              value={form.title}
+              context={aiContext}
+              onChange={(t) => set("title", t)}
+            />
+          }
         >
-          <Input id="ev-title" value={form.title} maxLength={120} placeholder="Summer Night Market" onChange={(e) => set("title", e.target.value)} />
+          <Input
+            id="ev-title"
+            value={form.title}
+            maxLength={120}
+            placeholder="Summer Night Market"
+            onChange={(e) => set("title", e.target.value)}
+          />
         </Field>
         <Field
           label="Description"
           htmlFor="ev-desc"
-          action={<AiTextButton form="event" field="description" maxChars={5000} value={form.description} context={aiContext} onChange={(t) => set("description", t)} />}
+          action={
+            <AiTextButton
+              form="event"
+              field="description"
+              maxChars={5000}
+              value={form.description}
+              context={aiContext}
+              onChange={(t) => set("description", t)}
+            />
+          }
         >
           <Textarea
             id="ev-desc"
@@ -282,7 +372,11 @@ function EventForm({ event }: { event: EditableEvent | null }) {
         </Field>
       </FormSection>
 
-      <FormSection title="When" icon={Clock} description={`Times are in your timezone (${tz}); fans see them in theirs.`}>
+      <FormSection
+        title="When"
+        icon={Clock}
+        description={`Times are in your timezone (${tz}); fans see them in theirs.`}
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Starts" htmlFor="ev-start" required>
             <Input
@@ -295,32 +389,74 @@ function EventForm({ event }: { event: EditableEvent | null }) {
                 const s = fromLocalInput(next);
                 const oldS = fromLocalInput(form.start);
                 const oldE = fromLocalInput(form.end);
-                if (s && oldS && oldE && s >= oldE) set("end", toLocalInput(new Date(s.getTime() + (oldE.getTime() - oldS.getTime()))));
+                if (s && oldS && oldE && s >= oldE)
+                  set(
+                    "end",
+                    toLocalInput(new Date(s.getTime() + (oldE.getTime() - oldS.getTime()))),
+                  );
                 set("start", next);
               }}
             />
           </Field>
           <Field label="Ends" htmlFor="ev-end" required>
-            <Input id="ev-end" type="datetime-local" value={form.end} min={form.start} onChange={(e) => set("end", e.target.value)} />
+            <Input
+              id="ev-end"
+              type="datetime-local"
+              value={form.end}
+              min={form.start}
+              onChange={(e) => set("end", e.target.value)}
+            />
           </Field>
         </div>
       </FormSection>
 
       <FormSection title="Where" icon={MapPin}>
-        <ToggleRow title="In person" hint="Add a venue — fans get a map and directions." checked={form.inPerson} onChange={(v) => set("inPerson", v)} />
+        <ToggleRow
+          title="In person"
+          hint="Add a venue — fans get a map and directions."
+          checked={form.inPerson}
+          onChange={(v) => set("inPerson", v)}
+        />
         {form.inPerson && <VenuePicker value={form.venue} onChange={(v) => set("venue", v)} />}
         <div className="grid gap-4 border-t pt-4 sm:grid-cols-[1fr_200px]">
-          <Field label="Tickets / online link" htmlFor="ev-link" required={!form.inPerson} hint={form.inPerson ? "Optional — registration, tickets or a livestream." : "Required for online events."}>
-            <Input id="ev-link" type="url" placeholder="https://" value={form.link} onChange={(e) => set("link", e.target.value)} />
+          <Field
+            label="Tickets / online link"
+            htmlFor="ev-link"
+            required={!form.inPerson}
+            hint={
+              form.inPerson
+                ? "Optional — registration, tickets or a livestream."
+                : "Required for online events."
+            }
+          >
+            <Input
+              id="ev-link"
+              type="url"
+              placeholder="https://"
+              value={form.link}
+              onChange={(e) => set("link", e.target.value)}
+            />
           </Field>
           <Field label="Button text" htmlFor="ev-link-label">
-            <Input id="ev-link-label" placeholder="Get tickets" maxLength={40} value={form.linkLabel} disabled={!form.link.trim()} onChange={(e) => set("linkLabel", e.target.value)} />
+            <Input
+              id="ev-link-label"
+              placeholder="Get tickets"
+              maxLength={40}
+              value={form.linkLabel}
+              disabled={!form.link.trim()}
+              onChange={(e) => set("linkLabel", e.target.value)}
+            />
           </Field>
         </div>
       </FormSection>
 
       <FormSection title="RSVPs" icon={Users}>
-        <ToggleRow title="Limit RSVPs" hint="RSVPs close once this many people are going." checked={form.limitSpots} onChange={(v) => set("limitSpots", v)} />
+        <ToggleRow
+          title="Limit RSVPs"
+          hint="RSVPs close once this many people are going."
+          checked={form.limitSpots}
+          onChange={(v) => set("limitSpots", v)}
+        />
         {form.limitSpots && (
           <Field label="Spots" htmlFor="ev-capacity">
             <Input
@@ -336,19 +472,34 @@ function EventForm({ event }: { event: EditableEvent | null }) {
         )}
       </FormSection>
 
-      <LinkPicker pinIds={form.pinIds} bountyIds={form.bountyIds} onPins={(v) => set("pinIds", v)} onBounties={(v) => set("bountyIds", v)} />
+      <LinkPicker
+        pinIds={form.pinIds}
+        bountyIds={form.bountyIds}
+        onPins={(v) => set("pinIds", v)}
+        onBounties={(v) => set("bountyIds", v)}
+      />
 
-      {error && <p className="text-sm text-destructive">{firstError(error)}</p>}
+      {error && <p className="text-destructive text-sm">{firstError(error)}</p>}
     </FormPage>
   );
 }
 
-function ToggleRow({ title, hint, checked, onChange }: { title: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  title,
+  hint,
+  checked,
+  onChange,
+}: {
+  title: string;
+  hint: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex cursor-pointer items-center gap-3">
       <span className="flex-1">
         <span className="block text-sm font-medium">{title}</span>
-        <span className="block text-xs text-muted-foreground">{hint}</span>
+        <span className="text-muted-foreground block text-xs">{hint}</span>
       </span>
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>
@@ -369,8 +520,14 @@ function LinkPicker({
   const [q, setQ] = useState("");
   const options = api.events.linkOptions.useQuery();
   const needle = q.trim().toLowerCase();
-  const pins = useMemo(() => (options.data?.pins ?? []).filter((p) => p.title.toLowerCase().includes(needle)), [options.data, needle]);
-  const bounties = useMemo(() => (options.data?.bounties ?? []).filter((b) => b.title.toLowerCase().includes(needle)), [options.data, needle]);
+  const pins = useMemo(
+    () => (options.data?.pins ?? []).filter((p) => p.title.toLowerCase().includes(needle)),
+    [options.data, needle],
+  );
+  const bounties = useMemo(
+    () => (options.data?.bounties ?? []).filter((b) => b.title.toLowerCase().includes(needle)),
+    [options.data, needle],
+  );
   const count = pinIds.length + bountyIds.length;
 
   return (
@@ -379,13 +536,19 @@ function LinkPicker({
       icon={Link2}
       description={
         <>
-          Show fans what they can collect or take on at this event. {count > 0 && <Badge variant="secondary">{count} linked</Badge>}
+          Show fans what they can collect or take on at this event.{" "}
+          {count > 0 && <Badge variant="secondary">{count} linked</Badge>}
         </>
       }
     >
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pins and bounties" className="pl-9" />
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search pins and bounties"
+          className="pl-9"
+        />
       </div>
       {options.isLoading ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -398,20 +561,32 @@ function LinkPicker({
           <OptionList
             title="Pins"
             empty="No active pins"
-            items={pins.map((p) => ({ id: p.id, label: p.title, note: p.approved === true ? null : p.approved === false ? "Rejected" : "Pending review" }))}
+            items={pins.map((p) => ({
+              id: p.id,
+              label: p.title,
+              note:
+                p.approved === true ? null : p.approved === false ? "Rejected" : "Pending review",
+            }))}
             selected={pinIds}
             onChange={onPins}
           />
           <OptionList
             title="Bounties"
             empty="No bounties"
-            items={bounties.map((b) => ({ id: b.id, label: b.title, note: b.status === "APPROVED" ? null : b.status.toLowerCase() }))}
+            items={bounties.map((b) => ({
+              id: b.id,
+              label: b.title,
+              note: b.status === "APPROVED" ? null : b.status.toLowerCase(),
+            }))}
             selected={bountyIds}
             onChange={onBounties}
           />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Pins pending review and unapproved bounties stay hidden from fans until they&apos;re approved.</p>
+      <p className="text-muted-foreground text-xs">
+        Pins pending review and unapproved bounties stay hidden from fans until they&apos;re
+        approved.
+      </p>
     </FormSection>
   );
 }
@@ -431,17 +606,26 @@ function OptionList<T extends string | number>({
 }) {
   return (
     <div>
-      <p className="mb-1.5 font-hud text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="font-hud text-muted-foreground mb-1.5 text-xs font-semibold tracking-wide uppercase">
+        {title}
+      </p>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{empty}</p>
+        <p className="text-muted-foreground text-sm">{empty}</p>
       ) : (
         <ul className="space-y-1">
           {items.map((it) => (
             <li key={it.id}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
-                <Checkbox checked={selected.includes(it.id)} onCheckedChange={(c) => onChange(c ? [...selected, it.id] : selected.filter((x) => x !== it.id))} />
+              <label className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5">
+                <Checkbox
+                  checked={selected.includes(it.id)}
+                  onCheckedChange={(c) =>
+                    onChange(c ? [...selected, it.id] : selected.filter((x) => x !== it.id))
+                  }
+                />
                 <span className="min-w-0 flex-1 truncate text-sm">{it.label}</span>
-                {it.note && <span className="shrink-0 text-[10px] text-muted-foreground">{it.note}</span>}
+                {it.note && (
+                  <span className="text-muted-foreground shrink-0 text-[10px]">{it.note}</span>
+                )}
               </label>
             </li>
           ))}

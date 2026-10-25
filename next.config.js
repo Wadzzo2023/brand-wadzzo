@@ -12,6 +12,8 @@ const withBundleAnalyzer = analyzer({
 const config = {
   transpilePackages: ["three"],
   reactStrictMode: true,
+  /** Dev only: lets the portal be opened at 127.0.0.1 too (a second, signed-out session next to localhost). */
+  allowedDevOrigins: ["127.0.0.1"],
   images: {
     remotePatterns: [
       {
@@ -34,7 +36,11 @@ const config = {
       { source: "/report/:id", destination: "/reports/:id", permanent: true },
       { source: "/create", destination: "/onboarding", permanent: true },
       { source: "/admin/collection-report", destination: "/admin/reports", permanent: true },
-      { source: "/admin/collection-report/:id", destination: "/admin/reports/:id", permanent: true },
+      {
+        source: "/admin/collection-report/:id",
+        destination: "/admin/reports/:id",
+        permanent: true,
+      },
       { source: "/admin", destination: "/admin/creators", permanent: false },
     ];
   },
@@ -72,7 +78,6 @@ const config = {
       },
     ];
   },
-
 };
 
 export default withBundleAnalyzer(config);

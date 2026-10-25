@@ -20,7 +20,12 @@ import { plural } from "./model";
 
 type Reason = "NOT_A_MURAL" | "FRAUD";
 
-const OPTIONS: { value: Reason; title: string; body: string; icon: typeof Trash2 }[] = [
+const OPTIONS: {
+  value: Reason;
+  title: string;
+  body: string;
+  icon: typeof Trash2;
+}[] = [
   {
     value: "NOT_A_MURAL",
     title: "Not a mural",
@@ -56,7 +61,10 @@ export function RejectDialog({
 
   const preview = api.admin.murals.revokePreview.useQuery(
     { ids: ids ?? [] },
-    { enabled: Boolean(ids?.length) && reason === "FRAUD", refetchOnWindowFocus: false },
+    {
+      enabled: Boolean(ids?.length) && reason === "FRAUD",
+      refetchOnWindowFocus: false,
+    },
   );
   const n = ids?.length ?? 0;
 
@@ -64,8 +72,12 @@ export function RejectDialog({
     <AlertDialog open={Boolean(ids)} onOpenChange={(o) => !busy && onOpenChange(o)}>
       <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-hud">Reject {n === 1 ? "this mural" : plural(n, "mural")}?</AlertDialogTitle>
-          <AlertDialogDescription>It stops being collectable and disappears from every map.</AlertDialogDescription>
+          <AlertDialogTitle className="font-hud">
+            Reject {n === 1 ? "this mural" : plural(n, "mural")}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            It stops being collectable and disappears from every map.
+          </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div role="radiogroup" aria-label="Reason" className="space-y-2">
@@ -80,13 +92,18 @@ export function RejectDialog({
                 onClick={() => setReason(o.value)}
                 className={cn(
                   "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors",
-                  on ? "border-primary bg-primary/5 ring-1 ring-primary/40" : "hover:bg-accent",
+                  on ? "border-primary bg-primary/5 ring-primary/40 ring-1" : "hover:bg-accent",
                 )}
               >
-                <o.icon className={cn("mt-0.5 size-4 shrink-0", o.value === "FRAUD" ? "text-destructive" : "text-muted-foreground")} />
+                <o.icon
+                  className={cn(
+                    "mt-0.5 size-4 shrink-0",
+                    o.value === "FRAUD" ? "text-destructive" : "text-muted-foreground",
+                  )}
+                />
                 <span>
                   <span className="block text-sm font-semibold">{o.title}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{o.body}</span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs">{o.body}</span>
                 </span>
               </button>
             );
@@ -94,7 +111,7 @@ export function RejectDialog({
         </div>
 
         {reason === "FRAUD" && (
-          <p className="flex items-center gap-2 rounded-lg tone-danger px-3 py-2 text-sm">
+          <p className="tone-danger flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
             <Coins className="size-4 shrink-0" />
             {preview.isPending
               ? "Working out the coins…"

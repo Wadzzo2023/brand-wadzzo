@@ -23,7 +23,9 @@ const isWadzzo = PLATFORM_ASSET.code.toLowerCase() === "wadzzo";
 const PRICE = isWadzzo ? { set: 200, change: 500 } : { set: 300000, change: 750000 };
 export const VANITY_HOST = env.NEXT_PUBLIC_FAN_APP_URL
   ? new URL(env.NEXT_PUBLIC_FAN_APP_URL).host
-  : env.NEXT_PUBLIC_ASSET_CODE.toLowerCase() === "wadzzo" ? "app.wadzzo.com" : "bandcoin.io";
+  : env.NEXT_PUBLIC_ASSET_CODE.toLowerCase() === "wadzzo"
+    ? "app.wadzzo.com"
+    : "bandcoin.io";
 const VANITY_RE = /^[a-z0-9_-]+$/;
 const money = (n: number) => `${n.toLocaleString()} ${PLATFORM_ASSET.code}`;
 
@@ -31,12 +33,22 @@ const money = (n: number) => `${n.toLocaleString()} ${PLATFORM_ASSET.code}`;
  * The vanity URL: a paid short link to the brand's page. Paying is two steps —
  * sign the payment, then the server checks it on the network before saving.
  */
-export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | null; subscription: VanitySubscription | null }) {
+export function VanityUrlTab({
+  vanityURL,
+  subscription,
+}: {
+  vanityURL: string | null;
+  subscription: VanitySubscription | null;
+}) {
   const session = useSession();
   const { needSign } = useNeedSign();
   const utils = api.useUtils();
 
-  const state = !subscription ? "none" : new Date(subscription.endDate) >= new Date() ? "active" : "expired";
+  const state = !subscription
+    ? "none"
+    : new Date(subscription.endDate) >= new Date()
+      ? "active"
+      : "expired";
   const current = vanityURL ?? "";
   const [value, setValue] = useState(current);
   const [paying, setPaying] = useState(false);
@@ -52,14 +64,29 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
   const price = state === "active" ? PRICE.change : PRICE.set;
   const typing = value !== debounced;
   const localError =
-    value && !VANITY_RE.test(value) ? "Lowercase letters, numbers, - and _ only" : value && (value.length < 2 || value.length > 30) ? "2–30 characters" : undefined;
+    value && !VANITY_RE.test(value)
+      ? "Lowercase letters, numbers, - and _ only"
+      : value && (value.length < 2 || value.length > 30)
+        ? "2–30 characters"
+        : undefined;
   const available = !changed || availability.data?.isAvailable === true;
 
-  const getXdr = api.fan.creator.updateVanityURL.useMutation({ onError: (e) => toast.error(e.message) });
-  const save = api.fan.creator.createOrUpdateVanityURL.useMutation({ onError: (e) => toast.error(e.message) });
+  const getXdr = api.fan.creator.updateVanityURL.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
+  const save = api.fan.creator.createOrUpdateVanityURL.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
 
   const canSubmit =
-    !paying && (state === "expired" || (!localError && !typing && Boolean(value) && changed && available && !availability.isFetching));
+    !paying &&
+    (state === "expired" ||
+      (!localError &&
+        !typing &&
+        Boolean(value) &&
+        changed &&
+        available &&
+        !availability.isFetching));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +94,10 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
     const url = state === "expired" ? current : value;
     setPaying(true);
     try {
-      const xdr = await getXdr.mutateAsync({ vanityURL: url, signWith: needSign() });
+      const xdr = await getXdr.mutateAsync({
+        vanityURL: url,
+        signWith: needSign(),
+      });
       // Signing doesn't change the hash, so we know which payment to verify.
       const txHash = TransactionBuilder.fromXDR(xdr, networkPassphrase).hash().toString("hex");
       const paid = await clientsign({
@@ -81,11 +111,18 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
         return;
       }
       await save.mutateAsync({ vanityURL: url, txHash });
-      toast.success(state === "active" ? "Vanity URL changed" : state === "expired" ? "Vanity URL renewed" : "Vanity URL set");
+      toast.success(
+        state === "active"
+          ? "Vanity URL changed"
+          : state === "expired"
+            ? "Vanity URL renewed"
+            : "Vanity URL set",
+      );
       void utils.fan.creator.profileOverview.invalidate();
     } catch (err) {
       // tRPC errors are already shown by the mutations' onError.
-      if (!(err instanceof Error && "data" in err)) toast.error(err instanceof Error ? err.message : "Something went wrong");
+      if (!(err instanceof Error && "data" in err))
+        toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setPaying(false);
     }
@@ -98,8 +135,8 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
     );
 
   return (
-    <div className="rounded-xl border bg-card p-4 sm:p-5">
-      <p className="text-sm text-muted-foreground">
+    <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4 sm:p-5">
+      <p className="text-muted-foreground text-sm">
         {state === "active"
           ? `Your short link is live. Changing it costs ${money(PRICE.change)}.`
           : `A short link to your page, for ${money(PRICE.set)} a month.`}
@@ -117,11 +154,11 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
               availability.isFetching ? (
                 "Checking…"
               ) : availability.data?.isAvailable ? (
-                <span className="inline-flex items-center gap-1 text-primary">
+                <span className="text-primary inline-flex items-center gap-1">
                   <Check className="size-3.5" /> Available
                 </span>
               ) : availability.data ? (
-                <span className="inline-flex items-center gap-1 text-destructive">
+                <span className="text-destructive inline-flex items-center gap-1">
                   <X className="size-3.5" /> Taken
                 </span>
               ) : undefined
@@ -135,8 +172,10 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
             ) : undefined
           }
         >
-          <div className="flex items-center overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
-            <span className="shrink-0 border-r bg-muted px-3 py-2 text-sm text-muted-foreground">{VANITY_HOST}/</span>
+          <div className="bg-background focus-within:ring-ring flex items-center overflow-hidden rounded-md border focus-within:ring-2">
+            <span className="bg-muted text-muted-foreground shrink-0 border-r px-3 py-2 text-sm">
+              {VANITY_HOST}/
+            </span>
             <input
               id="vanity"
               value={value}
@@ -152,13 +191,22 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
         </Field>
 
         {subscription && (
-          <dl className="grid grid-cols-2 gap-3 rounded-lg bg-muted/50 p-3 text-sm sm:grid-cols-4">
+          <dl className="bg-muted/50 grid grid-cols-2 gap-3 rounded-lg p-3 text-sm sm:grid-cols-4">
             <Info label="Status">
-              <span className={cn("font-semibold", state === "active" ? "text-primary" : "text-destructive")}>{state === "active" ? "Active" : "Expired"}</span>
+              <span
+                className={cn(
+                  "font-semibold",
+                  state === "active" ? "text-primary" : "text-destructive",
+                )}
+              >
+                {state === "active" ? "Active" : "Expired"}
+              </span>
             </Info>
             <Info label={state === "active" ? "Renews" : "Ended"}>
               <span title={format(new Date(subscription.endDate), "PPp")}>
-                {state === "active" ? `in ${formatDistanceToNow(new Date(subscription.endDate))}` : format(new Date(subscription.endDate), "MMM d, yyyy")}
+                {state === "active"
+                  ? `in ${formatDistanceToNow(new Date(subscription.endDate))}`
+                  : format(new Date(subscription.endDate), "MMM d, yyyy")}
               </span>
             </Info>
             <Info label="Since">{format(new Date(subscription.startDate), "MMM d, yyyy")}</Info>
@@ -169,8 +217,8 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
         )}
 
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="text-sm text-muted-foreground">
-            You pay <b className="tabular-nums text-foreground">{money(price)}</b>
+          <span className="text-muted-foreground text-sm">
+            You pay <b className="text-foreground tabular-nums">{money(price)}</b>
           </span>
           <Button type="submit" disabled={!canSubmit}>
             {paying && <Loader2 className="animate-spin" />}
@@ -185,7 +233,7 @@ export function VanityUrlTab({ vanityURL, subscription }: { vanityURL: string | 
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="mt-0.5">{children}</dd>
     </div>
   );

@@ -1,7 +1,23 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { Ban, Check, ChevronLeft, Clock, Coins, Copy, ExternalLink, FileText, MapPin, Package, Radar, Target, Trash2, UserCheck, Users } from "lucide-react";
+import {
+  Ban,
+  Check,
+  ChevronLeft,
+  Clock,
+  Coins,
+  Copy,
+  ExternalLink,
+  FileText,
+  MapPin,
+  Package,
+  Radar,
+  Target,
+  Trash2,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -38,9 +54,18 @@ export default function CreatorDetailsPage({ id }: { id: string }) {
       <PageBody wide>
         <PageHeader title="Creator" back={back} />
         {/not found|No Creator/i.test(creator.error.message) ? (
-          <EmptyState className="mt-6" icon={Users} title="Creator not found" description="They may have been deleted." />
+          <EmptyState
+            className="mt-6"
+            icon={Users}
+            title="Creator not found"
+            description="They may have been deleted."
+          />
         ) : (
-          <ErrorState className="mt-6" message={creator.error.message} onRetry={() => void creator.refetch()} />
+          <ErrorState
+            className="mt-6"
+            message={creator.error.message}
+            onRetry={() => void creator.refetch()}
+          />
         )}
       </PageBody>
     );
@@ -58,7 +83,17 @@ function Details({ c }: { c: Creator }) {
   const needsIssue = c.approved === true && c.pageAsset?.issuer === BLANK_KEYWORD;
   const nav = (c.extraFields as CreatorExtraFields | null)?.navPermission ?? false;
   const custom = c.customPageAssetCodeIssuer?.split("-");
-  const asset = c.pageAsset ?? (custom?.[0] ? { code: custom[0], issuer: custom[1] ?? "", thumbnail: null, price: null, priceUSD: null } : null);
+  const asset =
+    c.pageAsset ??
+    (custom?.[0]
+      ? {
+          code: custom[0],
+          issuer: custom[1] ?? "",
+          thumbnail: null,
+          price: null,
+          priceUSD: null,
+        }
+      : null);
 
   const setNav = api.admin.creator.updateNavPermission.useMutation({
     onSuccess: (_, v) => {
@@ -69,29 +104,37 @@ function Details({ c }: { c: Creator }) {
     onError: (e) => toast.error(e.message),
   });
 
-  const copy = (text: string, what: string) => void navigator.clipboard.writeText(text).then(() => toast.success(`${what} copied`));
+  const copy = (text: string, what: string) =>
+    void navigator.clipboard.writeText(text).then(() => toast.success(`${what} copied`));
 
   return (
     <PageBody wide>
-      <Link href={back.href} className="label-caps mb-3 inline-flex items-center gap-1 hover:text-foreground">
+      <Link
+        href={back.href}
+        className="label-caps hover:text-foreground mb-3 inline-flex items-center gap-1"
+      >
         <ChevronLeft className="size-3.5" /> {back.label}
       </Link>
 
       {/* Cover + avatar */}
       <div className="relative">
-        <div className="relative aspect-[851/315] max-h-60 w-full overflow-hidden rounded-xl border bg-gradient-to-br from-primary/25 via-surface-2 to-primary/5">
+        <div className="from-primary/25 via-surface-2 to-primary/5 relative aspect-[851/315] max-h-60 w-full overflow-hidden rounded-xl border bg-gradient-to-br">
           {c.coverUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={c.coverUrl} alt="" className="size-full object-cover" />
           )}
         </div>
-        <Avatar src={c.profileUrl} name={c.name} className="absolute -bottom-10 left-4 size-24 border-4 border-background text-3xl sm:-bottom-12 sm:left-6 sm:size-28" />
+        <Avatar
+          src={c.profileUrl}
+          name={c.name}
+          className="border-background absolute -bottom-10 left-4 size-24 border-4 text-3xl sm:-bottom-12 sm:left-6 sm:size-28"
+        />
       </div>
 
       <div className="mt-12 flex flex-wrap items-start justify-between gap-4 sm:mt-4 sm:pl-40">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate font-hud text-2xl font-semibold sm:text-3xl">{c.name}</h1>
+            <h1 className="font-hud truncate text-2xl font-semibold sm:text-3xl">{c.name}</h1>
             {status === "approved" ? (
               <StatusPill tone="success" icon={UserCheck}>
                 Approved
@@ -106,11 +149,15 @@ function Details({ c }: { c: Creator }) {
               </StatusPill>
             )}
           </div>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{c.bio ?? "No bio yet."}</p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          <p className="text-muted-foreground mt-1 max-w-2xl text-sm">{c.bio ?? "No bio yet."}</p>
+          <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 text-xs">
             <span>Joined {format(new Date(c.joinedAt), "MMM d, yyyy")}</span>
             <span aria-hidden>·</span>
-            <button type="button" onClick={() => copy(c.id, "Wallet")} className="inline-flex items-center gap-1 font-mono hover:text-foreground">
+            <button
+              type="button"
+              onClick={() => copy(c.id, "Wallet")}
+              className="hover:text-foreground inline-flex items-center gap-1 font-mono"
+            >
               {addrShort(c.id, 6)} <Copy className="size-3" />
             </button>
             {c.user.email && (
@@ -129,7 +176,12 @@ function Details({ c }: { c: Creator }) {
           </Button>
           {status === "pending" && (
             <>
-              <Button variant="outline" className="text-destructive hover:text-destructive" disabled={act.busy} onClick={() => setConfirm("ban")}>
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={act.busy}
+                onClick={() => setConfirm("ban")}
+              >
                 <Ban /> Reject
               </Button>
               <Button disabled={act.busy} onClick={() => act.approve(c)}>
@@ -143,7 +195,12 @@ function Details({ c }: { c: Creator }) {
             </Button>
           )}
           {status === "approved" && (
-            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={act.busy} onClick={() => setConfirm("ban")}>
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              disabled={act.busy}
+              onClick={() => setConfirm("ban")}
+            >
               <Ban /> Ban
             </Button>
           )}
@@ -166,13 +223,15 @@ function Details({ c }: { c: Creator }) {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
         {/* Recent pins */}
-        <section className="rounded-xl border bg-card">
+        <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2">
           <header className="flex items-center justify-between border-b px-4 py-3">
             <h2 className="font-hud text-sm font-semibold">Recent pins</h2>
-            <span className="text-xs text-muted-foreground">{c._count.LocationGroup.toLocaleString()} in total</span>
+            <span className="text-muted-foreground text-xs">
+              {c._count.LocationGroup.toLocaleString()} in total
+            </span>
           </header>
           {c.LocationGroup.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">No pins yet.</p>
+            <p className="text-muted-foreground px-4 py-10 text-center text-sm">No pins yet.</p>
           ) : (
             <ul className="divide-y">
               {c.LocationGroup.map((g) => {
@@ -184,17 +243,24 @@ function Details({ c }: { c: Creator }) {
                   <li key={g.id} className="flex items-center gap-3 px-4 py-2.5">
                     {g.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={g.image} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+                      <img
+                        src={g.image}
+                        alt=""
+                        className="size-10 shrink-0 rounded-lg object-cover"
+                      />
                     ) : (
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
                         <MapPin className="size-4" />
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{g.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {g._count.locations} {g._count.locations === 1 ? "pin" : "pins"} · {live ? "ends" : ended ? "ended" : "starts"}{" "}
-                        {formatDistanceToNow(live || ended ? end : start, { addSuffix: true })}
+                      <p className="text-muted-foreground text-xs">
+                        {g._count.locations} {g._count.locations === 1 ? "pin" : "pins"} ·{" "}
+                        {live ? "ends" : ended ? "ended" : "starts"}{" "}
+                        {formatDistanceToNow(live || ended ? end : start, {
+                          addSuffix: true,
+                        })}
                       </p>
                     </div>
                     {g.approved === false ? (
@@ -216,12 +282,15 @@ function Details({ c }: { c: Creator }) {
         </section>
 
         <div className="space-y-4">
-          <section className="rounded-xl border bg-card p-4">
+          <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4">
             <h2 className="font-hud text-sm font-semibold">Access</h2>
             <label className="mt-3 flex items-start gap-3">
               <span className="flex-1">
                 <span className="block text-sm font-medium">Full access</span>
-                <span className="block text-xs text-muted-foreground">Posts, bounties, stores, gifts and membership. Without it, brands can only drop pins.</span>
+                <span className="text-muted-foreground block text-xs">
+                  Posts, bounties, stores, gifts and membership. Without it, brands can only drop
+                  pins.
+                </span>
               </span>
               <Switch
                 checked={setNav.isPending ? Boolean(setNav.variables?.navPermission) : nav}
@@ -231,44 +300,67 @@ function Details({ c }: { c: Creator }) {
             </label>
           </section>
 
-          <section className="rounded-xl border bg-card p-4">
+          <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4">
             <h2 className="font-hud text-sm font-semibold">Page asset</h2>
             {asset ? (
               <div className="mt-3 flex items-center gap-3">
                 {asset.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={asset.thumbnail} alt="" className="size-11 rounded-lg border object-cover" />
+                  <img
+                    src={asset.thumbnail}
+                    alt=""
+                    className="size-11 rounded-lg border object-cover"
+                  />
                 ) : (
-                  <span className="flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <span className="bg-primary/10 text-primary flex size-11 items-center justify-center rounded-lg">
                     <Package className="size-5" />
                   </span>
                 )}
                 <div className="min-w-0 flex-1 text-sm">
                   <p className="flex items-center gap-2 font-mono font-semibold">
                     {asset.code}
-                    {asset.issuer === BLANK_KEYWORD ? <StatusPill tone="warning">Not issued</StatusPill> : !c.pageAsset && <StatusPill>Own asset</StatusPill>}
+                    {asset.issuer === BLANK_KEYWORD ? (
+                      <StatusPill tone="warning">Not issued</StatusPill>
+                    ) : (
+                      !c.pageAsset && <StatusPill>Own asset</StatusPill>
+                    )}
                   </p>
                   {asset.issuer && asset.issuer !== BLANK_KEYWORD && (
-                    <button type="button" onClick={() => copy(asset.issuer, "Issuer")} className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground">
+                    <button
+                      type="button"
+                      onClick={() => copy(asset.issuer, "Issuer")}
+                      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-xs"
+                    >
                       {addrShort(asset.issuer, 6)} <Copy className="size-3" />
                     </button>
                   )}
                 </div>
                 {asset.price != null && (
-                  <p className="text-right text-xs text-muted-foreground">
-                    <b className="block text-sm tabular-nums text-foreground">{asset.price}</b> price
+                  <p className="text-muted-foreground text-right text-xs">
+                    <b className="text-foreground block text-sm tabular-nums">{asset.price}</b>{" "}
+                    price
                   </p>
                 )}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">No page asset — the brand can set one up in Settings.</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                No page asset — the brand can set one up in Settings.
+              </p>
             )}
           </section>
 
-          <section className="rounded-xl border border-destructive/30 bg-card p-4">
-            <h2 className="font-hud text-sm font-semibold text-destructive">Danger zone</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Deleting removes the brand and everything it made.</p>
-            <Button variant="outline" size="sm" className="mt-3 text-destructive hover:text-destructive" onClick={() => setConfirm("delete")} disabled={act.busy}>
+          <section className="border-destructive/30 bg-card rounded-xl border p-4">
+            <h2 className="font-hud text-destructive text-sm font-semibold">Danger zone</h2>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Deleting removes the brand and everything it made.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive mt-3"
+              onClick={() => setConfirm("delete")}
+              disabled={act.busy}
+            >
               <Trash2 /> Delete brand
             </Button>
           </section>
@@ -278,7 +370,15 @@ function Details({ c }: { c: Creator }) {
       <ConfirmDialog
         open={Boolean(confirm)}
         onOpenChange={(o) => !o && !act.busy && setConfirm(null)}
-        title={confirm === "delete" ? `Delete ${c.name}?` : confirm === "unban" ? `Unban ${c.name}?` : status === "pending" ? `Reject ${c.name}?` : `Ban ${c.name}?`}
+        title={
+          confirm === "delete"
+            ? `Delete ${c.name}?`
+            : confirm === "unban"
+              ? `Unban ${c.name}?`
+              : status === "pending"
+                ? `Reject ${c.name}?`
+                : `Ban ${c.name}?`
+        }
         description={
           confirm === "delete"
             ? "The brand and everything it made — pins, posts, bounties — are removed for good."
@@ -286,7 +386,15 @@ function Details({ c }: { c: Creator }) {
               ? "They get their portal access back."
               : "They can't use the portal and their drops stop showing to fans. You can unban them later."
         }
-        confirmLabel={confirm === "delete" ? "Delete" : confirm === "unban" ? "Unban" : status === "pending" ? "Reject" : "Ban"}
+        confirmLabel={
+          confirm === "delete"
+            ? "Delete"
+            : confirm === "unban"
+              ? "Unban"
+              : status === "pending"
+                ? "Reject"
+                : "Ban"
+        }
         destructive={confirm !== "unban"}
         busy={act.busy}
         onConfirm={() => {

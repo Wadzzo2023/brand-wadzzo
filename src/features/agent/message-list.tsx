@@ -11,7 +11,14 @@ import { useAgentMap, type AgentMarker } from "./agent-map";
 import { ChoicesCard } from "./cards/choices-card";
 import { ProposalCard } from "./cards/proposal-card";
 import { ReportCard } from "./cards/report-card";
-import { AnnouncementsCard, CollectorsCard, EventsCard, HotspotsCard, PinsCard, PlacesCard } from "./cards/result-cards";
+import {
+  AnnouncementsCard,
+  CollectorsCard,
+  EventsCard,
+  HotspotsCard,
+  PinsCard,
+  PlacesCard,
+} from "./cards/result-cards";
 import { DoneSteps, LiveSteps } from "./progress-steps";
 import type { AgentChatState } from "./use-agent-chat";
 
@@ -19,13 +26,46 @@ import type { AgentChatState } from "./use-agent-chat";
 function markersOf(block: AgentBlock): AgentMarker[] | null {
   switch (block.kind) {
     case "places":
-      return block.items.map((p) => ({ id: p.key, lat: p.lat, lng: p.lng, title: p.title, kind: p.kind, muted: p.alreadyPinned }));
+      return block.items.map((p) => ({
+        id: p.key,
+        lat: p.lat,
+        lng: p.lng,
+        title: p.title,
+        kind: p.kind,
+        muted: p.alreadyPinned,
+      }));
     case "pins":
-      return block.items.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, title: p.title, kind: "pin" }));
+      return block.items.map((p) => ({
+        id: p.id,
+        lat: p.lat,
+        lng: p.lng,
+        title: p.title,
+        kind: "pin",
+      }));
     case "events":
-      return block.items.flatMap((e) => (e.lat != null && e.lng != null ? [{ id: e.id, lat: e.lat, lng: e.lng, title: e.title, kind: "event" as const }] : []));
+      return block.items.flatMap((e) =>
+        e.lat != null && e.lng != null
+          ? [
+              {
+                id: e.id,
+                lat: e.lat,
+                lng: e.lng,
+                title: e.title,
+                kind: "event" as const,
+              },
+            ]
+          : [],
+      );
     case "proposal":
-      return block.action.type === "create_pins" ? block.action.items.map((p) => ({ id: p.key, lat: p.lat, lng: p.lng, title: p.title, kind: p.kind })) : null;
+      return block.action.type === "create_pins"
+        ? block.action.items.map((p) => ({
+            id: p.key,
+            lat: p.lat,
+            lng: p.lng,
+            title: p.title,
+            kind: p.kind,
+          }))
+        : null;
     default:
       return null;
   }
@@ -55,15 +95,26 @@ export function MessageList({ chat, linkable }: { chat: AgentChatState; linkable
 
   return (
     <div className="space-y-4 px-3 py-4">
-      {messages.map((m) => (m.role === "user" ? <UserBubble key={m.id} text={m.text} /> : <Answer key={m.id} message={m} chat={chat} linkable={linkable} />))}
+      {messages.map((m) =>
+        m.role === "user" ? (
+          <UserBubble key={m.id} text={m.text} />
+        ) : (
+          <Answer key={m.id} message={m} chat={chat} linkable={linkable} />
+        ),
+      )}
       {pendingText && <UserBubble text={pendingText} />}
       {working && <LiveSteps steps={steps} />}
       {failed && !working && (
-        <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <div className="border-destructive/30 bg-destructive/5 text-destructive flex items-start gap-2 rounded-xl border px-3 py-2 text-xs">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span className="flex-1">{failed}</span>
           {lastUserText && (
-            <Button size="sm" variant="ghost" className="-my-1 h-7" onClick={() => void chat.send(lastUserText)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="-my-1 h-7"
+              onClick={() => void chat.send(lastUserText)}
+            >
               <RotateCcw /> Retry
             </Button>
           )}
@@ -77,32 +128,69 @@ export function MessageList({ chat, linkable }: { chat: AgentChatState; linkable
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-sm text-primary-foreground">{text}</p>
+      <p className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl rounded-tr-sm px-3 py-2 text-sm whitespace-pre-wrap">
+        {text}
+      </p>
     </div>
   );
 }
 
-function Answer({ message, chat, linkable }: { message: AgentMessage; chat: AgentChatState; linkable: boolean }) {
+function Answer({
+  message,
+  chat,
+  linkable,
+}: {
+  message: AgentMessage;
+  chat: AgentChatState;
+  linkable: boolean;
+}) {
   const isLatest = chat.messages[chat.messages.length - 1]?.id === message.id;
   return (
     <div className="space-y-2">
       <DoneSteps steps={message.steps} />
-      {message.text && <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p>}
+      {message.text && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+      )}
       {message.blocks.map((b) => (
-        <Block key={b.id} block={b} message={message} chat={chat} linkable={linkable} canAnswer={isLatest && !chat.working} />
+        <Block
+          key={b.id}
+          block={b}
+          message={message}
+          chat={chat}
+          linkable={linkable}
+          canAnswer={isLatest && !chat.working}
+        />
       ))}
     </div>
   );
 }
 
-function Block({ block, message, chat, linkable, canAnswer }: { block: AgentBlock; message: AgentMessage; chat: AgentChatState; linkable: boolean; canAnswer: boolean }) {
+function Block({
+  block,
+  message,
+  chat,
+  linkable,
+  canAnswer,
+}: {
+  block: AgentBlock;
+  message: AgentMessage;
+  chat: AgentChatState;
+  linkable: boolean;
+  canAnswer: boolean;
+}) {
   switch (block.kind) {
     case "choices":
       return (
         <ChoicesCard
           block={block}
           disabled={!canAnswer}
-          onAnswer={(labels) => void chat.send(labels.join(", "), { messageId: message.id, blockId: block.id, labels })}
+          onAnswer={(labels) =>
+            void chat.send(labels.join(", "), {
+              messageId: message.id,
+              blockId: block.id,
+              labels,
+            })
+          }
         />
       );
     case "places":

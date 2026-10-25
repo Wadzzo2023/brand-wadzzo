@@ -5,7 +5,14 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/shadcn/ui/dialog";
 import { Input } from "~/components/shadcn/ui/input";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { DataTable, type Column } from "~/ui/data-table";
@@ -25,11 +32,21 @@ type Form = {
   active: boolean;
 };
 
-const EMPTY: Form = { id: "", name: "", webUrl: "https://web.", brandUrl: "https://brand.", assetCode: "", assetIssuer: "", active: true };
+const EMPTY: Form = {
+  id: "",
+  name: "",
+  webUrl: "https://web.",
+  brandUrl: "https://brand.",
+  assetCode: "",
+  assetIssuer: "",
+  active: true,
+};
 
 /** Admin › Platforms (Wadzzo only): every white-label deployment sharing this database. */
 export default function PlatformsPage() {
-  const platforms = api.admin.platforms.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const platforms = api.admin.platforms.list.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   const [editing, setEditing] = useState<{ form: Form; isNew: boolean } | null>(null);
 
   const n = (v: number) => <span className="tabular-nums">{v.toLocaleString()}</span>;
@@ -43,7 +60,7 @@ export default function PlatformsPage() {
           <p className="font-medium">
             {p.name} {p.isRoot && <StatusPill tone="info">Parent</StatusPill>}
           </p>
-          <p className="font-mono text-xs text-muted-foreground">{p.id}</p>
+          <p className="text-muted-foreground font-mono text-xs">{p.id}</p>
         </div>
       ),
     },
@@ -52,22 +69,56 @@ export default function PlatformsPage() {
       header: "Sites",
       skeleton: "mono",
       cell: (p) => (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           <p>{p.webUrl}</p>
           <p>{p.brandUrl}</p>
         </div>
       ),
     },
-    { id: "users", header: "Users", align: "right", skeleton: "number", cell: (p) => n(p.stats.users) },
-    { id: "brands", header: "Brands", align: "right", skeleton: "number", cell: (p) => n(p.stats.brands) },
-    { id: "pins", header: "Pins", align: "right", skeleton: "number", cell: (p) => n(p.stats.pins) },
-    { id: "claims", header: "Collections", align: "right", skeleton: "number", cell: (p) => n(p.stats.claims) },
-    { id: "admins", header: "Admins", align: "right", skeleton: "number", cell: (p) => n(p.stats.admins) },
+    {
+      id: "users",
+      header: "Users",
+      align: "right",
+      skeleton: "number",
+      cell: (p) => n(p.stats.users),
+    },
+    {
+      id: "brands",
+      header: "Brands",
+      align: "right",
+      skeleton: "number",
+      cell: (p) => n(p.stats.brands),
+    },
+    {
+      id: "pins",
+      header: "Pins",
+      align: "right",
+      skeleton: "number",
+      cell: (p) => n(p.stats.pins),
+    },
+    {
+      id: "claims",
+      header: "Collections",
+      align: "right",
+      skeleton: "number",
+      cell: (p) => n(p.stats.claims),
+    },
+    {
+      id: "admins",
+      header: "Admins",
+      align: "right",
+      skeleton: "number",
+      cell: (p) => n(p.stats.admins),
+    },
     {
       id: "status",
       header: "Status",
       skeleton: "pill",
-      cell: (p) => <StatusPill tone={p.active ? "success" : "warning"}>{p.active ? "Active" : "Inactive"}</StatusPill>,
+      cell: (p) => (
+        <StatusPill tone={p.active ? "success" : "warning"}>
+          {p.active ? "Active" : "Inactive"}
+        </StatusPill>
+      ),
     },
   ];
 
@@ -101,19 +152,45 @@ export default function PlatformsPage() {
             onSelect: () =>
               setEditing({
                 isNew: false,
-                form: { id: p.id, name: p.name, webUrl: p.webUrl, brandUrl: p.brandUrl, assetCode: p.assetCode ?? "", assetIssuer: p.assetIssuer ?? "", active: p.active },
+                form: {
+                  id: p.id,
+                  name: p.name,
+                  webUrl: p.webUrl,
+                  brandUrl: p.brandUrl,
+                  assetCode: p.assetCode ?? "",
+                  assetIssuer: p.assetIssuer ?? "",
+                  active: p.active,
+                },
               }),
           },
         ]}
-        empty={{ icon: Building2, title: "No platforms", description: "Run the multi-platform migration to create Wadzzo's own platform." }}
+        empty={{
+          icon: Building2,
+          title: "No platforms",
+          description: "Run the multi-platform migration to create Wadzzo's own platform.",
+        }}
       />
 
-      {editing && <PlatformDialog initial={editing.form} isNew={editing.isNew} onClose={() => setEditing(null)} />}
+      {editing && (
+        <PlatformDialog
+          initial={editing.form}
+          isNew={editing.isNew}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </PageBody>
   );
 }
 
-function PlatformDialog({ initial, isNew, onClose }: { initial: Form; isNew: boolean; onClose: () => void }) {
+function PlatformDialog({
+  initial,
+  isNew,
+  onClose,
+}: {
+  initial: Form;
+  isNew: boolean;
+  onClose: () => void;
+}) {
   const utils = api.useUtils();
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string>();
@@ -146,36 +223,76 @@ function PlatformDialog({ initial, isNew, onClose }: { initial: Form; isNew: boo
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={submit} noValidate>
           <DialogHeader>
-            <DialogTitle className="font-hud">{isNew ? "New platform" : `Edit ${initial.name}`}</DialogTitle>
+            <DialogTitle className="font-hud">
+              {isNew ? "New platform" : `Edit ${initial.name}`}
+            </DialogTitle>
             <DialogDescription>
-              The slug must match the <span className="font-mono">PLATFORM_SLUG</span> env of the platform&apos;s deployments.
+              The slug must match the <span className="font-mono">PLATFORM_SLUG</span> env of the
+              platform&apos;s deployments.
             </DialogDescription>
           </DialogHeader>
           <div className="my-5 grid gap-4">
             <Field label="Slug" htmlFor="pf-id" required>
-              <Input id="pf-id" value={form.id} onChange={set("id")} disabled={!isNew} placeholder="clintoncounty" className="font-mono" />
+              <Input
+                id="pf-id"
+                value={form.id}
+                onChange={set("id")}
+                disabled={!isNew}
+                placeholder="clintoncounty"
+                className="font-mono"
+              />
             </Field>
             <Field label="Name" htmlFor="pf-name" required>
-              <Input id="pf-name" value={form.name} onChange={set("name")} placeholder="Clinton County" />
+              <Input
+                id="pf-name"
+                value={form.name}
+                onChange={set("name")}
+                placeholder="Clinton County"
+              />
             </Field>
             <Field label="AR web URL" htmlFor="pf-web" required>
-              <Input id="pf-web" value={form.webUrl} onChange={set("webUrl")} placeholder="https://web.clintoncounty-ia.gov" />
+              <Input
+                id="pf-web"
+                value={form.webUrl}
+                onChange={set("webUrl")}
+                placeholder="https://web.clintoncounty-ia.gov"
+              />
             </Field>
             <Field label="Brand panel URL" htmlFor="pf-brand" required>
-              <Input id="pf-brand" value={form.brandUrl} onChange={set("brandUrl")} placeholder="https://brand.clintoncounty-ia.gov" />
+              <Input
+                id="pf-brand"
+                value={form.brandUrl}
+                onChange={set("brandUrl")}
+                placeholder="https://brand.clintoncounty-ia.gov"
+              />
             </Field>
             <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
               <Field label="Asset code" htmlFor="pf-code">
-                <Input id="pf-code" value={form.assetCode} onChange={set("assetCode")} className="font-mono" />
+                <Input
+                  id="pf-code"
+                  value={form.assetCode}
+                  onChange={set("assetCode")}
+                  className="font-mono"
+                />
               </Field>
               <Field label="Asset issuer" htmlFor="pf-issuer">
-                <Input id="pf-issuer" value={form.assetIssuer} onChange={set("assetIssuer")} placeholder="G…" className="font-mono text-xs" />
+                <Input
+                  id="pf-issuer"
+                  value={form.assetIssuer}
+                  onChange={set("assetIssuer")}
+                  placeholder="G…"
+                  className="font-mono text-xs"
+                />
               </Field>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <Switch checked={form.active} onCheckedChange={(active) => setForm({ ...form, active })} /> Active
+              <Switch
+                checked={form.active}
+                onCheckedChange={(active) => setForm({ ...form, active })}
+              />{" "}
+              Active
             </label>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>

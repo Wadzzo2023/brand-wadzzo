@@ -19,7 +19,10 @@ export default function PostsPage() {
   const session = useSession();
   const posts = api.fan.post.getPosts.useInfiniteQuery(
     { pubkey: session.data?.user.id ?? "", limit: 10 },
-    { getNextPageParam: (last) => last.nextCursor, enabled: Boolean(session.data?.user.id) },
+    {
+      getNextPageParam: (last) => last.nextCursor,
+      enabled: Boolean(session.data?.user.id),
+    },
   );
   const items = posts.data?.pages.flatMap((p) => p.posts) ?? [];
 
@@ -33,12 +36,20 @@ export default function PostsPage() {
 
   return (
     <PageBody className="max-w-3xl">
-      <PageHeader eyebrow="Content" title="Posts" description="News, media and perks for your followers — public or for a membership tier." actions={newPost} />
+      <PageHeader
+        eyebrow="Content"
+        title="Posts"
+        description="News, media and perks for your followers — public or for a membership tier."
+        actions={newPost}
+      />
 
       <div className="mt-6 space-y-4">
         {posts.isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-3 rounded-xl border bg-card p-5">
+            <div
+              key={i}
+              className="bg-card border-foreground/10 space-y-3 rounded-[1.4rem] border-2 p-5"
+            >
               <div className="flex items-center gap-3">
                 <Skeleton className="size-10 rounded-full" />
                 <div className="space-y-1.5">
@@ -53,7 +64,12 @@ export default function PostsPage() {
         ) : posts.isError ? (
           <ErrorState message={posts.error.message} onRetry={() => void posts.refetch()} />
         ) : items.length === 0 ? (
-          <EmptyState icon={FileText} title="No posts yet" description="Your first post shows up in followers' feeds right away." action={newPost} />
+          <EmptyState
+            icon={FileText}
+            title="No posts yet"
+            description="Your first post shows up in followers' feeds right away."
+            action={newPost}
+          />
         ) : (
           <>
             {posts.data?.pages.map((page, i) => (
@@ -74,7 +90,11 @@ export default function PostsPage() {
             ))}
             {posts.hasNextPage && (
               <div className="flex justify-center pt-2">
-                <Button variant="outline" onClick={() => void posts.fetchNextPage()} disabled={posts.isFetchingNextPage}>
+                <Button
+                  variant="outline"
+                  onClick={() => void posts.fetchNextPage()}
+                  disabled={posts.isFetchingNextPage}
+                >
                   {posts.isFetchingNextPage && <Spinner className="size-4" />}
                   {posts.isFetchingNextPage ? "Loading…" : "Load more"}
                 </Button>

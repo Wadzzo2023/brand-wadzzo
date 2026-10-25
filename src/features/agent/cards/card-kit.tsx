@@ -25,11 +25,20 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-xl border bg-card", className)}>
-      <header className="flex items-center gap-2 border-b bg-surface-2/50 px-3 py-2">
-        <Icon className="size-4 shrink-0 text-primary" />
-        <h3 className="min-w-0 flex-1 truncate font-hud text-[13px] font-semibold">{title}</h3>
-        {count !== undefined && <span className="rounded-full bg-surface-2 px-2 py-0.5 font-hud text-[11px] font-semibold tabular-nums">{count}</span>}
+    <section
+      className={cn(
+        "bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2",
+        className,
+      )}
+    >
+      <header className="bg-surface-2/50 flex items-center gap-2 border-b px-3 py-2">
+        <Icon className="text-primary size-4 shrink-0" />
+        <h3 className="font-hud min-w-0 flex-1 truncate text-[13px] font-semibold">{title}</h3>
+        {count !== undefined && (
+          <span className="bg-surface-2 font-hud rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+            {count}
+          </span>
+        )}
         {actions}
       </header>
       {children}
@@ -38,18 +47,31 @@ export function Card({
 }
 
 /** A list that shows the first few rows, with "Show all N". */
-export function ShortList<T>({ items, initial = 5, render, empty }: { items: T[]; initial?: number; render: (item: T, i: number) => ReactNode; empty: string }) {
+export function ShortList<T>({
+  items,
+  initial = 5,
+  render,
+  empty,
+}: {
+  items: T[];
+  initial?: number;
+  render: (item: T, i: number) => ReactNode;
+  empty: string;
+}) {
   const [all, setAll] = useState(false);
-  if (items.length === 0) return <p className="px-3 py-4 text-center text-xs text-muted-foreground">{empty}</p>;
+  if (items.length === 0)
+    return <p className="text-muted-foreground px-3 py-4 text-center text-xs">{empty}</p>;
   const shown = all ? items : items.slice(0, initial);
   return (
     <>
-      <ul className={cn("divide-y", all && "max-h-80 overflow-y-auto scrollbar-thin")}>{shown.map(render)}</ul>
+      <ul className={cn("divide-y", all && "max-h-80 scrollbar-thin overflow-y-auto")}>
+        {shown.map(render)}
+      </ul>
       {items.length > initial && (
         <button
           type="button"
           onClick={() => setAll((a) => !a)}
-          className="flex w-full items-center justify-center gap-1 border-t py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground flex w-full items-center justify-center gap-1 border-t py-1.5 text-xs font-medium"
         >
           {all ? "Show less" : `Show all ${items.length}`}
           <ChevronDown className={cn("size-3.5 transition-transform", all && "rotate-180")} />
@@ -85,7 +107,7 @@ export function MapRow({
         <button
           type="button"
           onClick={() => focusOn({ id, lat, lng })}
-          className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground shrink-0 rounded-md p-1"
           aria-label="Show on map"
           title="Show on map"
         >
@@ -101,6 +123,8 @@ export const dayTime = (iso: string) => format(new Date(iso), "MMM d, h:mm a");
 export const range = (from: string, to: string) => {
   const end = new Date(to);
   // The 100-year "no end" default reads better as open-ended.
-  return end.getFullYear() - new Date().getFullYear() > 50 ? `From ${day(from)}` : `${format(new Date(from), "MMM d")} – ${day(to)}`;
+  return end.getFullYear() - new Date().getFullYear() > 50
+    ? `From ${day(from)}`
+    : `${format(new Date(from), "MMM d")} – ${day(to)}`;
 };
 export const n = (v: number) => v.toLocaleString();

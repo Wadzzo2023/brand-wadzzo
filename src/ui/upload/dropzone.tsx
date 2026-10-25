@@ -1,6 +1,17 @@
 "use client";
 
-import { AlertCircle, File as FileIcon, ImagePlus, Loader2, Music, RefreshCw, Trash2, UploadCloud, Video, X } from "lucide-react";
+import {
+  AlertCircle,
+  File as FileIcon,
+  ImagePlus,
+  Loader2,
+  Music,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+  Video,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 
@@ -40,19 +51,36 @@ export type DropzoneProps = {
 type Kind = "image" | "video" | "audio" | "file";
 const kindOf = (typeOrUrl: string, endpoint?: EndPointType, accept?: string): Kind => {
   const s = typeOrUrl.toLowerCase();
-  if (s.startsWith("image/") || s.startsWith("data:image/") || /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico|tiff?)(\?|$)/i.test(s)) {
+  if (
+    s.startsWith("image/") ||
+    s.startsWith("data:image/") ||
+    /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico|tiff?)(\?|$)/i.test(s)
+  ) {
     return "image";
   }
-  if (s.startsWith("video/") || s.startsWith("data:video/") || /\.(mp4|webm|mov|m4v|ogv|avi)(\?|$)/i.test(s)) {
+  if (
+    s.startsWith("video/") ||
+    s.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|m4v|ogv|avi)(\?|$)/i.test(s)
+  ) {
     return "video";
   }
-  if (s.startsWith("audio/") || s.startsWith("data:audio/") || /\.(mp3|wav|ogg|aac|flac|m4a|wma|aiff)(\?|$)/i.test(s)) {
+  if (
+    s.startsWith("audio/") ||
+    s.startsWith("data:audio/") ||
+    /\.(mp3|wav|ogg|aac|flac|m4a|wma|aiff)(\?|$)/i.test(s)
+  ) {
     return "audio";
   }
 
   // Fallback using endpoint if URL doesn't have an extension (standard with S3 hex keys)
   if (endpoint) {
-    if (endpoint === "imageUploader" || endpoint === "profileUploader" || endpoint === "coverUploader" || endpoint === "svgUploader") {
+    if (
+      endpoint === "imageUploader" ||
+      endpoint === "profileUploader" ||
+      endpoint === "coverUploader" ||
+      endpoint === "svgUploader"
+    ) {
       return "image";
     }
     if (endpoint === "videoUploader") return "video";
@@ -99,7 +127,11 @@ export function Dropzone({
   const input = useRef<HTMLInputElement>(null);
   const { upload, status, progress, error, reset } = useS3Upload(endpoint);
   const [dragging, setDragging] = useState(false);
-  const [localPreview, setLocalPreview] = useState<{ url: string; type: string; name: string } | null>(null);
+  const [localPreview, setLocalPreview] = useState<{
+    url: string;
+    type: string;
+    name: string;
+  } | null>(null);
   const acceptStr = accept ?? ENDPOINT_ACCEPT[endpoint].accept;
   const hint = description ?? ENDPOINT_ACCEPT[endpoint].hint;
   const [customBusy, setCustomBusy] = useState(false);
@@ -109,7 +141,10 @@ export function Dropzone({
   const canRemove = removable ?? Boolean(onChange);
 
   useEffect(() => onUploadingChange?.(busy), [busy, onUploadingChange]);
-  useEffect(() => () => void (localPreview && URL.revokeObjectURL(localPreview.url)), [localPreview]);
+  useEffect(
+    () => () => void (localPreview && URL.revokeObjectURL(localPreview.url)),
+    [localPreview],
+  );
 
   const start = useCallback(
     async (raw: File | undefined) => {
@@ -120,15 +155,27 @@ export function Dropzone({
       }
       const file = onBeforeUpload ? await onBeforeUpload(raw) : raw;
       if (!file) return;
-      setLocalPreview({ url: URL.createObjectURL(file), type: file.type, name: file.name });
+      setLocalPreview({
+        url: URL.createObjectURL(file),
+        type: file.type,
+        name: file.name,
+      });
       try {
         if (uploader) {
           setCustomBusy(true);
           const url = await uploader(file);
-          onChange?.(url, { name: file.name, size: file.size, type: file.type });
+          onChange?.(url, {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          });
         } else {
           const done = await upload(file);
-          onChange?.(done.url, { name: done.name, size: done.size, type: done.type });
+          onChange?.(done.url, {
+            name: done.name,
+            size: done.size,
+            type: done.type,
+          });
         }
       } catch (e) {
         setLocalPreview(null);
@@ -142,9 +189,17 @@ export function Dropzone({
 
   const preview = previewUrl ?? localPreview?.url;
   const shown = preview
-    ? { url: preview, type: (localPreview?.type ?? "image") as Kind, name: localPreview?.name ?? value?.split("/").pop() ?? "image" }
+    ? {
+        url: preview,
+        type: (localPreview?.type ?? "image") as Kind,
+        name: localPreview?.name ?? value?.split("/").pop() ?? "image",
+      }
     : value
-      ? { url: value, type: kindOf(value, endpoint, acceptStr), name: value.split("/").pop() ?? "file" }
+      ? {
+          url: value,
+          type: kindOf(value, endpoint, acceptStr),
+          name: value.split("/").pop() ?? "file",
+        }
       : null;
   const kind = shown ? kindOf(shown.type || shown.url, endpoint, acceptStr) : null;
   const open = () => !disabled && !busy && input.current?.click();
@@ -200,14 +255,29 @@ export function Dropzone({
           onClick={open}
           disabled={Boolean(disabled) || busy}
           className={cn(
-            "relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-lg border bg-card px-4 font-hud text-sm font-semibold transition-colors hover:bg-accent disabled:opacity-60",
+            "bg-card font-hud hover:bg-accent relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-lg border px-4 text-sm font-semibold transition-colors disabled:opacity-60",
             dragging && "border-primary bg-primary/5",
             status === "error" && "border-destructive/50 text-destructive",
           )}
         >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : status === "error" ? <AlertCircle className="size-4" /> : (icon ?? <UploadCloud className="size-4" />)}
-          {busy ? `Uploading ${pct}` : status === "error" ? "Retry upload" : (label ?? (value ? "Replace file" : "Upload file"))}
-          {busy && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary transition-[width]" style={{ width: `${progress}%` }} />}
+          {busy ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : status === "error" ? (
+            <AlertCircle className="size-4" />
+          ) : (
+            (icon ?? <UploadCloud className="size-4" />)
+          )}
+          {busy
+            ? `Uploading ${pct}`
+            : status === "error"
+              ? "Retry upload"
+              : (label ?? (value ? "Replace file" : "Upload file"))}
+          {busy && (
+            <span
+              className="bg-primary absolute inset-x-0 bottom-0 h-0.5 transition-[width]"
+              style={{ width: `${progress}%` }}
+            />
+          )}
         </button>
         {hiddenInput}
       </div>
@@ -224,15 +294,15 @@ export function Dropzone({
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open())}
         aria-label={label ?? "Upload a file"}
         className={cn(
-          "group relative flex items-center gap-3 overflow-hidden rounded-lg border border-dashed bg-card p-2.5 text-left transition-colors",
-          !disabled && "cursor-pointer hover:border-line-bright hover:bg-surface-2",
+          "group bg-card relative flex items-center gap-3 overflow-hidden rounded-lg border border-dashed p-2.5 text-left transition-colors",
+          !disabled && "hover:border-line-bright hover:bg-surface-2 cursor-pointer",
           dragging && "border-primary bg-primary/5",
           disabled && "opacity-60",
           className,
         )}
         {...dropHandlers}
       >
-        <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-2">
+        <span className="bg-surface-2 relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md">
           {shown && kind === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={shown.url} alt="" className="size-full object-cover" />
@@ -242,23 +312,41 @@ export function Dropzone({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">
-            {busy ? `Uploading… ${pct}` : shown ? shown.name : (label ?? "Drop a file or click to browse")}
+            {busy
+              ? `Uploading… ${pct}`
+              : shown
+                ? shown.name
+                : (label ?? "Drop a file or click to browse")}
           </span>
-          <span className={cn("block truncate text-xs", status === "error" ? "text-destructive" : "text-muted-foreground")}>
-            {status === "error" ? (error ?? "Upload failed — click to retry") : shown ? "Click or drop to replace" : hint}
+          <span
+            className={cn(
+              "block truncate text-xs",
+              status === "error" ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {status === "error"
+              ? (error ?? "Upload failed — click to retry")
+              : shown
+                ? "Click or drop to replace"
+                : hint}
           </span>
         </span>
         {shown && canRemove && !busy && (
           <button
             type="button"
             onClick={(e) => (e.stopPropagation(), remove())}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-md p-1.5"
             aria-label="Remove file"
           >
             <X className="size-4" />
           </button>
         )}
-        {busy && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary transition-[width]" style={{ width: `${progress}%` }} />}
+        {busy && (
+          <span
+            className="bg-primary absolute inset-x-0 bottom-0 h-0.5 transition-[width]"
+            style={{ width: `${progress}%` }}
+          />
+        )}
         {hiddenInput}
       </div>
     );
@@ -275,11 +363,11 @@ export function Dropzone({
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open())}
         aria-label={label ?? "Upload a file"}
         className={cn(
-          "group relative flex items-center justify-center overflow-hidden border-2 border-dashed bg-surface-2 text-center transition-colors",
+          "group bg-surface-2 relative flex items-center justify-center overflow-hidden border-2 border-dashed text-center transition-colors",
           circle ? "size-28 rounded-full" : "w-full rounded-xl",
           shape === "square" && "aspect-square max-h-72",
           shape === "wide" && "aspect-[3/1] min-h-32",
-          !disabled && "cursor-pointer hover:border-line-bright",
+          !disabled && "hover:border-line-bright cursor-pointer",
           dragging && "border-primary bg-primary/5",
           shown && "border-solid",
           status === "error" && "border-destructive/50",
@@ -291,14 +379,23 @@ export function Dropzone({
           <Preview key={shown.url} kind={kind!} url={shown.url} name={shown.name} />
         ) : (
           <span className="flex flex-col items-center gap-2 px-4 py-6">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {icon ?? (endpoint === "videoUploader" ? <Video className="size-5" /> : endpoint === "musicUploader" ? <Music className="size-5" /> : <ImagePlus className="size-5" />)}
+            <span className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
+              {icon ??
+                (endpoint === "videoUploader" ? (
+                  <Video className="size-5" />
+                ) : endpoint === "musicUploader" ? (
+                  <Music className="size-5" />
+                ) : (
+                  <ImagePlus className="size-5" />
+                ))}
             </span>
             {!circle && (
               <>
-                <span className="font-hud text-sm font-semibold">{label ?? "Drop a file here"}</span>
-                <span className="text-xs text-muted-foreground">
-                  or <span className="font-medium text-primary">browse</span> · {hint}
+                <span className="font-hud text-sm font-semibold">
+                  {label ?? "Drop a file here"}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  or <span className="text-primary font-medium">browse</span> · {hint}
                 </span>
               </>
             )}
@@ -308,7 +405,7 @@ export function Dropzone({
         {/* Hover: replace hint */}
         {shown && !busy && (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
-            <span className="flex items-center gap-1.5 rounded-md bg-card/95 px-2.5 py-1 font-hud text-xs font-semibold">
+            <span className="bg-card/95 font-hud flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold">
               <RefreshCw className="size-3.5" /> Replace
             </span>
           </span>
@@ -316,12 +413,15 @@ export function Dropzone({
 
         {/* Uploading */}
         {busy && (
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/80 backdrop-blur-[2px]">
-            <Loader2 className="size-5 animate-spin text-primary" />
+          <span className="bg-card/80 absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="text-primary size-5 animate-spin" />
             <span className="font-hud text-xs font-semibold tabular-nums">{pct}</span>
             {!circle && (
-              <span className="h-1 w-2/3 max-w-48 overflow-hidden rounded-full bg-surface-3">
-                <span className="block h-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
+              <span className="bg-surface-3 h-1 w-2/3 max-w-48 overflow-hidden rounded-full">
+                <span
+                  className="bg-primary block h-full transition-[width]"
+                  style={{ width: `${progress}%` }}
+                />
               </span>
             )}
           </span>
@@ -333,11 +433,15 @@ export function Dropzone({
       {(status === "error" || (shown && canRemove && !busy)) && (
         <div className={cn("mt-2 flex items-center gap-2 text-xs", circle && "justify-center")}>
           {status === "error" ? (
-            <span className="flex items-center gap-1 text-destructive">
+            <span className="text-destructive flex items-center gap-1">
               <AlertCircle className="size-3.5" /> {error ?? "Upload failed"} — try again
             </span>
           ) : (
-            <button type="button" onClick={remove} className="inline-flex items-center gap-1 text-muted-foreground hover:text-destructive">
+            <button
+              type="button"
+              onClick={remove}
+              className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+            >
               <Trash2 className="size-3.5" /> Remove
             </button>
           )}
@@ -352,19 +456,32 @@ function Preview({ kind, url, name }: { kind: Kind; url: string; name: string })
 
   if (kind === "image" && !loadError)
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt="" className="absolute inset-0 size-full object-cover" onError={() => setLoadError(true)} />;
-  if (kind === "video") return <video src={url} className="absolute inset-0 size-full object-cover" muted playsInline />;
+    return (
+      <img
+        src={url}
+        alt=""
+        className="absolute inset-0 size-full object-cover"
+        onError={() => setLoadError(true)}
+      />
+    );
+  if (kind === "video")
+    return (
+      <video src={url} className="absolute inset-0 size-full object-cover" muted playsInline />
+    );
   return (
     <span className="flex flex-col items-center gap-2 px-4">
       <KindIcon kind={kind} />
       <span className="max-w-full truncate text-xs font-medium">{name}</span>
-      {kind === "audio" && <audio src={url} controls className="h-8 max-w-full" onClick={(e) => e.stopPropagation()} />}
+      {kind === "audio" && (
+        <audio src={url} controls className="h-8 max-w-full" onClick={(e) => e.stopPropagation()} />
+      )}
     </span>
   );
 }
 
 function KindIcon({ kind, fallback }: { kind: Kind | null; fallback?: ReactNode }) {
-  if (!kind) return <>{fallback ?? <UploadCloud className="size-5 text-muted-foreground" />}</>;
-  const I = kind === "video" ? Video : kind === "audio" ? Music : kind === "image" ? ImagePlus : FileIcon;
-  return <I className="size-5 text-muted-foreground" />;
+  if (!kind) return <>{fallback ?? <UploadCloud className="text-muted-foreground size-5" />}</>;
+  const I =
+    kind === "video" ? Video : kind === "audio" ? Music : kind === "image" ? ImagePlus : FileIcon;
+  return <I className="text-muted-foreground size-5" />;
 }

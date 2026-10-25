@@ -5,7 +5,14 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/shadcn/ui/dialog";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { cn } from "~/lib/utils";
 import type { FillForm } from "~/server/ai/forms";
@@ -13,7 +20,11 @@ import { api } from "~/utils/api";
 
 import { AiQuota } from "./shared";
 
-const ASPECT_CLASS = { square: "aspect-square", wide: "aspect-[3/2]", portrait: "aspect-[2/3]" } as const;
+const ASPECT_CLASS = {
+  square: "aspect-square",
+  wide: "aspect-[3/2]",
+  portrait: "aspect-[2/3]",
+} as const;
 
 /**
  * "Generate with AI" for an image field: a prompt (pre-written from the form),
@@ -40,7 +51,10 @@ export function AiImageButton({
 }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState(suggestedPrompt);
-  const [result, setResult] = useState<{ url: string; ipfsHash: string | null } | null>(null);
+  const [result, setResult] = useState<{
+    url: string;
+    ipfsHash: string | null;
+  } | null>(null);
   const utils = api.useUtils();
   const generate = api.ai.generateImage.useMutation({
     onSuccess: (r) => {
@@ -58,32 +72,46 @@ export function AiImageButton({
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" className={cn("gap-1.5", className)} onClick={openDialog}>
-        <Sparkles className="size-4 text-primary" /> {label}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={cn("gap-1.5", className)}
+        onClick={openDialog}
+      >
+        <Sparkles className="text-primary size-4" /> {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !generate.isPending && setOpen(o)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-hud">
-              <ImagePlus className="size-5 text-primary" /> Generate an image
+            <DialogTitle className="font-hud flex items-center gap-2">
+              <ImagePlus className="text-primary size-5" /> Generate an image
             </DialogTitle>
-            <DialogDescription>Describe it, or keep the brief written from your form.</DialogDescription>
+            <DialogDescription>
+              Describe it, or keep the brief written from your form.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className={cn("relative w-full overflow-hidden rounded-lg border bg-surface-2", ASPECT_CLASS[aspect], aspect === "portrait" && "mx-auto max-w-56")}>
+          <div
+            className={cn(
+              "bg-surface-2 relative w-full overflow-hidden rounded-lg border",
+              ASPECT_CLASS[aspect],
+              aspect === "portrait" && "mx-auto max-w-56",
+            )}
+          >
             {result ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={result.url} alt="Generated" className="size-full object-cover" />
             ) : (
-              <div className="flex size-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="text-muted-foreground flex size-full flex-col items-center justify-center gap-2 text-sm">
                 {generate.isPending ? (
                   <>
-                    <Loader2 className="size-6 animate-spin text-primary" />
+                    <Loader2 className="text-primary size-6 animate-spin" />
                     Creating your image — this takes up to a minute…
                   </>
                 ) : (
                   <>
-                    <ImagePlus className="size-8 text-faint" />
+                    <ImagePlus className="text-faint size-8" />
                     Your image appears here
                   </>
                 )}
@@ -91,7 +119,14 @@ export function AiImageButton({
             )}
           </div>
 
-          <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} maxLength={1500} className="resize-none" aria-label="Image description" />
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={3}
+            maxLength={1500}
+            className="resize-none"
+            aria-label="Image description"
+          />
 
           <DialogFooter className="items-center gap-2 sm:justify-between">
             <AiQuota kind="image" />
@@ -102,7 +137,13 @@ export function AiImageButton({
                 disabled={generate.isPending || prompt.trim().length < 3}
                 onClick={() => generate.mutate({ form, prompt, aspect, destination })}
               >
-                {generate.isPending ? <Loader2 className="animate-spin" /> : result ? <RefreshCw /> : <Sparkles />}
+                {generate.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : result ? (
+                  <RefreshCw />
+                ) : (
+                  <Sparkles />
+                )}
                 {generate.isPending ? "Generating…" : result ? "Try again" : "Generate"}
               </Button>
               {result && (

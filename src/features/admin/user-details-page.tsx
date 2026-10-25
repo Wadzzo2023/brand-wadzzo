@@ -1,7 +1,18 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { CheckCircle2, ChevronLeft, Copy, MapPin, Package, Shield, Store, Ticket, Trash2, Users } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  Copy,
+  MapPin,
+  Package,
+  Shield,
+  Store,
+  Ticket,
+  Trash2,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -34,9 +45,18 @@ export default function UserDetailsPage({ id }: { id: string }) {
       <PageBody wide>
         <PageHeader title="User" back={back} />
         {/not found|No User/i.test(user.error.message) ? (
-          <EmptyState className="mt-6" icon={Users} title="User not found" description="The account may have been deleted." />
+          <EmptyState
+            className="mt-6"
+            icon={Users}
+            title="User not found"
+            description="The account may have been deleted."
+          />
         ) : (
-          <ErrorState className="mt-6" message={user.error.message} onRetry={() => void user.refetch()} />
+          <ErrorState
+            className="mt-6"
+            message={user.error.message}
+            onRetry={() => void user.refetch()}
+          />
         )}
       </PageBody>
     );
@@ -61,7 +81,10 @@ function Details({ u }: { u: User }) {
 
   return (
     <PageBody wide>
-      <Link href={back.href} className="label-caps mb-4 inline-flex items-center gap-1 hover:text-foreground">
+      <Link
+        href={back.href}
+        className="label-caps hover:text-foreground mb-4 inline-flex items-center gap-1"
+      >
         <ChevronLeft className="size-3.5" /> {back.label}
       </Link>
 
@@ -69,19 +92,28 @@ function Details({ u }: { u: User }) {
         <Avatar src={u.image} name={title} className="size-16 text-2xl" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate font-hud text-2xl font-semibold sm:text-3xl">{title}</h1>
+            <h1 className="font-hud truncate text-2xl font-semibold sm:text-3xl">{title}</h1>
             {u.Admin.length > 0 && (
               <StatusPill tone="info" icon={Shield}>
                 Admin
               </StatusPill>
             )}
             {u.creator && (
-              <StatusPill tone={u.creator.approved ? "success" : u.creator.approved === false ? "danger" : "warning"} icon={Store}>
+              <StatusPill
+                tone={
+                  u.creator.approved
+                    ? "success"
+                    : u.creator.approved === false
+                      ? "danger"
+                      : "warning"
+                }
+                icon={Store}
+              >
                 Brand
               </StatusPill>
             )}
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-sm">
             {u.email && (
               <>
                 <span>{u.email}</span>
@@ -90,21 +122,31 @@ function Details({ u }: { u: User }) {
             )}
             <button
               type="button"
-              onClick={() => void navigator.clipboard.writeText(u.id).then(() => toast.success("Wallet copied"))}
-              className="inline-flex items-center gap-1 font-mono text-xs hover:text-foreground"
+              onClick={() =>
+                void navigator.clipboard.writeText(u.id).then(() => toast.success("Wallet copied"))
+              }
+              className="hover:text-foreground inline-flex items-center gap-1 font-mono text-xs"
             >
               {addrShort(u.id, 6)} <Copy className="size-3" />
             </button>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {u.joinedAt ? `Joined ${format(new Date(u.joinedAt), "MMM d, yyyy")}` : "Join date unknown"}
+          <p className="text-muted-foreground mt-1 text-xs">
+            {u.joinedAt
+              ? `Joined ${format(new Date(u.joinedAt), "MMM d, yyyy")}`
+              : "Join date unknown"}
             {` · signed up on ${u.signupPlatform.name}`}
             {u.firstSignUpMethod && ` with ${u.firstSignUpMethod}`}
             {u.fromAppSignup && " · from the app"}
           </p>
           {u.platforms.length > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Platforms: {u.platforms.map((p) => `${p.platform.name} (since ${format(new Date(p.firstSeenAt), "MMM d, yyyy")})`).join(" · ")}
+            <p className="text-muted-foreground mt-1 text-xs">
+              Platforms:{" "}
+              {u.platforms
+                .map(
+                  (p) =>
+                    `${p.platform.name} (since ${format(new Date(p.firstSeenAt), "MMM d, yyyy")})`,
+                )
+                .join(" · ")}
             </p>
           )}
           {u.bio && <p className="mt-2 max-w-2xl text-sm">{u.bio}</p>}
@@ -119,7 +161,11 @@ function Details({ u }: { u: User }) {
           )}
           {/* Accounts are shared by every platform: only Wadzzo admins delete them. */}
           {isSuperAdmin && (
-            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(true)}>
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleting(true)}
+            >
               <Trash2 /> Delete
             </Button>
           )}
@@ -127,8 +173,16 @@ function Details({ u }: { u: User }) {
       </header>
 
       <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <StatCard label="Pins collected" icon={MapPin} value={u._count.LocationConsumer.toLocaleString()} />
-        <StatCard label="Rewards redeemed" icon={Ticket} value={u._count.RedeemConsumer.toLocaleString()} />
+        <StatCard
+          label="Pins collected"
+          icon={MapPin}
+          value={u._count.LocationConsumer.toLocaleString()}
+        />
+        <StatCard
+          label="Rewards redeemed"
+          icon={Ticket}
+          value={u._count.RedeemConsumer.toLocaleString()}
+        />
         <StatCard label="Assets bought" icon={Package} value={u._count.assets.toLocaleString()} />
         <StatCard label="Following" icon={Users} value={u._count.followings.toLocaleString()} />
       </dl>
@@ -204,7 +258,8 @@ function Details({ u }: { u: User }) {
               title: a.asset.name,
               sub: (
                 <>
-                  <span className="font-mono">{a.asset.code}</span> · bought {formatDistanceToNow(new Date(a.buyAt), { addSuffix: true })}
+                  <span className="font-mono">{a.asset.code}</span> · bought{" "}
+                  {formatDistanceToNow(new Date(a.buyAt), { addSuffix: true })}
                 </>
               ),
             }))}
@@ -228,12 +283,24 @@ function Details({ u }: { u: User }) {
   );
 }
 
-type Item = { key: string; image?: string | null; icon: typeof MapPin; title: React.ReactNode; sub: React.ReactNode; end?: React.ReactNode };
+type Item = {
+  key: string;
+  image?: string | null;
+  icon: typeof MapPin;
+  title: React.ReactNode;
+  sub: React.ReactNode;
+  end?: React.ReactNode;
+};
 
 function List({ items, empty, more }: { items: Item[]; empty: string; more: number }) {
-  if (!items.length) return <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">{empty}</p>;
+  if (!items.length)
+    return (
+      <p className="text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-sm">
+        {empty}
+      </p>
+    );
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
       <ul className="divide-y">
         {items.map((i) => (
           <li key={i.key} className="flex items-center gap-3 px-4 py-2.5">
@@ -241,19 +308,23 @@ function List({ items, empty, more }: { items: Item[]; empty: string; more: numb
               // eslint-disable-next-line @next/next/no-img-element
               <img src={i.image} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
             ) : (
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
                 <i.icon className="size-4" />
               </span>
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{i.title}</p>
-              <p className="truncate text-xs text-muted-foreground">{i.sub}</p>
+              <p className="text-muted-foreground truncate text-xs">{i.sub}</p>
             </div>
             {i.end}
           </li>
         ))}
       </ul>
-      {more > 0 && <p className="border-t px-4 py-2 text-center text-xs text-muted-foreground">Showing the latest {items.length} · {more.toLocaleString()} more</p>}
+      {more > 0 && (
+        <p className="text-muted-foreground border-t px-4 py-2 text-center text-xs">
+          Showing the latest {items.length} · {more.toLocaleString()} more
+        </p>
+      )}
     </div>
   );
 }

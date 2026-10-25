@@ -20,9 +20,18 @@ const SAVED = "#6366f1";
 const NEW = "#f59e0b";
 const OTHER = "#64748b";
 
-function fit(map: MapRef | null, features: (AreaFeature | null | undefined)[], top: number, duration = 0) {
+function fit(
+  map: MapRef | null,
+  features: (AreaFeature | null | undefined)[],
+  top: number,
+  duration = 0,
+) {
   const bounds = areaBounds(features);
-  if (map && bounds) map.fitBounds(bounds, { padding: { top, bottom: 30, left: 30, right: 30 }, duration });
+  if (map && bounds)
+    map.fitBounds(bounds, {
+      padding: { top, bottom: 30, left: 30, right: 30 },
+      duration,
+    });
 }
 
 /**
@@ -94,13 +103,26 @@ export function HomeAreaEditor({
   return (
     <div className="space-y-3">
       {/* What's in use right now. */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
-        <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", inUse ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+      <div className="bg-card border-foreground/10 flex flex-wrap items-center gap-3 rounded-[1.4rem] border-2 p-3">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+            inUse ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+          )}
+        >
           <MapPinned className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{inUse ? inUse.name : "No home area yet"}</p>
-          <p className="text-xs text-muted-foreground">{current ? "Saved · the assistant searches here by default" : fallback ? fallback.label : emptyText}</p>
+          <p className="truncate text-sm font-semibold">
+            {inUse ? inUse.name : "No home area yet"}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {current
+              ? "Saved · the assistant searches here by default"
+              : fallback
+                ? fallback.label
+                : emptyText}
+          </p>
         </div>
         {!editing && (
           <div className="flex flex-wrap gap-2">
@@ -110,15 +132,26 @@ export function HomeAreaEditor({
             {current &&
               (confirmRemove ? (
                 <>
-                  <Button size="sm" variant="destructive" disabled={saving !== null} onClick={() => void save(null)}>
-                    {saving === "remove" ? <Loader2 className="animate-spin" /> : <Trash2 />} {removeLabel}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={saving !== null}
+                    onClick={() => void save(null)}
+                  >
+                    {saving === "remove" ? <Loader2 className="animate-spin" /> : <Trash2 />}{" "}
+                    {removeLabel}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
                     Keep it
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmRemove(true)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setConfirmRemove(true)}
+                >
                   <Trash2 /> Remove
                 </Button>
               ))}
@@ -127,21 +160,48 @@ export function HomeAreaEditor({
       </div>
 
       <div className="relative h-[460px] overflow-hidden rounded-xl border">
-        <BaseMap ref={map} initialViewState={WORLD_VIEW} onLoad={onLoad} cursor={drawing ? "crosshair" : "grab"}>
+        <BaseMap
+          ref={map}
+          initialViewState={WORLD_VIEW}
+          onLoad={onLoad}
+          cursor={drawing ? "crosshair" : "grab"}
+        >
           {layers.inUse && !drawing && (
             <Source id="home-in-use" type="geojson" data={layers.inUse}>
-              {!editing && <Layer id="home-in-use-fill" type="fill" paint={{ "fill-color": SAVED, "fill-opacity": 0.12 }} />}
+              {!editing && (
+                <Layer
+                  id="home-in-use-fill"
+                  type="fill"
+                  paint={{ "fill-color": SAVED, "fill-opacity": 0.12 }}
+                />
+              )}
               <Layer
                 id="home-in-use-line"
                 type="line"
-                paint={editing ? { "line-color": OTHER, "line-width": 1.5, "line-dasharray": [2, 2] } : { "line-color": SAVED, "line-width": 2 }}
+                paint={
+                  editing
+                    ? {
+                        "line-color": OTHER,
+                        "line-width": 1.5,
+                        "line-dasharray": [2, 2],
+                      }
+                    : { "line-color": SAVED, "line-width": 2 }
+                }
               />
             </Source>
           )}
           {layers.draft && !drawing && (
             <Source id="home-draft" type="geojson" data={layers.draft}>
-              <Layer id="home-draft-fill" type="fill" paint={{ "fill-color": NEW, "fill-opacity": 0.18 }} />
-              <Layer id="home-draft-line" type="line" paint={{ "line-color": NEW, "line-width": 2.5 }} />
+              <Layer
+                id="home-draft-fill"
+                type="fill"
+                paint={{ "fill-color": NEW, "fill-opacity": 0.18 }}
+              />
+              <Layer
+                id="home-draft-line"
+                type="line"
+                paint={{ "line-color": NEW, "line-width": 2.5 }}
+              />
             </Source>
           )}
           {drawing && (
@@ -161,7 +221,11 @@ export function HomeAreaEditor({
         {editing && !drawing && (
           <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start gap-2">
             <AreaSearch className="pointer-events-auto w-full sm:w-96" onPick={setDraft} />
-            <Button className="pointer-events-auto ml-auto shadow-sm" variant="outline" onClick={() => setDrawing(true)}>
+            <Button
+              className="pointer-events-auto ml-auto shadow-sm"
+              variant="outline"
+              onClick={() => setDrawing(true)}
+            >
               <Pencil /> Draw instead
             </Button>
           </div>
@@ -169,15 +233,20 @@ export function HomeAreaEditor({
 
         {/* Legend while comparing. */}
         {editing && !drawing && (draft ?? inUse) && (
-          <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg border bg-card/95 px-2.5 py-1.5 text-[11px] shadow-sm">
+          <div className="bg-card/95 pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm">
             {draft && (
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-4 rounded-sm border-2" style={{ borderColor: NEW, background: `${NEW}40` }} /> New area · not saved yet
+                <span
+                  className="h-2.5 w-4 rounded-sm border-2"
+                  style={{ borderColor: NEW, background: `${NEW}40` }}
+                />{" "}
+                New area · not saved yet
               </span>
             )}
             {inUse && (
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="w-4 border-t-2 border-dashed" style={{ borderColor: OTHER }} /> In use now
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <span className="w-4 border-t-2 border-dashed" style={{ borderColor: OTHER }} /> In
+                use now
               </span>
             )}
           </div>
@@ -186,19 +255,35 @@ export function HomeAreaEditor({
 
       {/* Saving a change. */}
       {editing && !drawing && (
-        <div className={cn("flex flex-wrap items-end gap-2 rounded-xl border p-3", draft ? "border-warning/40 bg-warning/5" : "bg-card")}>
+        <div
+          className={cn(
+            "flex flex-wrap items-end gap-2 rounded-xl border p-3",
+            draft ? "border-warning/40 bg-warning/5" : "bg-card",
+          )}
+        >
           {draft ? (
             <>
               <label className="min-w-56 flex-1 space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Name</span>
-                <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Clinton County, IA" maxLength={80} />
+                <span className="text-muted-foreground text-xs font-medium">Name</span>
+                <Input
+                  value={draft.name}
+                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  placeholder="e.g. Clinton County, IA"
+                  maxLength={80}
+                />
               </label>
-              <Button disabled={saving !== null || draft.name.trim().length < 2} onClick={() => void save({ ...draft, name: draft.name.trim() })}>
-                {saving === "save" ? <Loader2 className="animate-spin" /> : <Check />} Save as home area
+              <Button
+                disabled={saving !== null || draft.name.trim().length < 2}
+                onClick={() => void save({ ...draft, name: draft.name.trim() })}
+              >
+                {saving === "save" ? <Loader2 className="animate-spin" /> : <Check />} Save as home
+                area
               </Button>
             </>
           ) : (
-            <p className="flex-1 self-center text-sm text-muted-foreground">Search for your county, city or country on the map, or draw the area.</p>
+            <p className="text-muted-foreground flex-1 self-center text-sm">
+              Search for your county, city or country on the map, or draw the area.
+            </p>
           )}
           {(inUse ?? draft) && (
             <Button variant="ghost" disabled={saving !== null} onClick={stopEditing}>

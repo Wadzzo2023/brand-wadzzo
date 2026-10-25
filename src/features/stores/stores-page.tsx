@@ -8,7 +8,13 @@ import { createElement, useMemo, useState } from "react";
 
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
 import type { MarketAssetType } from "~/lib/state/play/use-modal-store";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
@@ -24,7 +30,11 @@ import { api } from "~/utils/api";
 type Tab = "assets" | "page-asset";
 type Sort = "newest" | "oldest" | "price-high" | "price-low";
 
-const TYPES: { value: MediaType | "ALL"; label: string; icon?: typeof ImageIcon }[] = [
+const TYPES: {
+  value: MediaType | "ALL";
+  label: string;
+  icon?: typeof ImageIcon;
+}[] = [
   { value: "ALL", label: "All" },
   { value: MediaType.IMAGE, label: "Image", icon: ImageIcon },
   { value: MediaType.VIDEO, label: "Video", icon: Video },
@@ -43,7 +53,10 @@ export default function StoresPage() {
   const search = useSearchParams();
   const tabParam = search?.get("tab");
   const tab: Tab = tabParam === "page-asset" ? "page-asset" : "assets";
-  const setTab = (t: string) => router.replace(t === "assets" ? "/stores" : `/stores?tab=${t}`, { scroll: false });
+  const setTab = (t: string) =>
+    router.replace(t === "assets" ? "/stores" : `/stores?tab=${t}`, {
+      scroll: false,
+    });
 
   // One action per tab: the thing that tab is about.
   const actions =
@@ -63,7 +76,12 @@ export default function StoresPage() {
 
   return (
     <PageBody>
-      <PageHeader eyebrow="Commerce" title="Stores" description="Collectibles fans buy, and your page asset on sale." actions={actions} />
+      <PageHeader
+        eyebrow="Commerce"
+        title="Stores"
+        description="Collectibles fans buy, and your page asset on sale."
+        actions={actions}
+      />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
@@ -81,7 +99,6 @@ export default function StoresPage() {
           <PageAssetTab />
         </TabsContent>
       </Tabs>
-
     </PageBody>
   );
 }
@@ -91,13 +108,19 @@ function AssetsTab() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
 
-  const nfts = api.marketplace.market.getACreatorNfts.useInfiniteQuery({ limit: 20 }, { getNextPageParam: (last) => last.nextCursor });
+  const nfts = api.marketplace.market.getACreatorNfts.useInfiniteQuery(
+    { limit: 20 },
+    { getNextPageParam: (last) => last.nextCursor },
+  );
 
   const items = useMemo(() => {
     let list = nfts.data?.pages.flatMap((p) => p.nfts) ?? [];
     if (type !== "ALL") list = list.filter((i) => i.asset.mediaType === type);
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter((i) => i.asset.name.toLowerCase().includes(q) || i.asset.code.toLowerCase().includes(q));
+    if (q)
+      list = list.filter(
+        (i) => i.asset.name.toLowerCase().includes(q) || i.asset.code.toLowerCase().includes(q),
+      );
     return [...list].sort((a, b) => {
       if (sort === "price-high") return (b.price ?? 0) - (a.price ?? 0);
       if (sort === "price-low") return (a.price ?? 0) - (b.price ?? 0);
@@ -111,7 +134,10 @@ function AssetsTab() {
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-xl border bg-card">
+          <div
+            key={i}
+            className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2"
+          >
             <Skeleton className="aspect-square w-full rounded-none" />
             <div className="space-y-2 p-3">
               <Skeleton className="h-4 w-2/3" />
@@ -121,7 +147,8 @@ function AssetsTab() {
         ))}
       </div>
     );
-  if (nfts.isError) return <ErrorState message={nfts.error.message} onRetry={() => void nfts.refetch()} />;
+  if (nfts.isError)
+    return <ErrorState message={nfts.error.message} onRetry={() => void nfts.refetch()} />;
   if (!hasAny)
     return (
       <EmptyState
@@ -142,8 +169,14 @@ function AssetsTab() {
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or code" className="pl-9" aria-label="Search assets" />
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or code"
+            className="pl-9"
+            aria-label="Search assets"
+          />
         </div>
         <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
           <SelectTrigger className="w-full sm:w-44" aria-label="Sort">
@@ -167,7 +200,9 @@ function AssetsTab() {
             onClick={() => setType(t.value)}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-              type === t.value ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground",
+              type === t.value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             {t.icon && <t.icon className="size-3.5" />} {t.label}
@@ -176,7 +211,12 @@ function AssetsTab() {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={Search} title="No matches" description="Try another search or type." className="mt-5" />
+        <EmptyState
+          icon={Search}
+          title="No matches"
+          description="Try another search or type."
+          className="mt-5"
+        />
       ) : (
         <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {items.map((item) => (
@@ -189,13 +229,16 @@ function AssetsTab() {
 
       {nfts.hasNextPage && (
         <div className="mt-6 flex justify-center">
-          <Button variant="outline" onClick={() => void nfts.fetchNextPage()} disabled={nfts.isFetchingNextPage}>
+          <Button
+            variant="outline"
+            onClick={() => void nfts.fetchNextPage()}
+            disabled={nfts.isFetchingNextPage}
+          >
             {nfts.isFetchingNextPage && <Spinner className="size-4" />}
             {nfts.isFetchingNextPage ? "Loading…" : "Load more"}
           </Button>
         </div>
       )}
-
     </>
   );
 }
@@ -205,26 +248,30 @@ export function AssetCard({ item }: { item: MarketAssetType }) {
   return (
     <Link
       href={`/stores/${item.id}`}
-      className="group block w-full overflow-hidden rounded-xl border bg-card text-left transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary"
+      className="group bg-card focus-visible:outline-primary border-foreground/10 block w-full overflow-hidden rounded-[1.4rem] border-2 text-left transition-shadow hover:shadow-md focus-visible:outline-2"
     >
-      <div className="relative aspect-square overflow-hidden bg-surface-2">
+      <div className="bg-surface-2 relative aspect-square overflow-hidden">
         {item.asset.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.asset.thumbnail} alt="" className="size-full object-cover transition-transform group-hover:scale-[1.03]" />
+          <img
+            src={item.asset.thumbnail}
+            alt=""
+            className="size-full object-cover transition-transform group-hover:scale-[1.03]"
+          />
         ) : (
-          <div className="flex size-full items-center justify-center text-faint">
+          <div className="text-faint flex size-full items-center justify-center">
             <MediaTypeIcon type={item.asset.mediaType} className="size-8" />
           </div>
         )}
-        <span className="absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-card/90 text-muted-foreground">
+        <span className="bg-card/90 text-muted-foreground absolute top-2 left-2 flex size-7 items-center justify-center rounded-full">
           <MediaTypeIcon type={item.asset.mediaType} className="size-3.5" />
         </span>
       </div>
       <div className="p-3">
-        <p className="truncate font-hud text-sm font-semibold">{item.asset.name}</p>
-        <p className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <p className="font-hud truncate text-sm font-semibold">{item.asset.name}</p>
+        <p className="text-muted-foreground mt-0.5 flex items-center justify-between gap-2 text-xs">
           <span className="truncate font-mono">{item.asset.code}</span>
-          <span className="shrink-0 font-medium tabular-nums text-foreground">
+          <span className="text-foreground shrink-0 font-medium tabular-nums">
             {item.price ? `${item.price} ${PLATFORM_ASSET.code.toUpperCase()}` : "Not for sale"}
           </span>
         </p>

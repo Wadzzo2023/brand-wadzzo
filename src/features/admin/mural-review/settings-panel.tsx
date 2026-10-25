@@ -10,19 +10,66 @@ import { ErrorState } from "~/ui/error-state";
 import { Skeleton } from "~/ui/skeleton";
 import { api } from "~/utils/api";
 
-type Form = { coinsPerScan: number; discoveryBonus: number; dailyScansPerMural: number; confirmationsNeeded: number };
+type Form = {
+  coinsPerScan: number;
+  discoveryBonus: number;
+  dailyScansPerMural: number;
+  confirmationsNeeded: number;
+};
 
-const FIELDS: { key: keyof Form; label: string; help: string; icon: typeof Coins; min: number; max: number; suffix: string }[] = [
-  { key: "coinsPerScan", label: "Coins per scan", help: "Every valid scan, approved or not.", icon: Coins, min: 0, max: 10_000, suffix: "coins" },
-  { key: "discoveryBonus", label: "Discovery bonus", help: "Extra for each of the first finders.", icon: Sparkles, min: 0, max: 100_000, suffix: "coins" },
-  { key: "dailyScansPerMural", label: "Scans per mural per day", help: "Per person; resets at their local midnight. Other murals are unlimited.", icon: Repeat, min: 1, max: 50, suffix: "scans" },
-  { key: "confirmationsNeeded", label: "Finders before review", help: "Different people who must scan it before it reaches Pending. They all get the bonus.", icon: Users, min: 1, max: 20, suffix: "people" },
+const FIELDS: {
+  key: keyof Form;
+  label: string;
+  help: string;
+  icon: typeof Coins;
+  min: number;
+  max: number;
+  suffix: string;
+}[] = [
+  {
+    key: "coinsPerScan",
+    label: "Coins per scan",
+    help: "Every valid scan, approved or not.",
+    icon: Coins,
+    min: 0,
+    max: 10_000,
+    suffix: "coins",
+  },
+  {
+    key: "discoveryBonus",
+    label: "Discovery bonus",
+    help: "Extra for each of the first finders.",
+    icon: Sparkles,
+    min: 0,
+    max: 100_000,
+    suffix: "coins",
+  },
+  {
+    key: "dailyScansPerMural",
+    label: "Scans per mural per day",
+    help: "Per person; resets at their local midnight. Other murals are unlimited.",
+    icon: Repeat,
+    min: 1,
+    max: 50,
+    suffix: "scans",
+  },
+  {
+    key: "confirmationsNeeded",
+    label: "Finders before review",
+    help: "Different people who must scan it before it reaches Pending. They all get the bonus.",
+    icon: Users,
+    min: 1,
+    max: 20,
+    suffix: "people",
+  },
 ];
 
 /** Admin › Mural review › Settings — the single MuralSettings row. */
 export function SettingsPanel() {
   const utils = api.useUtils();
-  const q = api.admin.murals.settings.useQuery(undefined, { refetchOnWindowFocus: false });
+  const q = api.admin.murals.settings.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   // Unsaved edits; null = showing what's saved.
   const [draft, setDraft] = useState<Form | null>(null);
   const save = api.admin.murals.updateSettings.useMutation({
@@ -39,11 +86,13 @@ export function SettingsPanel() {
   const form: Form = draft ?? q.data;
 
   const dirty = (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== q.data[k]);
-  const valid = FIELDS.every((f) => Number.isInteger(form[f.key]) && form[f.key] >= f.min && form[f.key] <= f.max);
+  const valid = FIELDS.every(
+    (f) => Number.isInteger(form[f.key]) && form[f.key] >= f.min && form[f.key] <= f.max,
+  );
 
   return (
     <form
-      className="max-w-2xl rounded-xl border bg-card"
+      className="bg-card border-foreground/10 max-w-2xl rounded-[1.4rem] border-2"
       onSubmit={(e) => {
         e.preventDefault();
         if (valid) save.mutate(form);
@@ -53,10 +102,10 @@ export function SettingsPanel() {
         {FIELDS.map((f) => (
           <label key={f.key} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:p-5">
             <span className="flex min-w-0 flex-1 items-start gap-3">
-              <f.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <f.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
               <span>
                 <span className="block text-sm font-semibold">{f.label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{f.help}</span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">{f.help}</span>
               </span>
             </span>
             <span className="flex items-center gap-2 sm:w-44">
@@ -70,13 +119,13 @@ export function SettingsPanel() {
                 onChange={(e) => setDraft({ ...form, [f.key]: e.target.valueAsNumber })}
                 className="tabular-nums"
               />
-              <span className="w-12 text-xs text-muted-foreground">{f.suffix}</span>
+              <span className="text-muted-foreground w-12 text-xs">{f.suffix}</span>
             </span>
           </label>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t px-4 py-3 sm:px-5">
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <Info className="size-3.5" /> Applies to new scans from now; past coins don&apos;t change.
         </p>
         <div className="ml-auto flex gap-2">

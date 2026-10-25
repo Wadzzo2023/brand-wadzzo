@@ -1,6 +1,18 @@
 "use client";
 
-import { Box, Copy, DollarSign, Film, Image as ImageIcon, Loader2, Lock, Music, Package, Pencil, Tag } from "lucide-react";
+import {
+  Box,
+  Copy,
+  DollarSign,
+  Film,
+  Image as ImageIcon,
+  Loader2,
+  Lock,
+  Music,
+  Package,
+  Pencil,
+  Tag,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -20,7 +32,9 @@ import { Dropzone } from "~/ui/upload/dropzone";
 import { api, type RouterOutputs } from "~/utils/api";
 import { addrShort } from "~/utils/utils";
 
-const ThreeD = dynamic(() => import("~/components/3d-model/model-show"), { ssr: false });
+const ThreeD = dynamic(() => import("~/components/3d-model/model-show"), {
+  ssr: false,
+});
 
 type Item = RouterOutputs["fan"]["asset"]["getMyMarketAsset"];
 const code = PLATFORM_ASSET.code.toUpperCase();
@@ -33,7 +47,10 @@ const MEDIA = {
 
 /** Stores › one item: what fans get, and its price. */
 export default function EditAssetPage({ id }: { id: number }) {
-  const item = api.fan.asset.getMyMarketAsset.useQuery(id, { enabled: Number.isFinite(id), retry: false });
+  const item = api.fan.asset.getMyMarketAsset.useQuery(id, {
+    enabled: Number.isFinite(id),
+    retry: false,
+  });
   if (item.isPending && Number.isFinite(id)) return <FormSkeleton sections={2} />;
   if (!item.data)
     return (
@@ -58,7 +75,10 @@ function EditForm({ item }: { item: Item }) {
   const session = useSession();
   const a = item.asset;
   const media = MEDIA[a.mediaType] ?? MEDIA.IMAGE;
-  const copies = api.marketplace.market.getMarketAssetAvailableCopy.useQuery({ id: item.id }, { refetchOnWindowFocus: false });
+  const copies = api.marketplace.market.getMarketAssetAvailableCopy.useQuery(
+    { id: item.id },
+    { refetchOnWindowFocus: false },
+  );
   // Brands edit their own items fully; admin-placed items only by price.
   const mine = a.creatorId != null && a.creatorId === session.data?.user.id;
 
@@ -71,7 +91,9 @@ function EditForm({ item }: { item: Item }) {
   const [limit, setLimit] = useState(a.limit != null ? String(a.limit) : "");
   const [royalty, setRoyalty] = useState(String(a.royaltyPercent));
   const [uploading, setUploading] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<"name" | "price" | "priceUSD" | "limit" | "royalty", string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<"name" | "price" | "priceUSD" | "limit" | "royalty", string>>
+  >({});
 
   const utils = api.useUtils();
   const onSaved = () => {
@@ -80,8 +102,14 @@ function EditForm({ item }: { item: Item }) {
     toast.success("Item updated");
     router.push("/stores");
   };
-  const updatePrice = api.fan.asset.updateAsset.useMutation({ onSuccess: onSaved, onError: (e) => toast.error(e.message) });
-  const updateItem = api.fan.item.update.useMutation({ onSuccess: onSaved, onError: (e) => toast.error(e.message) });
+  const updatePrice = api.fan.asset.updateAsset.useMutation({
+    onSuccess: onSaved,
+    onError: (e) => toast.error(e.message),
+  });
+  const updateItem = api.fan.item.update.useMutation({
+    onSuccess: onSaved,
+    onError: (e) => toast.error(e.message),
+  });
   const saving = updatePrice.isPending || updateItem.isPending;
 
   const submit = (e: React.FormEvent) => {
@@ -101,7 +129,17 @@ function EditForm({ item }: { item: Item }) {
     }
     setErrors(next);
     if (Object.keys(next).length) return;
-    if (mine) updateItem.mutate({ assetId: a.id, name: name.trim(), description: description.trim(), thumbnail, price: p, priceUSD: u, limit: l, royaltyPercent: r });
+    if (mine)
+      updateItem.mutate({
+        assetId: a.id,
+        name: name.trim(),
+        description: description.trim(),
+        thumbnail,
+        price: p,
+        priceUSD: u,
+        limit: l,
+        royaltyPercent: r,
+      });
     else updatePrice.mutate({ assetId: item.id, price: p, priceUSD: u });
   };
 
@@ -109,12 +147,22 @@ function EditForm({ item }: { item: Item }) {
   const dirty =
     Number(price) !== item.price ||
     Number(priceUSD) !== item.priceUSD ||
-    (mine && (name !== a.name || description !== (a.description ?? "") || thumbnail !== a.thumbnail || openEdition !== (a.limit == null) || (!openEdition && Number(limit) !== a.limit) || Number(royalty) !== a.royaltyPercent));
+    (mine &&
+      (name !== a.name ||
+        description !== (a.description ?? "") ||
+        thumbnail !== a.thumbnail ||
+        openEdition !== (a.limit == null) ||
+        (!openEdition && Number(limit) !== a.limit) ||
+        Number(royalty) !== a.royaltyPercent));
 
   return (
     <FormPage
       title={a.name}
-      description={mine ? "Edit the details, supply, royalty and price." : "What fans get when they buy it, and what it costs."}
+      description={
+        mine
+          ? "Edit the details, supply, royalty and price."
+          : "What fans get when they buy it, and what it costs."
+      }
       back={{ href: "/stores", label: "Stores" }}
       onSubmit={submit}
       actions={
@@ -128,32 +176,44 @@ function EditForm({ item }: { item: Item }) {
         </>
       }
       aside={
-        <section className="overflow-hidden rounded-xl border bg-card">
-          <div className="relative aspect-square bg-muted">
+        <section className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
+          <div className="bg-muted relative aspect-square">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumbnail} alt="" className="size-full object-cover" />
-            <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium backdrop-blur">
+            <span className="bg-card/90 absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
               <media.icon className="size-3.5" /> {media.label}
             </span>
             {a.tier && (
-              <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium backdrop-blur">
+              <span className="bg-card/90 absolute top-3 right-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
                 <Lock className="size-3" /> {a.tier.name}
               </span>
             )}
           </div>
           <div className="space-y-3 p-4">
             <div className="flex items-baseline justify-between gap-2">
-              <p className="font-hud text-lg font-semibold">{Number(price) || 0} {code}</p>
-              <p className="text-sm text-muted-foreground">${Number(priceUSD) || 0}</p>
+              <p className="font-hud text-lg font-semibold">
+                {Number(price) || 0} {code}
+              </p>
+              <p className="text-muted-foreground text-sm">${Number(priceUSD) || 0}</p>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="label-caps">Available</dt>
-                <dd className="mt-0.5">{left === undefined ? "…" : left === 0 ? <StatusPill tone="danger">Sold out</StatusPill> : `${left.toLocaleString()} ${left === 1 ? "copy" : "copies"}`}</dd>
+                <dd className="mt-0.5">
+                  {left === undefined ? (
+                    "…"
+                  ) : left === 0 ? (
+                    <StatusPill tone="danger">Sold out</StatusPill>
+                  ) : (
+                    `${left.toLocaleString()} ${left === 1 ? "copy" : "copies"}`
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="label-caps">Edition</dt>
-                <dd className="mt-0.5">{a.limit ? `${a.limit.toLocaleString()} total` : "Unlimited"}</dd>
+                <dd className="mt-0.5">
+                  {a.limit ? `${a.limit.toLocaleString()} total` : "Unlimited"}
+                </dd>
               </div>
               <div>
                 <dt className="label-caps">Minted</dt>
@@ -172,8 +232,12 @@ function EditForm({ item }: { item: Item }) {
                 <dd className="mt-0.5">
                   <button
                     type="button"
-                    onClick={() => void navigator.clipboard.writeText(a.issuer).then(() => toast.success("Issuer copied"))}
-                    className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      void navigator.clipboard
+                        .writeText(a.issuer)
+                        .then(() => toast.success("Issuer copied"))
+                    }
+                    className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-xs"
                   >
                     {addrShort(a.issuer, 4)} <Copy className="size-3" />
                   </button>
@@ -187,52 +251,152 @@ function EditForm({ item }: { item: Item }) {
       {mine && (
         <FormSection title="Details" icon={Pencil} description="What everyone sees in your store.">
           <Field label="Name" htmlFor="name" required error={errors.name}>
-            <Input id="name" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="name"
+              maxLength={60}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </Field>
           <Field label="Description" htmlFor="description">
-            <Textarea id="description" rows={4} className="resize-none" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea
+              id="description"
+              rows={4}
+              className="resize-none"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </Field>
           <Field label="Cover" hint="The store card image. PNG or JPG.">
-            <Dropzone endpoint="imageUploader" shape="square" className="max-w-56" accept="image/png,image/jpeg" value={thumbnail} onUploadingChange={setUploading} onChange={(url) => url && setThumbnail(url)} />
+            <Dropzone
+              endpoint="imageUploader"
+              shape="square"
+              className="max-w-56"
+              accept="image/png,image/jpeg"
+              value={thumbnail}
+              onUploadingChange={setUploading}
+              onChange={(url) => url && setThumbnail(url)}
+            />
           </Field>
         </FormSection>
       )}
 
       {mine && (
-        <FormSection title="Supply & royalty" icon={Package} description="Supply can't go below the copies already minted. Royalty applies to future resales.">
+        <FormSection
+          title="Supply & royalty"
+          icon={Package}
+          description="Supply can't go below the copies already minted. Royalty applies to future resales."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Supply" htmlFor="limit" error={errors.limit} hint={`${a.mintedCount.toLocaleString()} minted so far`}>
-              <Input id="limit" type="number" min={Math.max(1, a.mintedCount)} step={1} disabled={openEdition} placeholder={openEdition ? "Unlimited" : undefined} value={openEdition ? "" : limit} onChange={(e) => setLimit(e.target.value)} />
+            <Field
+              label="Supply"
+              htmlFor="limit"
+              error={errors.limit}
+              hint={`${a.mintedCount.toLocaleString()} minted so far`}
+            >
+              <Input
+                id="limit"
+                type="number"
+                min={Math.max(1, a.mintedCount)}
+                step={1}
+                disabled={openEdition}
+                placeholder={openEdition ? "Unlimited" : undefined}
+                value={openEdition ? "" : limit}
+                onChange={(e) => setLimit(e.target.value)}
+              />
               <label className="mt-2 flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={openEdition} onChange={(e) => setOpenEdition(e.target.checked)} className="size-4 accent-primary" /> Open edition (no limit)
+                <input
+                  type="checkbox"
+                  checked={openEdition}
+                  onChange={(e) => setOpenEdition(e.target.checked)}
+                  className="accent-primary size-4"
+                />{" "}
+                Open edition (no limit)
               </label>
             </Field>
-            <Field label="Royalty" htmlFor="royalty" error={errors.royalty} hint="Your share of every resale, 0–50%.">
+            <Field
+              label="Royalty"
+              htmlFor="royalty"
+              error={errors.royalty}
+              hint="Your share of every resale, 0–50%."
+            >
               <div className="relative">
-                <Input id="royalty" type="number" min={0} max={50} step="any" className="pr-8" value={royalty} onChange={(e) => setRoyalty(e.target.value)} />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                <Input
+                  id="royalty"
+                  type="number"
+                  min={0}
+                  max={50}
+                  step="any"
+                  className="pr-8"
+                  value={royalty}
+                  onChange={(e) => setRoyalty(e.target.value)}
+                />
+                <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                  %
+                </span>
               </div>
             </Field>
           </div>
         </FormSection>
       )}
 
-      <FormSection title="Price" icon={DollarSign} description="Fans pay in either currency. Changing the price doesn't affect copies already sold.">
+      <FormSection
+        title="Price"
+        icon={DollarSign}
+        description="Fans pay in either currency. Changing the price doesn't affect copies already sold."
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={`Price in ${code}`} htmlFor="price" required error={errors.price}>
-            <Input id="price" type="number" min={0} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <Input
+              id="price"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
           </Field>
-          <Field label="Price in USD" htmlFor="priceUSD" required error={errors.priceUSD} hint="For card payments.">
-            <Input id="priceUSD" type="number" min={0} step="any" inputMode="decimal" value={priceUSD} onChange={(e) => setPriceUSD(e.target.value)} />
+          <Field
+            label="Price in USD"
+            htmlFor="priceUSD"
+            required
+            error={errors.priceUSD}
+            hint="For card payments."
+          >
+            <Input
+              id="priceUSD"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              value={priceUSD}
+              onChange={(e) => setPriceUSD(e.target.value)}
+            />
           </Field>
         </div>
       </FormSection>
 
-      <FormSection title="What fans get" icon={Tag} description={a.tier ? `Only members of “${a.tier.name}” can open it.` : "Anyone who buys it can open it."}>
-        {a.description && <p className="text-sm whitespace-pre-line text-muted-foreground">{a.description}</p>}
-        <div className="overflow-hidden rounded-lg border bg-muted">
+      <FormSection
+        title="What fans get"
+        icon={Tag}
+        description={
+          a.tier
+            ? `Only members of “${a.tier.name}” can open it.`
+            : "Anyone who buys it can open it."
+        }
+      >
+        {a.description && (
+          <p className="text-muted-foreground text-sm whitespace-pre-line">{a.description}</p>
+        )}
+        <div className="bg-muted overflow-hidden rounded-lg border">
           {a.mediaType === "VIDEO" ? (
-            <video src={a.mediaUrl} poster={a.thumbnail} controls className="aspect-video w-full bg-black" />
+            <video
+              src={a.mediaUrl}
+              poster={a.thumbnail}
+              controls
+              className="aspect-video w-full bg-black"
+            />
           ) : a.mediaType === "MUSIC" ? (
             <div className="flex items-center gap-4 p-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}

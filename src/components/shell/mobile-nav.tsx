@@ -1,7 +1,6 @@
 "use client";
 
 import { MoreHorizontal, Plus } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -10,20 +9,41 @@ import { NotificationBell } from "~/components/notification/notification-bell";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "~/components/shadcn/ui/drawer";
 import { cn } from "~/lib/utils";
 
-import { ADMIN_NAV, adminNavFor, BRAND_NAV, CREATE_ACTIONS, isActive, brandEntryGroup, MOBILE_TABS, type BrandEntry, type NavItem } from "./nav";
+import {
+  ADMIN_NAV,
+  adminNavFor,
+  BRAND_NAV,
+  CREATE_ACTIONS,
+  isActive,
+  brandEntryGroup,
+  MOBILE_TABS,
+  type BrandEntry,
+  type NavItem,
+} from "./nav";
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
+import { WadzzoMark } from "~/ui/wadzzo-mark";
 
 /** Phone top bar: logo, current section, notifications, account. */
-export function MobileTopBar({ title, homeHref = "/pins", showBell = false }: { title?: string; homeHref?: string; showBell?: boolean }) {
+export function MobileTopBar({
+  title,
+  homeHref = "/pins",
+  showBell = false,
+}: {
+  title?: string;
+  homeHref?: string;
+  showBell?: boolean;
+}) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 lg:hidden">
+    <header className="side-scope bg-side text-side-ink sticky top-0 z-30 flex h-14 items-center gap-3 px-4 lg:hidden">
       <Link href={homeHref} className="flex items-center gap-2" aria-label="Home">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-          <Image src="/images/loading.png" alt="" width={20} height={20} className="object-contain" />
+        <span className="bg-side-ink text-side flex size-9 -rotate-3 items-center justify-center rounded-xl">
+          <WadzzoMark className="h-5" />
         </span>
       </Link>
-      <span className="min-w-0 flex-1 truncate font-hud text-base font-semibold">{title ?? "Wadzzo"}</span>
+      <span className="display min-w-0 flex-1 truncate text-2xl">
+        {title ?? "Wadzzo"}
+      </span>
       {showBell && <NotificationBell />}
       <UserMenu compact />
     </header>
@@ -61,13 +81,16 @@ export function MobileTabBar({
       ADMIN_NAV.items.find((i) => i.href === "/admin/maps")!,
     ].filter(Boolean);
     const inAdminBar = new Set(adminTabs.map((t) => t.href));
-    const adminMoreItems = [...(brandEntry ? brandEntryGroup(brandEntry).items : []), ...adminNav.items.filter((i) => !inAdminBar.has(i.href))];
+    const adminMoreItems = [
+      ...(brandEntry ? brandEntryGroup(brandEntry).items : []),
+      ...adminNav.items.filter((i) => !inAdminBar.has(i.href)),
+    ];
     const moreActive = adminMoreItems.some((i) => isActive(pathname, i));
 
     return (
       <>
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 pb-[var(--safe-bottom)] backdrop-blur-sm supports-[backdrop-filter]:bg-card/85 lg:hidden"
+          className="side-scope bg-side text-side-ink fixed inset-x-0 bottom-0 z-40 pb-[var(--safe-bottom)] lg:hidden"
           aria-label="Admin sections"
         >
           <div className="mx-auto flex h-16 max-w-md items-stretch">
@@ -78,13 +101,13 @@ export function MobileTabBar({
               type="button"
               onClick={() => setSheet("more")}
               className={cn(
-                "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
-                moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                "mx-0.5 my-1.5 flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 transition-[opacity,transform] active:scale-95",
+                moreActive ? "side-active" : "opacity-70 hover:opacity-100",
               )}
               aria-label="More admin sections"
             >
               <MoreHorizontal className="size-5 shrink-0" />
-              <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+              <span className="font-hud w-full truncate text-center text-[10px] leading-none font-semibold tracking-wider uppercase">
                 More
               </span>
             </button>
@@ -109,7 +132,9 @@ export function MobileTabBar({
                         onClick={() => setSheet(null)}
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                          active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
                         )}
                       >
                         <Icon className="size-4 shrink-0" />
@@ -127,7 +152,9 @@ export function MobileTabBar({
   }
 
   const allowed = (i: NavItem) => !i.gated || navPermission;
-  const fallback: NavItem[] = BRAND_NAV.flatMap((g) => g.items).filter((i) => !i.gated && i.href !== "/pins");
+  const fallback: NavItem[] = BRAND_NAV.flatMap((g) => g.items).filter(
+    (i) => !i.gated && i.href !== "/pins",
+  );
   const left = MOBILE_TABS.left.map((t) => (allowed(t) ? t : fallback.shift()!)).filter(Boolean);
   const right = MOBILE_TABS.right.map((t) => (allowed(t) ? t : fallback.shift()!)).filter(Boolean);
   const inBar = new Set([...left, ...right].map((t) => t.href));
@@ -139,18 +166,18 @@ export function MobileTabBar({
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 pb-[var(--safe-bottom)] backdrop-blur-sm supports-[backdrop-filter]:bg-card/85 lg:hidden"
+        className="side-scope bg-side text-side-ink fixed inset-x-0 bottom-0 z-40 pb-[var(--safe-bottom)] lg:hidden"
         aria-label="Sections"
       >
         <div className="mx-auto flex h-16 max-w-md items-stretch">
           {left.map((t) => (
             <Tab key={t.href} item={t} active={isActive(pathname, t)} />
           ))}
-          <div className="flex flex-1 min-w-0 items-center justify-center">
+          <div className="flex min-w-0 flex-1 items-center justify-center">
             <button
               type="button"
               onClick={() => setSheet("create")}
-              className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-95"
+              className="blob bg-side-ink text-side flex size-12 -rotate-3 items-center justify-center transition-transform active:scale-95"
               aria-label="Create"
             >
               <Plus className="size-6" />
@@ -163,13 +190,13 @@ export function MobileTabBar({
             type="button"
             onClick={() => setSheet("more")}
             className={cn(
-              "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
-              moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              "mx-0.5 my-1.5 flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 transition-[opacity,transform] active:scale-95",
+              moreActive ? "side-active" : "opacity-70 hover:opacity-100",
             )}
             aria-label="More sections"
           >
             <MoreHorizontal className="size-5 shrink-0" />
-            <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+            <span className="font-hud w-full truncate text-center text-[10px] leading-none font-semibold tracking-wider uppercase">
               More
             </span>
           </button>
@@ -190,13 +217,15 @@ export function MobileTabBar({
                   key={a.href}
                   href={a.href}
                   onClick={() => setSheet(null)}
-                  className="flex flex-col gap-2 rounded-xl border bg-surface-2 p-3 active:scale-[0.98]"
+                  className="bg-surface-2 flex flex-col gap-2 rounded-xl border p-3 active:scale-[0.98]"
                 >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-lg">
                     <Icon className="size-5" />
                   </span>
                   <span className="font-hud text-sm font-semibold">{a.label}</span>
-                  <span className="text-xs leading-snug text-muted-foreground">{a.description}</span>
+                  <span className="text-muted-foreground text-xs leading-snug">
+                    {a.description}
+                  </span>
                 </Link>
               );
             })}
@@ -214,7 +243,9 @@ export function MobileTabBar({
             <WalletBalance />
             {moreGroups.map((g) => (
               <div key={g.label}>
-                <p className="mb-1.5 px-1 font-hud text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">{g.label}</p>
+                <p className="font-hud text-faint mb-1.5 px-1 text-[10px] font-semibold tracking-[0.18em] uppercase">
+                  {g.label}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   {g.items.map((i) => {
                     const Icon = i.icon;
@@ -230,7 +261,9 @@ export function MobileTabBar({
                         )}
                       >
                         <Icon className="size-5" />
-                        <span className="text-xs font-medium leading-tight">{i.shortLabel ?? i.label}</span>
+                        <span className="text-xs leading-tight font-medium">
+                          {i.shortLabel ?? i.label}
+                        </span>
                       </Link>
                     );
                   })}
@@ -252,12 +285,12 @@ function Tab({ item, active }: { item: NavItem; active: boolean }) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-1 min-w-0 flex-col items-center justify-center gap-1 px-1 transition-colors active:scale-95",
-        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+        "mx-0.5 my-1.5 flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 transition-[opacity,transform] active:scale-95",
+        active ? "side-active" : "opacity-70 hover:opacity-100",
       )}
     >
       <Icon className="size-5 shrink-0" />
-      <span className="w-full truncate text-center font-hud text-[10px] font-semibold uppercase tracking-wider leading-none">
+      <span className="font-hud w-full truncate text-center text-[10px] leading-none font-semibold tracking-wider uppercase">
         {label}
       </span>
     </Link>

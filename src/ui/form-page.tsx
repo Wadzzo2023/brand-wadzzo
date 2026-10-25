@@ -28,14 +28,23 @@ export function FormPage({
   onSubmit?: (e: React.FormEvent) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="mx-auto w-full max-w-6xl px-4 pb-40 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8" noValidate>
-      <PageHeader title={title} description={description} back={back} actions={<div className="hidden items-center gap-2 lg:flex">{actions}</div>} />
+    <form
+      onSubmit={onSubmit}
+      className="mx-auto w-full max-w-6xl px-4 pt-5 pb-40 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12"
+      noValidate
+    >
+      <PageHeader
+        title={title}
+        description={description}
+        back={back}
+        actions={<div className="hidden items-center gap-2 lg:flex">{actions}</div>}
+      />
       <div className={cn("mt-6 grid gap-6", aside && "lg:grid-cols-[minmax(0,1fr)_380px]")}>
         <div className="min-w-0 space-y-5">{children}</div>
         {aside && <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">{aside}</aside>}
       </div>
       {/* Phone: actions stay reachable above the tab bar. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+var(--safe-bottom))] z-30 flex items-center justify-end gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur-sm lg:hidden">
+      <div className="bg-card fixed inset-x-0 bottom-[calc(4rem+var(--safe-bottom))] z-30 flex items-center justify-end gap-2 border-t-2 px-4 py-3 lg:hidden">
         {actions}
       </div>
     </form>
@@ -57,13 +66,19 @@ export function FormSection({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border bg-card p-5", className)}>
+    <section
+      className={cn("bg-card border-foreground/10 rounded-[1.4rem] border-2 p-5", className)}
+    >
       <div className="mb-4">
-        <h2 className="flex items-center gap-2 font-hud text-base font-semibold">
-          {Icon && <Icon className="size-4 text-primary" />}
+        <h2 className="display flex items-center gap-2.5 text-2xl">
+          {Icon && (
+            <span className="bg-primary text-primary-foreground flex size-8 shrink-0 -rotate-6 items-center justify-center rounded-lg">
+              <Icon className="size-4" strokeWidth={2.4} />
+            </span>
+          )}
           {title}
         </h2>
-        {description && <div className="mt-1 text-sm text-muted-foreground">{description}</div>}
+        {description && <div className="text-muted-foreground mt-1 text-sm">{description}</div>}
       </div>
       <div className="space-y-4">{children}</div>
     </section>
@@ -94,12 +109,16 @@ export function Field({
       <div className="flex min-h-7 items-center justify-between gap-2">
         <label htmlFor={htmlFor} className="text-sm font-medium">
           {label}
-          {required && <span className="ml-0.5 text-destructive">*</span>}
+          {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
         {action}
       </div>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {error ? (
+        <p className="text-destructive text-xs">{error}</p>
+      ) : hint ? (
+        <p className="text-muted-foreground text-xs">{hint}</p>
+      ) : null}
     </div>
   );
 }

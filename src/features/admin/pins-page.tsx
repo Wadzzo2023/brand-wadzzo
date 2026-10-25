@@ -27,7 +27,13 @@ import toast, { type Toast } from "react-hot-toast";
 
 import { PinQRDownloadAllButton, pinQRBulkActions, useDropQRs } from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { PlatformFilter } from "~/features/admin/platform-filter";
 import { cn } from "~/lib/utils";
@@ -45,11 +51,29 @@ import { api } from "~/utils/api";
 import { AreaDialog } from "./pin-review/area-dialog";
 import { ActiveFilters, FilterButton } from "./pin-review/filter-panel";
 import { Locations } from "./pin-review/locations";
-import { NO_FILTERS, SORTS, TYPE_LABEL, activeChips, matches, plural, sortGroups, type Filters, type Group, type Sort, type View } from "./pin-review/model";
+import {
+  NO_FILTERS,
+  SORTS,
+  TYPE_LABEL,
+  activeChips,
+  matches,
+  plural,
+  sortGroups,
+  type Filters,
+  type Group,
+  type Sort,
+  type View,
+} from "./pin-review/model";
 import { PreviewSheet } from "./pin-review/preview-sheet";
 import { ShortcutsDialog, useReviewShortcuts } from "./pin-review/shortcuts";
 
-type Brand = { id: string; name: string; image: string | null; groups: Group[]; oldest: Date };
+type Brand = {
+  id: string;
+  name: string;
+  image: string | null;
+  groups: Group[];
+  oldest: Date;
+};
 type Confirm = { kind: "reject" | "delete"; ids: string[]; title: string };
 
 /** Rows shown per brand (or in the flat list) before "Show more". */
@@ -72,8 +96,13 @@ export default function AdminPinsPage() {
 
   const [platformId, setPlatformId] = useState<string>();
   const scope = platformId ? { platformId } : undefined;
-  const pending = api.maps.pin.getAdminLocationGroups.useQuery(scope, { refetchOnWindowFocus: false });
-  const approved = api.maps.pin.getApprovedLocationGroups.useQuery(scope, { enabled: view === "approved", refetchOnWindowFocus: false });
+  const pending = api.maps.pin.getAdminLocationGroups.useQuery(scope, {
+    refetchOnWindowFocus: false,
+  });
+  const approved = api.maps.pin.getApprovedLocationGroups.useQuery(scope, {
+    enabled: view === "approved",
+    refetchOnWindowFocus: false,
+  });
   const list = view === "pending" ? pending : approved;
 
   const [now] = useState(() => Date.now());
@@ -95,22 +124,36 @@ export default function AdminPinsPage() {
   const [areaOpen, setAreaOpen] = useState(false);
 
   const setView = (v: View) => {
-    router.replace(v === "pending" ? pathname : `${pathname}?view=approved`, { scroll: false });
+    router.replace(v === "pending" ? pathname : `${pathname}?view=approved`, {
+      scroll: false,
+    });
     setSelected(new Set());
     setFocusId(null);
     setPreviewOpen(false);
   };
 
   // ── Data: filter → sort → group ───────────────────────────────────────────
-  const area = api.maps.pin.reviewGroupsInArea.useQuery(filters.area ?? { north: 0, south: 0, east: 0, west: 0 }, {
-    enabled: Boolean(filters.area),
-    refetchOnWindowFocus: false,
-  });
-  const areaIds = useMemo(() => (filters.area && area.data ? new Set(area.data) : null), [filters.area, area.data]);
+  const area = api.maps.pin.reviewGroupsInArea.useQuery(
+    filters.area ?? { north: 0, south: 0, east: 0, west: 0 },
+    {
+      enabled: Boolean(filters.area),
+      refetchOnWindowFocus: false,
+    },
+  );
+  const areaIds = useMemo(
+    () => (filters.area && area.data ? new Set(area.data) : null),
+    [filters.area, area.data],
+  );
 
   const rows = useMemo(() => {
     const hit = (list.data ?? []).filter((g) => {
-      if (query && !g.title.toLowerCase().includes(query) && !g.creator.name.toLowerCase().includes(query) && !g.description?.toLowerCase().includes(query)) return false;
+      if (
+        query &&
+        !g.title.toLowerCase().includes(query) &&
+        !g.creator.name.toLowerCase().includes(query) &&
+        !g.description?.toLowerCase().includes(query)
+      )
+        return false;
       return matches(g, filters, now, areaIds);
     });
     return sortGroups(hit, sort);
@@ -120,7 +163,13 @@ export default function AdminPinsPage() {
   const brands = useMemo(() => {
     const map = new Map<string, Brand>();
     for (const g of rows) {
-      const b = map.get(g.creator.id) ?? { id: g.creator.id, name: g.creator.name, image: g.creator.profileUrl, groups: [], oldest: new Date(g.createdAt) };
+      const b = map.get(g.creator.id) ?? {
+        id: g.creator.id,
+        name: g.creator.name,
+        image: g.creator.profileUrl,
+        groups: [],
+        oldest: new Date(g.createdAt),
+      };
       b.groups.push(g);
       if (new Date(g.createdAt) < b.oldest) b.oldest = new Date(g.createdAt);
       map.set(b.id, b);
@@ -131,7 +180,11 @@ export default function AdminPinsPage() {
   const allBrands = useMemo(() => {
     const m = new Map<string, { id: string; name: string; count: number }>();
     for (const g of list.data ?? []) {
-      const b = m.get(g.creator.id) ?? { id: g.creator.id, name: g.creator.name, count: 0 };
+      const b = m.get(g.creator.id) ?? {
+        id: g.creator.id,
+        name: g.creator.name,
+        count: 0,
+      };
       b.count++;
       m.set(b.id, b);
     }
@@ -140,9 +193,14 @@ export default function AdminPinsPage() {
   const types = useMemo(() => {
     const m = new Map<string, number>();
     for (const g of list.data ?? []) m.set(g.type, (m.get(g.type) ?? 0) + 1);
-    return [...m.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+    return [...m.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
   }, [list.data]);
-  const points = useMemo(() => (list.data ?? []).map((g) => ({ lat: g.latitude, lng: g.longitude })), [list.data]);
+  const points = useMemo(
+    () => (list.data ?? []).map((g) => ({ lat: g.latitude, lng: g.longitude })),
+    [list.data],
+  );
 
   const hasFilters = activeChips(filters, () => "").length > 0;
   const filtering = Boolean(query) || hasFilters;
@@ -152,7 +210,10 @@ export default function AdminPinsPage() {
   const shownOf = (key: string) => shown[key] ?? PAGE;
 
   /** Every matching pin in display order (keyboard + preview stepping walk this). */
-  const ordered = useMemo(() => (byBrand ? brands.flatMap((b) => b.groups) : rows), [byBrand, brands, rows]);
+  const ordered = useMemo(
+    () => (byBrand ? brands.flatMap((b) => b.groups) : rows),
+    [byBrand, brands, rows],
+  );
   const visibleIds = useMemo(() => new Set(rows.map((g) => g.id)), [rows]);
   const selectedIds = [...selected].filter((id) => visibleIds.has(id));
   const allSelected = rows.length > 0 && selectedIds.length === rows.length;
@@ -174,20 +235,26 @@ export default function AdminPinsPage() {
     void utils.maps.pin.getApprovedLocationGroups.invalidate();
     void utils.maps.pin.getReviewGroup.invalidate();
   };
-  const decide = api.maps.pin.approveLocationGroups.useMutation({ onSettled: refresh });
-  const del = api.maps.pin.deleteLocationGroupForAdmin.useMutation({ onSettled: refresh });
-  const restore = api.maps.pin.restoreLocationGroupsForAdmin.useMutation({ onSettled: refresh });
+  const decide = api.maps.pin.approveLocationGroups.useMutation({
+    onSettled: refresh,
+  });
+  const del = api.maps.pin.deleteLocationGroupForAdmin.useMutation({
+    onSettled: refresh,
+  });
+  const restore = api.maps.pin.restoreLocationGroupsForAdmin.useMutation({
+    onSettled: refresh,
+  });
   const busy = decide.isPending || del.isPending || restore.isPending;
 
   const undoable = (message: string, undo: () => Promise<unknown>) =>
     toast(
       (t: Toast) => (
         <span className="flex items-center gap-3 text-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-success" />
+          <CheckCircle2 className="text-success size-4 shrink-0" />
           {message}
           <button
             type="button"
-            className="ml-1 rounded px-1.5 py-0.5 font-semibold text-primary hover:bg-primary/10"
+            className="text-primary hover:bg-primary/10 ml-1 rounded px-1.5 py-0.5 font-semibold"
             onClick={() => {
               toast.dismiss(t.id);
               undo().then(
@@ -207,12 +274,22 @@ export default function AdminPinsPage() {
   const focusAfter = (ids: string[]) => {
     if (!focusId || !ids.includes(focusId)) return;
     const i = ordered.findIndex((g) => g.id === focusId);
-    const next = ordered.slice(i + 1).find((g) => !ids.includes(g.id)) ?? ordered.slice(0, i).reverse().find((g) => !ids.includes(g.id));
+    const next =
+      ordered.slice(i + 1).find((g) => !ids.includes(g.id)) ??
+      ordered
+        .slice(0, i)
+        .reverse()
+        .find((g) => !ids.includes(g.id));
     setFocusId(next?.id ?? null);
     if (!next) setPreviewOpen(false);
   };
 
-  const setDecision = (ids: string[], value: boolean | null, message: string, undoTo: boolean | null) => {
+  const setDecision = (
+    ids: string[],
+    value: boolean | null,
+    message: string,
+    undoTo: boolean | null,
+  ) => {
     focusAfter(ids);
     decide.mutate(
       { locationGroupIds: ids, approved: value },
@@ -225,13 +302,43 @@ export default function AdminPinsPage() {
       },
     );
   };
-  const approve = (ids: string[]) => setDecision(ids, true, ids.length === 1 ? "Approved — it's live for fans" : `${ids.length} pins approved`, null);
-  const reject = (ids: string[]) => setDecision(ids, false, ids.length === 1 ? "Pin rejected" : `${ids.length} pins rejected`, null);
-  const unapprove = (ids: string[]) => setDecision(ids, null, ids.length === 1 ? "Moved back to review" : `${ids.length} pins moved back to review`, true);
+  const approve = (ids: string[]) =>
+    setDecision(
+      ids,
+      true,
+      ids.length === 1 ? "Approved — it's live for fans" : `${ids.length} pins approved`,
+      null,
+    );
+  const reject = (ids: string[]) =>
+    setDecision(
+      ids,
+      false,
+      ids.length === 1 ? "Pin rejected" : `${ids.length} pins rejected`,
+      null,
+    );
+  const unapprove = (ids: string[]) =>
+    setDecision(
+      ids,
+      null,
+      ids.length === 1 ? "Moved back to review" : `${ids.length} pins moved back to review`,
+      true,
+    );
 
   /** One pin is rejected straight away (undo covers mistakes); many ask first. */
-  const askReject = (ids: string[]) => (ids.length === 1 ? reject(ids) : setConfirm({ kind: "reject", ids, title: `Reject ${plural(ids.length, "pin")}?` }));
-  const askDelete = (ids: string[], name: string) => setConfirm({ kind: "delete", ids, title: `Delete ${ids.length === 1 ? `“${name}”` : plural(ids.length, "pin")}?` });
+  const askReject = (ids: string[]) =>
+    ids.length === 1
+      ? reject(ids)
+      : setConfirm({
+          kind: "reject",
+          ids,
+          title: `Reject ${plural(ids.length, "pin")}?`,
+        });
+  const askDelete = (ids: string[], name: string) =>
+    setConfirm({
+      kind: "delete",
+      ids,
+      title: `Delete ${ids.length === 1 ? `“${name}”` : plural(ids.length, "pin")}?`,
+    });
 
   const runConfirm = () => {
     if (!confirm) return;
@@ -247,7 +354,9 @@ export default function AdminPinsPage() {
         onSuccess: (r) => {
           setConfirm(null);
           setMany(ids, false);
-          undoable(r.count === 1 ? "Pin deleted" : `${r.count} pins deleted`, () => restore.mutateAsync({ ids }));
+          undoable(r.count === 1 ? "Pin deleted" : `${r.count} pins deleted`, () =>
+            restore.mutateAsync({ ids }),
+          );
         },
         onError: (e) => toast.error(e.message),
       },
@@ -269,13 +378,22 @@ export default function AdminPinsPage() {
   const step = (dir: 1 | -1) => {
     if (!ordered.length) return;
     const i = focusId ? ordered.findIndex((g) => g.id === focusId) : -1;
-    const next = i === -1 ? (dir === 1 ? 0 : ordered.length - 1) : Math.min(ordered.length - 1, Math.max(0, i + dir));
+    const next =
+      i === -1
+        ? dir === 1
+          ? 0
+          : ordered.length - 1
+        : Math.min(ordered.length - 1, Math.max(0, i + dir));
     focus(ordered[next]!.id);
   };
 
   useEffect(() => {
     if (!focusId) return;
-    const raf = requestAnimationFrame(() => document.querySelector(`[data-pin-row="${CSS.escape(focusId)}"]`)?.scrollIntoView({ block: "nearest" }));
+    const raf = requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-pin-row="${CSS.escape(focusId)}"]`)
+        ?.scrollIntoView({ block: "nearest" }),
+    );
     return () => cancelAnimationFrame(raf);
   }, [focusId, shown, openBrands]);
 
@@ -367,8 +485,18 @@ export default function AdminPinsPage() {
           value={view}
           onChange={setView}
           options={[
-            { value: "pending", label: "Waiting for review", icon: Clock, count: pending.data?.length },
-            { value: "approved", label: "Approved & live", icon: CheckCircle2, count: approved.data?.length },
+            {
+              value: "pending",
+              label: "Waiting for review",
+              icon: Clock,
+              count: pending.data?.length,
+            },
+            {
+              value: "approved",
+              label: "Approved & live",
+              icon: CheckCircle2,
+              count: approved.data?.length,
+            },
           ]}
         />
         <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row">
@@ -378,10 +506,16 @@ export default function AdminPinsPage() {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <FilterButton filters={filters} onChange={patchFilters} brands={allBrands} types={types} onPickArea={() => setAreaOpen(true)} />
+        <FilterButton
+          filters={filters}
+          onChange={patchFilters}
+          brands={allBrands}
+          types={types}
+          onPickArea={() => setAreaOpen(true)}
+        />
         <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
           <SelectTrigger className="w-auto gap-2" aria-label="Sort">
-            <ArrowDownUp className="size-4 text-muted-foreground" />
+            <ArrowDownUp className="text-muted-foreground size-4" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -392,44 +526,73 @@ export default function AdminPinsPage() {
             ))}
           </SelectContent>
         </Select>
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-card px-3 text-sm">
+        <label className="bg-card flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
           <Switch checked={byBrand} onCheckedChange={setByBrand} aria-label="Group by brand" />
           Group by brand
         </label>
         <div className="ml-auto flex items-center gap-1">
           {byBrand && brands.length > 1 && (
-            <Button variant="ghost" size="sm" onClick={() => setOpenBrands(Object.fromEntries(brands.map((b) => [b.id, !allOpen])))}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenBrands(Object.fromEntries(brands.map((b) => [b.id, !allOpen])))}
+            >
               {allOpen ? <ChevronsDownUp /> : <ChevronsUpDown />}
               <span className="hidden sm:inline">{allOpen ? "Collapse all" : "Expand all"}</span>
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHelpOpen(true)}
+            title="Keyboard shortcuts (?)"
+          >
             <Keyboard /> <span className="hidden sm:inline">Shortcuts</span>
           </Button>
         </div>
       </div>
 
-      <ActiveFilters filters={filters} onChange={patchFilters} brandName={(id) => allBrands.find((b) => b.id === id)?.name ?? "Brand"} />
+      <ActiveFilters
+        filters={filters}
+        onChange={patchFilters}
+        brandName={(id) => allBrands.find((b) => b.id === id)?.name ?? "Brand"}
+      />
 
       {/* Results + selection. Sticky so bulk actions stay in reach while scrolling. */}
       {list.data && rows.length > 0 && (
         <div
           className={cn(
             "sticky top-2 z-20 mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2 transition-colors sm:px-4",
-            selectedIds.length ? "bg-card/95 shadow-md backdrop-blur" : "border-transparent bg-transparent",
+            selectedIds.length ? "bg-card/95 shadow-md" : "border-transparent bg-transparent",
           )}
         >
           <Check
             checked={allSelected}
             indeterminate={selectedIds.length > 0 && !allSelected}
-            onChange={(on) => setMany(rows.map((g) => g.id), on)}
+            onChange={(on) =>
+              setMany(
+                rows.map((g) => g.id),
+                on,
+              )
+            }
             label={`Select all ${rows.length} matching pins`}
           />
           {selectedIds.length ? (
             <>
-              <span className="text-sm font-medium tabular-nums">{selectedIds.length} selected</span>
+              <span className="text-sm font-medium tabular-nums">
+                {selectedIds.length} selected
+              </span>
               {!allSelected && (
-                <button type="button" className="text-sm text-primary hover:underline" onClick={() => setMany(rows.map((g) => g.id), true)}>
+                <button
+                  type="button"
+                  className="text-primary text-sm hover:underline"
+                  onClick={() =>
+                    setMany(
+                      rows.map((g) => g.id),
+                      true,
+                    )
+                  }
+                >
                   Select all {rows.length} matching
                 </button>
               )}
@@ -437,12 +600,24 @@ export default function AdminPinsPage() {
                 Clear
               </Button>
               <div className="ml-auto flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={busy} onClick={() => askDelete(selectedIds, "")}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  disabled={busy}
+                  onClick={() => askDelete(selectedIds, "")}
+                >
                   <Trash2 /> Delete
                 </Button>
                 {view === "pending" ? (
                   <>
-                    <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={busy} onClick={() => askReject(selectedIds)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      disabled={busy}
+                      onClick={() => askReject(selectedIds)}
+                    >
                       <X /> Reject {selectedIds.length}
                     </Button>
                     <Button size="sm" disabled={busy} onClick={() => approve(selectedIds)}>
@@ -450,17 +625,27 @@ export default function AdminPinsPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => unapprove(selectedIds)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => unapprove(selectedIds)}
+                  >
                     <RotateCcw /> Move back to review
                   </Button>
                 )}
               </div>
             </>
           ) : (
-            <span className="text-sm text-muted-foreground">
-              {filtering ? `${plural(rows.length, "pin")} of ${total.toLocaleString()} match` : plural(rows.length, "pin")}
+            <span className="text-muted-foreground text-sm">
+              {filtering
+                ? `${plural(rows.length, "pin")} of ${total.toLocaleString()} match`
+                : plural(rows.length, "pin")}
               {byBrand && ` · ${plural(brands.length, "brand")}`}
-              <span className="hidden md:inline"> — tick pins, a brand, or this box for everything shown.</span>
+              <span className="hidden md:inline">
+                {" "}
+                — tick pins, a brand, or this box for everything shown.
+              </span>
             </span>
           )}
         </div>
@@ -474,8 +659,16 @@ export default function AdminPinsPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={filtering ? MapPin : view === "pending" ? CheckCircle2 : MapPin}
-            title={filtering ? "No pins match" : view === "pending" ? "All caught up" : "No live pins"}
-            description={filtering ? "Try a wider date range, another brand, or clear the filters." : view === "pending" ? "New pins from brands show up here for review." : undefined}
+            title={
+              filtering ? "No pins match" : view === "pending" ? "All caught up" : "No live pins"
+            }
+            description={
+              filtering
+                ? "Try a wider date range, another brand, or clear the filters."
+                : view === "pending"
+                  ? "New pins from brands show up here for review."
+                  : undefined
+            }
             action={
               hasFilters ? (
                 <Button variant="outline" onClick={() => setFilters(NO_FILTERS)}>
@@ -492,18 +685,38 @@ export default function AdminPinsPage() {
             const limit = shownOf(b.id);
             const toggle = () => setOpenBrands((o) => ({ ...o, [b.id]: !open }));
             return (
-              <section key={b.id} className={cn("overflow-hidden rounded-xl border bg-card", picked > 0 && "ring-1 ring-primary/40")}>
+              <section
+                key={b.id}
+                className={cn(
+                  "bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2",
+                  picked > 0 && "ring-primary/40 ring-1",
+                )}
+              >
                 <header className="flex items-center gap-2 py-2.5 pr-2 pl-1.5 sm:gap-3 sm:pr-3">
-                  <ExpandButton open={open} onClick={toggle} label={`${open ? "Collapse" : "Expand"} ${b.name}`} />
-                  <Check checked={picked === ids.length} indeterminate={picked > 0 && picked < ids.length} onChange={(on) => setMany(ids, on)} label={`Select all pins from ${b.name}`} />
-                  <button type="button" onClick={toggle} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <ExpandButton
+                    open={open}
+                    onClick={toggle}
+                    label={`${open ? "Collapse" : "Expand"} ${b.name}`}
+                  />
+                  <Check
+                    checked={picked === ids.length}
+                    indeterminate={picked > 0 && picked < ids.length}
+                    onChange={(on) => setMany(ids, on)}
+                    label={`Select all pins from ${b.name}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={toggle}
+                    className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2"
+                  >
                     <Avatar src={b.image} name={b.name} className="size-9" />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{b.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="text-muted-foreground block truncate text-xs">
                         {plural(ids.length, "pin")}
                         {picked > 0 && ` · ${picked} selected`}
-                        {view === "pending" && ` · oldest ${formatDistanceToNow(b.oldest, { addSuffix: true })}`}
+                        {view === "pending" &&
+                          ` · oldest ${formatDistanceToNow(b.oldest, { addSuffix: true })}`}
                       </span>
                     </span>
                   </button>
@@ -517,9 +730,24 @@ export default function AdminPinsPage() {
                   />
                   <RowMenu
                     items={[
-                      { label: "View brand", icon: ExternalLink, href: `/admin/creators/${b.id}` },
-                      { label: "Show only this brand", icon: Eye, onSelect: () => patchFilters({ brand: b.id }) },
-                      { label: `Delete all ${ids.length}`, icon: Trash2, destructive: true, separator: true, disabled: busy, onSelect: () => askDelete(ids, b.groups[0]!.title) },
+                      {
+                        label: "View brand",
+                        icon: ExternalLink,
+                        href: `/admin/creators/${b.id}`,
+                      },
+                      {
+                        label: "Show only this brand",
+                        icon: Eye,
+                        onSelect: () => patchFilters({ brand: b.id }),
+                      },
+                      {
+                        label: `Delete all ${ids.length}`,
+                        icon: Trash2,
+                        destructive: true,
+                        separator: true,
+                        disabled: busy,
+                        onSelect: () => askDelete(ids, b.groups[0]!.title),
+                      },
                     ]}
                   />
                 </header>
@@ -530,20 +758,26 @@ export default function AdminPinsPage() {
                         <PinRow key={g.id} {...rowProps(g, false)} />
                       ))}
                     </ul>
-                    <ShowMore left={ids.length - limit} onClick={() => setShown((s) => ({ ...s, [b.id]: limit + PAGE * 3 }))} />
+                    <ShowMore
+                      left={ids.length - limit}
+                      onClick={() => setShown((s) => ({ ...s, [b.id]: limit + PAGE * 3 }))}
+                    />
                   </>
                 )}
               </section>
             );
           })
         ) : (
-          <section className="overflow-hidden rounded-xl border bg-card">
+          <section className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
             <ul className="divide-y">
               {rows.slice(0, shownOf(FLAT)).map((g) => (
                 <PinRow key={g.id} {...rowProps(g, true)} />
               ))}
             </ul>
-            <ShowMore left={rows.length - shownOf(FLAT)} onClick={() => setShown((s) => ({ ...s, [FLAT]: shownOf(FLAT) + PAGE * 4 }))} />
+            <ShowMore
+              left={rows.length - shownOf(FLAT)}
+              onClick={() => setShown((s) => ({ ...s, [FLAT]: shownOf(FLAT) + PAGE * 4 }))}
+            />
           </section>
         )}
       </div>
@@ -562,7 +796,13 @@ export default function AdminPinsPage() {
           remove: (id, title) => askDelete([id], title),
         }}
       />
-      <AreaDialog open={areaOpen} onOpenChange={setAreaOpen} area={filters.area} points={points} onApply={(a) => patchFilters({ area: a })} />
+      <AreaDialog
+        open={areaOpen}
+        onOpenChange={setAreaOpen}
+        area={filters.area}
+        points={points}
+        onApply={(a) => patchFilters({ area: a })}
+      />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <ConfirmDialog
         open={Boolean(confirm)}
@@ -583,9 +823,24 @@ export default function AdminPinsPage() {
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
-function ExpandButton({ open, onClick, label }: { open: boolean; onClick: () => void; label: string }) {
+function ExpandButton({
+  open,
+  onClick,
+  label,
+}: {
+  open: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
-    <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground" onClick={onClick} aria-expanded={open} aria-label={label}>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      className="text-muted-foreground shrink-0"
+      onClick={onClick}
+      aria-expanded={open}
+      aria-label={label}
+    >
       <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
     </Button>
   );
@@ -612,8 +867,16 @@ function Decision({
   const h = all ? "h-8" : "h-7 px-2 text-xs";
   if (view === "approved")
     return (
-      <Button variant="ghost" size="sm" className={cn(h, "shrink-0 text-muted-foreground")} disabled={busy} onClick={onUnapprove} title="Move back to review">
-        <RotateCcw /> <span className="hidden sm:inline">{all ? "Move all back" : "Move back"}</span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={cn(h, "text-muted-foreground shrink-0")}
+        disabled={busy}
+        onClick={onUnapprove}
+        title="Move back to review"
+      >
+        <RotateCcw />{" "}
+        <span className="hidden sm:inline">{all ? "Move all back" : "Move back"}</span>
       </Button>
     );
   return (
@@ -686,25 +949,64 @@ function PinRow({
   const menu: RowAction[] = [
     { label: "Preview", icon: Eye, onSelect: onOpen },
     { label: "Edit pin", icon: Pencil, href: `/pins/${g.id}/edit` },
-    { label: expanded ? "Hide locations" : "Show locations", icon: MapPin, onSelect: onToggle },
+    {
+      label: expanded ? "Hide locations" : "Show locations",
+      icon: MapPin,
+      onSelect: onToggle,
+    },
     // A drop with no live locations has no code to hand out, so no entry point.
     ...(count > 0 ? pinQRBulkActions(bulkQR, count) : []),
-    ...(showBrand ? [{ label: "View brand", icon: ExternalLink, href: `/admin/creators/${g.creator.id}` }] : []),
-    { label: "Delete pin", icon: Trash2, destructive: true, separator: true, disabled: busy, onSelect: onDelete },
+    ...(showBrand
+      ? [
+          {
+            label: "View brand",
+            icon: ExternalLink,
+            href: `/admin/creators/${g.creator.id}`,
+          },
+        ]
+      : []),
+    {
+      label: "Delete pin",
+      icon: Trash2,
+      destructive: true,
+      separator: true,
+      disabled: busy,
+      onSelect: onDelete,
+    },
   ];
 
   return (
-    <li data-pin-row={g.id} className={cn("relative scroll-mt-20 transition-colors", on ? "bg-primary/5" : !expanded && "hover:bg-muted/40")}>
-      {focused && <span className="absolute inset-y-0 left-0 w-0.5 bg-primary" aria-hidden />}
+    <li
+      data-pin-row={g.id}
+      className={cn(
+        "relative scroll-mt-20 transition-colors",
+        on ? "bg-primary/5" : !expanded && "hover:bg-muted/40",
+      )}
+    >
+      {focused && <span className="bg-primary absolute inset-y-0 left-0 w-0.5" aria-hidden />}
       <div className="flex items-center gap-2 py-2 pr-2 pl-1.5 sm:gap-3 sm:pr-3">
-        <ExpandButton open={expanded} onClick={onToggle} label={`${expanded ? "Hide" : "Show"} ${plural(count, "location")}`} />
+        <ExpandButton
+          open={expanded}
+          onClick={onToggle}
+          label={`${expanded ? "Hide" : "Show"} ${plural(count, "location")}`}
+        />
         <Check checked={on} onChange={onSelect} label={`Select ${g.title}`} />
-        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Preview">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2"
+          title="Preview"
+        >
           {g.image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={g.image} alt="" loading="lazy" className="size-11 shrink-0 rounded-lg border object-cover" />
+            <img
+              src={g.image}
+              alt=""
+              loading="lazy"
+              className="size-11 shrink-0 rounded-lg border object-cover"
+            />
           ) : (
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <span className="bg-muted text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-lg">
               <MapPin className="size-4" />
             </span>
           )}
@@ -715,27 +1017,42 @@ function PinRow({
                 {TYPE_LABEL[g.type] ?? g.type}
               </StatusPill>
             </span>
-            <span className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
+            <span className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-1.5 text-xs">
               {showBrand && (
                 <>
-                  <span className="font-medium text-foreground/80">{g.creator.name}</span>
+                  <span className="text-foreground/80 font-medium">{g.creator.name}</span>
                   <span aria-hidden>·</span>
                 </>
               )}
               <span>{plural(count, "location")}</span>
               <span aria-hidden>·</span>
-              <span title={`${format(start, "PPp")} → ${format(end, "PPp")}`}>{start.getTime() > now ? `Starts ${format(start, "MMM d")}` : `Until ${format(end, "MMM d, yyyy")}`}</span>
+              <span title={`${format(start, "PPp")} → ${format(end, "PPp")}`}>
+                {start.getTime() > now
+                  ? `Starts ${format(start, "MMM d")}`
+                  : `Until ${format(end, "MMM d, yyyy")}`}
+              </span>
               <span aria-hidden className="hidden sm:inline">
                 ·
               </span>
               <span className="hidden sm:inline" title={format(new Date(g.createdAt), "PPp")}>
-                Submitted {formatDistanceToNow(new Date(g.createdAt), { addSuffix: true })}
+                Submitted{" "}
+                {formatDistanceToNow(new Date(g.createdAt), {
+                  addSuffix: true,
+                })}
               </span>
             </span>
           </span>
         </button>
-        <Decision view={view} busy={busy} onReject={onReject} onApprove={onApprove} onUnapprove={onUnapprove} />
-        {count > 0 && <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={count} />}
+        <Decision
+          view={view}
+          busy={busy}
+          onReject={onReject}
+          onApprove={onApprove}
+          onUnapprove={onUnapprove}
+        />
+        {count > 0 && (
+          <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={count} />
+        )}
         <RowMenu items={menu} />
       </div>
       {expanded && <Locations groupId={g.id} title={g.title} />}
@@ -758,7 +1075,10 @@ function ListSkeleton() {
   return (
     <>
       {[5, 0, 0, 0].map((rows, i) => (
-        <div key={i} className="overflow-hidden rounded-xl border bg-card">
+        <div
+          key={i}
+          className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2"
+        >
           <div className="flex items-center gap-3 px-3 py-3">
             <Skeleton className="size-6 rounded" />
             <Skeleton className="size-4 rounded" />

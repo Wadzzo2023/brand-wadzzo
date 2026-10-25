@@ -37,17 +37,28 @@ export function MapPicker({
 }) {
   const map = useRef<MapRef>(null);
   const [locating, setLocating] = useState(false);
-  const [draft, setDraft] = useState({ lat: value?.lat.toString() ?? "", lng: value?.lng.toString() ?? "" });
+  const [draft, setDraft] = useState({
+    lat: value?.lat.toString() ?? "",
+    lng: value?.lng.toString() ?? "",
+  });
 
   // When the point moves (map click, search), show its coordinates in the inputs — adjusted during render.
   const pointKey = value ? `${value.lat},${value.lng}` : "";
   const [shownKey, setShownKey] = useState(pointKey);
   if (shownKey !== pointKey) {
     setShownKey(pointKey);
-    setDraft({ lat: value?.lat.toFixed(6) ?? "", lng: value?.lng.toFixed(6) ?? "" });
+    setDraft({
+      lat: value?.lat.toFixed(6) ?? "",
+      lng: value?.lng.toFixed(6) ?? "",
+    });
   }
 
-  const fly = (v: LatLng, zoom = 15) => map.current?.flyTo({ center: [v.lng, v.lat], zoom: Math.max(zoom, map.current.getZoom()), duration: 700 });
+  const fly = (v: LatLng, zoom = 15) =>
+    map.current?.flyTo({
+      center: [v.lng, v.lat],
+      zoom: Math.max(zoom, map.current.getZoom()),
+      duration: 700,
+    });
   const set = (v: LatLng, flyTo = false) => {
     onChange(v);
     if (flyTo) fly(v);
@@ -63,7 +74,15 @@ export function MapPicker({
   const commitDraft = () => {
     const lat = Number(draft.lat);
     const lng = Number(draft.lng);
-    if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && draft.lat !== "" && draft.lng !== "") set({ lat, lng }, true);
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 &&
+      Math.abs(lng) <= 180 &&
+      draft.lat !== "" &&
+      draft.lng !== ""
+    )
+      set({ lat, lng }, true);
   };
 
   return (
@@ -71,45 +90,73 @@ export function MapPicker({
       <div className={cn("relative h-72 overflow-hidden rounded-xl border", mapClassName)}>
         <BaseMap
           ref={map}
-          initialViewState={value ? { latitude: value.lat, longitude: value.lng, zoom: 15 } : WORLD_VIEW}
+          initialViewState={
+            value ? { latitude: value.lat, longitude: value.lng, zoom: 15 } : WORLD_VIEW
+          }
           onClick={(e) => set({ lat: e.lngLat.lat, lng: e.lngLat.lng })}
           cursor="crosshair"
         >
           {radius && (
             <Source id="picker-radius" type="geojson" data={radius}>
-              <Layer id="picker-radius-fill" type="fill" paint={{ "fill-color": "#22c55e", "fill-opacity": 0.12 }} />
-              <Layer id="picker-radius-line" type="line" paint={{ "line-color": "#16a34a", "line-width": 1.5 }} />
+              <Layer
+                id="picker-radius-fill"
+                type="fill"
+                paint={{ "fill-color": "#22c55e", "fill-opacity": 0.12 }}
+              />
+              <Layer
+                id="picker-radius-line"
+                type="line"
+                paint={{ "line-color": "#16a34a", "line-width": 1.5 }}
+              />
             </Source>
           )}
           {value && (
-            <Marker latitude={value.lat} longitude={value.lng} anchor="bottom" draggable onDragEnd={(e) => set({ lat: e.lngLat.lat, lng: e.lngLat.lng })}>
-              <MapPin className="size-9 fill-primary text-primary-foreground drop-shadow-md" strokeWidth={1.5} />
+            <Marker
+              latitude={value.lat}
+              longitude={value.lng}
+              anchor="bottom"
+              draggable
+              onDragEnd={(e) => set({ lat: e.lngLat.lat, lng: e.lngLat.lng })}
+            >
+              <MapPin
+                className="fill-primary text-primary-foreground size-9 drop-shadow-md"
+                strokeWidth={1.5}
+              />
             </Marker>
           )}
         </BaseMap>
         <div className="absolute inset-x-3 top-3 z-10 flex gap-2">
-          <PlaceSearch className="flex-1" onSelect={(p) => (set(p, true), onPlace?.(p))} proximity={value ?? undefined} />
+          <PlaceSearch
+            className="flex-1"
+            onSelect={(p) => (set(p, true), onPlace?.(p))}
+            proximity={value ?? undefined}
+          />
           <button
             type="button"
             onClick={() => {
               if (!navigator.geolocation) return;
               setLocating(true);
               navigator.geolocation.getCurrentPosition(
-                (pos) => (set({ lat: pos.coords.latitude, lng: pos.coords.longitude }, true), setLocating(false)),
+                (pos) => (
+                  set({ lat: pos.coords.latitude, lng: pos.coords.longitude }, true),
+                  setLocating(false)
+                ),
                 () => setLocating(false),
                 { enableHighAccuracy: true, timeout: 10_000 },
               );
             }}
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-card shadow-sm hover:bg-accent"
+            className="bg-card hover:bg-accent flex size-10 shrink-0 items-center justify-center rounded-lg border shadow-sm"
             aria-label="Use my current location"
             title="Use my current location"
           >
-            <LocateFixed className={cn("size-4", locating && "animate-pulse text-primary")} />
+            <LocateFixed className={cn("size-4", locating && "text-primary animate-pulse")} />
           </button>
         </div>
         {!value && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
-            <span className="rounded-full bg-card/95 px-3 py-1 text-xs font-medium shadow">Click the map to place it</span>
+            <span className="bg-card/95 rounded-full px-3 py-1 text-xs font-medium shadow">
+              Click the map to place it
+            </span>
           </div>
         )}
       </div>
@@ -117,7 +164,7 @@ export function MapPicker({
         <div className="grid grid-cols-2 gap-3">
           {(["lat", "lng"] as const).map((k) => (
             <div key={k} className="space-y-1.5">
-              <Label htmlFor={`picker-${k}`} className="text-xs text-muted-foreground">
+              <Label htmlFor={`picker-${k}`} className="text-muted-foreground text-xs">
                 {k === "lat" ? "Latitude" : "Longitude"}
               </Label>
               <Input

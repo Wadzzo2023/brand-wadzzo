@@ -26,9 +26,21 @@ import { addrShort } from "~/utils/utils";
 
 type Kind = "PAGEASSET" | "PLATFORMASSET" | "ITEM";
 /** `balance` is what can be given away now; for an item that's its stock plus what can still be minted (Infinity = open edition). */
-type Asset = { code: string; issuer: string; balance: number; kind: Kind; itemId?: number; name?: string; stock?: number };
+type Asset = {
+  code: string;
+  issuer: string;
+  balance: number;
+  kind: Kind;
+  itemId?: number;
+  name?: string;
+  stock?: number;
+};
 
-const KIND_LABEL: Record<Kind, string> = { PAGEASSET: "Page asset", PLATFORMASSET: "Platform", ITEM: "Item" };
+const KIND_LABEL: Record<Kind, string> = {
+  PAGEASSET: "Page asset",
+  PLATFORMASSET: "Platform",
+  ITEM: "Item",
+};
 const isPubkey = (s: string) => /^G[A-Z2-7]{55}$/.test(s.trim());
 const isEmail = (s: string) => z.string().email().safeParse(s.trim()).success;
 
@@ -38,12 +50,19 @@ export default function GiftsPage() {
   const { needSign } = useNeedSign();
   const { platformAssetBalance } = useUserStellarAcc();
 
-  const pageAsset = api.fan.creator.getCreatorPageAssetBalance.useQuery(undefined, { retry: false });
+  const pageAsset = api.fan.creator.getCreatorPageAssetBalance.useQuery(undefined, {
+    retry: false,
+  });
   const items = api.fan.gift.items.useQuery(undefined, { retry: false });
-  const xlmFee = api.bounty.Bounty.getplatformAssetNumberForXLM.useQuery({ xlm: 1 });
+  const xlmFee = api.bounty.Bounty.getplatformAssetNumberForXLM.useQuery({
+    xlm: 1,
+  });
 
   const [recipient, setRecipient] = useState("");
-  const [resolved, setResolved] = useState<{ pubkey: string; label: string } | null>(null);
+  const [resolved, setResolved] = useState<{
+    pubkey: string;
+    label: string;
+  } | null>(null);
   const [looking, setLooking] = useState(false);
   const [assetKey, setAssetKey] = useState<string | null>(null);
   const [amount, setAmount] = useState("1");
@@ -52,10 +71,29 @@ export default function GiftsPage() {
 
   const assets = useMemo<Asset[]>(() => {
     const list: Asset[] = [];
-    if (pageAsset.data) list.push({ code: pageAsset.data.assetCode, issuer: pageAsset.data.assetIssuer, balance: Number(pageAsset.data.balance), kind: "PAGEASSET" });
-    list.push({ code: PLATFORM_ASSET.code, issuer: PLATFORM_ASSET.issuer, balance: platformAssetBalance, kind: "PLATFORMASSET" });
+    if (pageAsset.data)
+      list.push({
+        code: pageAsset.data.assetCode,
+        issuer: pageAsset.data.assetIssuer,
+        balance: Number(pageAsset.data.balance),
+        kind: "PAGEASSET",
+      });
+    list.push({
+      code: PLATFORM_ASSET.code,
+      issuer: PLATFORM_ASSET.issuer,
+      balance: platformAssetBalance,
+      kind: "PLATFORMASSET",
+    });
     for (const i of items.data ?? []) {
-      list.push({ code: i.code, issuer: i.issuer, balance: i.mintable === null ? Infinity : i.stock + i.mintable, kind: "ITEM", itemId: i.id, name: i.name, stock: i.stock });
+      list.push({
+        code: i.code,
+        issuer: i.issuer,
+        balance: i.mintable === null ? Infinity : i.stock + i.mintable,
+        kind: "ITEM",
+        itemId: i.id,
+        name: i.name,
+        stock: i.stock,
+      });
     }
     return list;
   }, [pageAsset.data, items.data, platformAssetBalance]);
@@ -63,15 +101,31 @@ export default function GiftsPage() {
   const asset = assets.find((a) => `${a.code}-${a.issuer}` === assetKey) ?? null;
   const qty = Number(amount);
   const isItem = asset?.kind === "ITEM";
-  const legacyFee = xlmFee.data ? Number(TrxBaseFee) + Number(TrxBaseFeeInPlatformAsset) + xlmFee.data : null;
+  const legacyFee = xlmFee.data
+    ? Number(TrxBaseFee) + Number(TrxBaseFeeInPlatformAsset) + xlmFee.data
+    : null;
   const pubkey = resolved?.pubkey ?? (isPubkey(recipient) ? recipient.trim() : null);
-  const amountError = !asset ? null : !Number.isInteger(qty) || qty < 1 ? "Whole numbers from 1" : qty > asset.balance ? `Only ${asset.balance} available` : null;
+  const amountError = !asset
+    ? null
+    : !Number.isInteger(qty) || qty < 1
+      ? "Whole numbers from 1"
+      : qty > asset.balance
+        ? `Only ${asset.balance} available`
+        : null;
   const ready = Boolean(pubkey && asset && !amountError);
 
   // Items are lazily minted and the brand pays everything, so ask the server what it costs and whether it will go through.
   const quote = api.fan.gift.quote.useQuery(
-    { assetId: asset?.itemId ?? 0, pubkey: pubkey ?? "", quantity: Number.isInteger(qty) && qty > 0 ? qty : 1 },
-    { enabled: ready && isItem && Boolean(pubkey && isPubkey(pubkey)), retry: false, staleTime: 15_000 },
+    {
+      assetId: asset?.itemId ?? 0,
+      pubkey: pubkey ?? "",
+      quantity: Number.isInteger(qty) && qty > 0 ? qty : 1,
+    },
+    {
+      enabled: ready && isItem && Boolean(pubkey && isPubkey(pubkey)),
+      retry: false,
+      staleTime: 15_000,
+    },
   );
   const fee = isItem ? (quote.data?.total ?? null) : legacyFee;
   const itemBlocked = isItem && !quote.data?.ok;
@@ -96,7 +150,12 @@ export default function GiftsPage() {
       if (!xdr) return;
       setSigning(true);
       try {
-        const ok = await clientsign({ presignedxdr: xdr, walletType: session.data?.user?.walletType, pubkey: session.data?.user.id, test: clientSelect() });
+        const ok = await clientsign({
+          presignedxdr: xdr,
+          walletType: session.data?.user?.walletType,
+          pubkey: session.data?.user.id,
+          test: clientSelect(),
+        });
         if (ok) {
           // tell the server it landed, so the fan is notified
           confirmToken.mutate({ xdr });
@@ -121,19 +180,45 @@ export default function GiftsPage() {
     const walletType = session.data?.user?.walletType;
     try {
       console.info("[gift] preparing", { item: asset.itemId, qty, walletType });
-      const res = await prepareItem.mutateAsync({ assetId: asset.itemId, pubkey, quantity: qty });
-      console.info("[gift] prepared; signing and submitting", { txId: res.txId, delivery: res.quote.delivery });
+      const res = await prepareItem.mutateAsync({
+        assetId: asset.itemId,
+        pubkey,
+        quantity: qty,
+      });
+      console.info("[gift] prepared; signing and submitting", {
+        txId: res.txId,
+        delivery: res.quote.delivery,
+      });
       // A wallet popup that never answers would otherwise leave this spinning forever.
       const ok = await Promise.race([
-        clientsign({ presignedxdr: res.xdr, walletType, pubkey: session.data?.user.id, test: clientSelect() }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Signing took too long. Check your wallet window or network and try again.")), 90_000)),
+        clientsign({
+          presignedxdr: res.xdr,
+          walletType,
+          pubkey: session.data?.user.id,
+          test: clientSelect(),
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "Signing took too long. Check your wallet window or network and try again.",
+                ),
+              ),
+            90_000,
+          ),
+        ),
       ]);
       console.info("[gift] signed and submitted", { ok });
       if (!ok) throw new Error("The transaction wasn't signed");
       const done = await confirmItem.mutateAsync({ txId: res.txId });
       console.info("[gift] confirmed", done);
       if (done.status === "FAILED") throw new Error("The gift didn't go through on Stellar");
-      toast.success(res.quote.delivery === "claimable" ? `Sent ${qty} ${asset.name ?? asset.code} 🎁 — they accept it from their wallet` : `Sent ${qty} ${asset.name ?? asset.code} 🎁`);
+      toast.success(
+        res.quote.delivery === "claimable"
+          ? `Sent ${qty} ${asset.name ?? asset.code} 🎁 — they accept it from their wallet`
+          : `Sent ${qty} ${asset.name ?? asset.code} 🎁`,
+      );
       setConfirming(false);
       setAmount("1");
       void utils.fan.gift.items.invalidate();
@@ -153,16 +238,34 @@ export default function GiftsPage() {
 
   return (
     <PageBody>
-      <PageHeader eyebrow="Commerce" title="Gifts" description="Send tokens to a fan as a thank-you — your page asset, the platform token or a store asset." />
+      <PageHeader
+        eyebrow="Commerce"
+        title="Gifts"
+        description="Send tokens to a fan as a thank-you — your page asset, the platform token or a store asset."
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
-          <FormSection title="Who" icon={Users} description="Pick a follower, or enter an email or wallet address.">
+          <FormSection
+            title="Who"
+            icon={Users}
+            description="Pick a follower, or enter an email or wallet address."
+          >
             <Field
               label="Recipient"
               htmlFor="recipient"
-              hint={resolved ? <span className="text-primary">Sending to {resolved.label} · {addrShort(resolved.pubkey, 5)}</span> : undefined}
-              error={recipient && !pubkey && !isEmail(recipient) ? "Enter an email or a Stellar address (G…)" : undefined}
+              hint={
+                resolved ? (
+                  <span className="text-primary">
+                    Sending to {resolved.label} · {addrShort(resolved.pubkey, 5)}
+                  </span>
+                ) : undefined
+              }
+              error={
+                recipient && !pubkey && !isEmail(recipient)
+                  ? "Enter an email or a Stellar address (G…)"
+                  : undefined
+              }
             >
               <div className="flex gap-2">
                 <Input
@@ -175,7 +278,12 @@ export default function GiftsPage() {
                   placeholder="fan@email.com or G…"
                 />
                 {isEmail(recipient) && !resolved && (
-                  <Button type="button" variant="outline" onClick={() => void lookup()} disabled={looking}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void lookup()}
+                    disabled={looking}
+                  >
                     {looking ? <Loader2 className="animate-spin" /> : <Search />} Find
                   </Button>
                 )}
@@ -208,55 +316,98 @@ export default function GiftsPage() {
                         on ? "border-primary bg-primary/5" : "hover:border-line-bright",
                       )}
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 font-hud text-[10px] font-semibold">{a.code.slice(0, 4)}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-hud text-sm font-semibold">{a.name ?? a.code}</span>
-                        <span className="block text-xs text-muted-foreground">{a.kind === "ITEM" ? (a.balance === Infinity ? "Minted when you send it" : `${KIND_LABEL[a.kind]} · mints on demand`) : KIND_LABEL[a.kind]}</span>
+                      <span className="bg-surface-2 font-hud flex size-9 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+                        {a.code.slice(0, 4)}
                       </span>
-                      <span className="text-sm font-medium tabular-nums">{a.kind === "ITEM" ? `${(a.stock ?? 0).toLocaleString()} in stock` : a.balance.toLocaleString()}</span>
-                      {on && <Check className="size-4 text-primary" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="font-hud block truncate text-sm font-semibold">
+                          {a.name ?? a.code}
+                        </span>
+                        <span className="text-muted-foreground block text-xs">
+                          {a.kind === "ITEM"
+                            ? a.balance === Infinity
+                              ? "Minted when you send it"
+                              : `${KIND_LABEL[a.kind]} · mints on demand`
+                            : KIND_LABEL[a.kind]}
+                        </span>
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {a.kind === "ITEM"
+                          ? `${(a.stock ?? 0).toLocaleString()} in stock`
+                          : a.balance.toLocaleString()}
+                      </span>
+                      {on && <Check className="text-primary size-4" />}
                     </button>
                   );
                 })}
               </div>
             )}
-            {!pageAsset.isLoading && !pageAsset.data && <p className="text-xs text-muted-foreground">You don&apos;t have a page asset yet — set one up in Settings to gift your own token.</p>}
+            {!pageAsset.isLoading && !pageAsset.data && (
+              <p className="text-muted-foreground text-xs">
+                You don&apos;t have a page asset yet — set one up in Settings to gift your own
+                token.
+              </p>
+            )}
             <Field label="Amount" htmlFor="amount" error={amountError ?? undefined}>
-              <Input id="amount" type="number" min={1} step={1} className="max-w-[200px]" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={!asset} />
+              <Input
+                id="amount"
+                type="number"
+                min={1}
+                step={1}
+                className="max-w-[200px]"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={!asset}
+              />
             </Field>
           </FormSection>
 
           {pricing && (
-            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+            <div
+              className="bg-muted/50 text-muted-foreground flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              role="status"
+              aria-live="polite"
+            >
               <Loader2 className="size-4 animate-spin" /> Checking stock and what it will cost…
             </div>
           )}
           {!pricing && isItem && quote.data && quote.data.problems.length > 0 && (
             <ul className="space-y-1.5">
               {quote.data.problems.map((p) => (
-                <li key={p} className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <li
+                  key={p}
+                  className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
+                >
                   {p}
                 </li>
               ))}
             </ul>
           )}
-          {!pricing && isItem && quote.data && quote.data.lines.length > 0 && <Breakdown quote={quote.data} />}
+          {!pricing && isItem && quote.data && quote.data.lines.length > 0 && (
+            <Breakdown quote={quote.data} />
+          )}
           {!pricing && isItem && quote.data?.ok && (
-            <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            <p className="bg-muted/50 text-muted-foreground rounded-lg px-3 py-2 text-sm">
               {quote.data.fromStock > 0 && `${quote.data.fromStock} from your stock`}
               {quote.data.fromStock > 0 && quote.data.toMint > 0 && " + "}
               {quote.data.toMint > 0 && `${quote.data.toMint} minted now`} ·{" "}
-              {quote.data.delivery === "direct" ? "lands in their wallet right away" : "they don't hold it yet, so it's sent as a gift they accept"}
+              {quote.data.delivery === "direct"
+                ? "lands in their wallet right away"
+                : "they don't hold it yet, so it's sent as a gift they accept"}
             </p>
           )}
           <div className="flex items-center justify-end gap-3">
             {fee !== null && !pricing && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 {isItem ? "You pay" : "Fee"} {fee} {PLATFORM_ASSET.code}
               </p>
             )}
-            <Button disabled={!ready || busy || itemBlocked || pricing} onClick={() => setConfirming(true)}>
-              {pricing ? <Loader2 className="animate-spin" /> : <Send />} {pricing ? "Checking…" : "Send gift"}
+            <Button
+              disabled={!ready || busy || itemBlocked || pricing}
+              onClick={() => setConfirming(true)}
+            >
+              {pricing ? <Loader2 className="animate-spin" /> : <Send />}{" "}
+              {pricing ? "Checking…" : "Send gift"}
             </Button>
           </div>
         </div>
@@ -271,9 +422,10 @@ export default function GiftsPage() {
         title="Send this gift?"
         description={
           <>
-            {qty} {asset?.name ?? asset?.code} to {resolved?.label ?? (pubkey ? addrShort(pubkey, 5) : "")}.
+            {qty} {asset?.name ?? asset?.code} to{" "}
+            {resolved?.label ?? (pubkey ? addrShort(pubkey, 5) : "")}.
             {isItem && quote.data ? (
-              <span className="mt-2 block space-y-0.5 text-foreground">
+              <span className="text-foreground mt-2 block space-y-0.5">
                 {quote.data.lines.map((l) => (
                   <span key={l.label} className="flex justify-between gap-6">
                     <span>{l.label}</span>
@@ -302,7 +454,14 @@ export default function GiftsPage() {
             ? void sendItem()
             : pubkey &&
               asset &&
-              send.mutate({ pubkey, amount: qty, assetCode: asset.code, assetIssuer: asset.issuer, assetType: asset.kind as RouterInputs["fan"]["trx"]["giftFollowerXDR"]["assetType"], signWith: needSign() })
+              send.mutate({
+                pubkey,
+                amount: qty,
+                assetCode: asset.code,
+                assetIssuer: asset.issuer,
+                assetType: asset.kind as RouterInputs["fan"]["trx"]["giftFollowerXDR"]["assetType"],
+                signWith: needSign(),
+              })
         }
       />
     </PageBody>
@@ -314,14 +473,16 @@ type ItemQuote = RouterOutputs["fan"]["gift"]["quote"];
 /** What the brand pays for an item gift, line by line, and what's left after. */
 function Breakdown({ quote }: { quote: ItemQuote }) {
   return (
-    <div className="rounded-xl border bg-card">
-      <p className="border-b px-4 py-2.5 font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price breakdown</p>
+    <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2">
+      <p className="font-hud text-muted-foreground border-b px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
+        Price breakdown
+      </p>
       <ul className="divide-y">
         {quote.lines.map((l) => (
           <li key={l.label} className="flex items-start justify-between gap-4 px-4 py-2.5">
             <span className="min-w-0">
               <span className="block text-sm">{l.label}</span>
-              {l.hint && <span className="block text-xs text-muted-foreground">{l.hint}</span>}
+              {l.hint && <span className="text-muted-foreground block text-xs">{l.hint}</span>}
             </span>
             <span className="shrink-0 text-sm font-medium tabular-nums">
               {l.amount.toLocaleString()} {quote.currency}
@@ -334,7 +495,7 @@ function Breakdown({ quote }: { quote: ItemQuote }) {
             {quote.total.toLocaleString()} {quote.currency}
           </span>
         </li>
-        <li className="flex items-center justify-between gap-4 px-4 py-2 text-xs text-muted-foreground">
+        <li className="text-muted-foreground flex items-center justify-between gap-4 px-4 py-2 text-xs">
           <span>Your balance after</span>
           <span className="tabular-nums">
             {Math.max(0, quote.balance - quote.total).toLocaleString()} {quote.currency}
@@ -345,24 +506,42 @@ function Breakdown({ quote }: { quote: ItemQuote }) {
   );
 }
 
-function FansPanel({ onPick, selected }: { onPick: (pubkey: string, name: string | null) => void; selected: string | null }) {
+function FansPanel({
+  onPick,
+  selected,
+}: {
+  onPick: (pubkey: string, name: string | null) => void;
+  selected: string | null;
+}) {
   const fans = api.fan.creator.getFansList.useQuery();
   const [q, setQ] = useState("");
   const list = (fans.data ?? []).filter((f) => {
     const s = q.trim().toLowerCase();
-    return !s || (f.user.name ?? "").toLowerCase().includes(s) || f.user.id.toLowerCase().includes(s);
+    return (
+      !s || (f.user.name ?? "").toLowerCase().includes(s) || f.user.id.toLowerCase().includes(s)
+    );
   });
 
   return (
-    <aside className="rounded-xl border bg-card lg:sticky lg:top-6 lg:self-start">
+    <aside className="bg-card border-foreground/10 rounded-[1.4rem] border-2 lg:sticky lg:top-6 lg:self-start">
       <div className="border-b p-4">
-        <h2 className="flex items-center gap-2 font-hud text-base font-semibold">
-          <Gift className="size-4 text-primary" /> Your followers
-          {fans.data && <span className="ml-auto text-xs font-normal text-muted-foreground">{fans.data.length}</span>}
+        <h2 className="font-hud flex items-center gap-2 text-base font-semibold">
+          <Gift className="text-primary size-4" /> Your followers
+          {fans.data && (
+            <span className="text-muted-foreground ml-auto text-xs font-normal">
+              {fans.data.length}
+            </span>
+          )}
         </h2>
         <div className="relative mt-3">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search followers" className="pl-9" aria-label="Search followers" />
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search followers"
+            className="pl-9"
+            aria-label="Search followers"
+          />
         </div>
       </div>
       <div className="max-h-[28rem] overflow-y-auto">
@@ -373,7 +552,12 @@ function FansPanel({ onPick, selected }: { onPick: (pubkey: string, name: string
             ))}
           </div>
         ) : !fans.data?.length ? (
-          <EmptyState icon={Users} title="No followers yet" description="Fans who follow your page show up here." className="m-4 py-8" />
+          <EmptyState
+            icon={Users}
+            title="No followers yet"
+            description="Fans who follow your page show up here."
+            className="m-4 py-8"
+          />
         ) : (
           <ul className="divide-y">
             {list.map((f) => (
@@ -381,14 +565,21 @@ function FansPanel({ onPick, selected }: { onPick: (pubkey: string, name: string
                 <button
                   type="button"
                   onClick={() => onPick(f.user.id, f.user.name)}
-                  className={cn("flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent", selected === f.user.id && "bg-primary/5")}
+                  className={cn(
+                    "hover:bg-accent flex w-full items-center gap-3 px-4 py-2.5 text-left",
+                    selected === f.user.id && "bg-primary/5",
+                  )}
                 >
                   <CustomAvatar url={f.user.image} className="size-9" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{f.user.name ?? "Fan"}</span>
-                    <span className="block truncate font-mono text-xs text-muted-foreground">{addrShort(f.user.id, 6)}</span>
+                    <span className="block truncate text-sm font-medium">
+                      {f.user.name ?? "Fan"}
+                    </span>
+                    <span className="text-muted-foreground block truncate font-mono text-xs">
+                      {addrShort(f.user.id, 6)}
+                    </span>
                   </span>
-                  {selected === f.user.id && <Check className="size-4 text-primary" />}
+                  {selected === f.user.id && <Check className="text-primary size-4" />}
                 </button>
               </li>
             ))}

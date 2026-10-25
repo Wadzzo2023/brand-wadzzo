@@ -5,13 +5,26 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "~/components/shadcn/ui/button";
 import { Progress } from "~/components/shadcn/ui/progress";
-import type { ActionEdits, AgentBlock, NamedRef, PinDefaults, ProposedAction } from "~/lib/agent/contract";
+import type {
+  ActionEdits,
+  AgentBlock,
+  NamedRef,
+  PinDefaults,
+  ProposedAction,
+} from "~/lib/agent/contract";
 import { cn } from "~/lib/utils";
 import { api } from "~/utils/api";
 
 import type { ActionState } from "../use-agent-chat";
 import { Card, ShortList, day, dayTime } from "./card-kit";
-import { ANNOUNCEMENT_FIELDS, DraftFields, EVENT_FIELDS, HOTSPOT_FIELDS, PinSettings, PlacePicker } from "./proposal-forms";
+import {
+  ANNOUNCEMENT_FIELDS,
+  DraftFields,
+  EVENT_FIELDS,
+  HOTSPOT_FIELDS,
+  PinSettings,
+  PlacePicker,
+} from "./proposal-forms";
 
 type Proposal = Extract<AgentBlock, { kind: "proposal" }>;
 
@@ -40,26 +53,39 @@ export function ProposalCard({
   const locked = !open || busy || cancelling;
 
   // Editable parts of the proposal.
-  const [keep, setKeep] = useState<Set<string>>(() => new Set(action.type === "create_pins" ? action.items.map((i) => i.key) : []));
-  const [defaults, setDefaults] = useState<PinDefaults | null>(action.type === "create_pins" ? action.defaults : null);
+  const [keep, setKeep] = useState<Set<string>>(
+    () => new Set(action.type === "create_pins" ? action.items.map((i) => i.key) : []),
+  );
+  const [defaults, setDefaults] = useState<PinDefaults | null>(
+    action.type === "create_pins" ? action.defaults : null,
+  );
   const initialDraft = useMemo(
     () =>
-      (action.type === "create_event" ? action.event : action.type === "create_announcement" ? action.announcement : action.type === "create_hotspot" ? action.hotspot : null) as Record<
-        string,
-        unknown
-      > | null,
+      (action.type === "create_event"
+        ? action.event
+        : action.type === "create_announcement"
+          ? action.announcement
+          : action.type === "create_hotspot"
+            ? action.hotspot
+            : null) as Record<string, unknown> | null,
     [action],
   );
   const [draft, setDraft] = useState(initialDraft);
 
-  const destructive = DESTRUCTIVE.includes(action.type) || (action.type === "hotspot_state" && action.op === "delete");
+  const destructive =
+    DESTRUCTIVE.includes(action.type) ||
+    (action.type === "hotspot_state" && action.op === "delete");
   const confirmLabel =
     action.type === "create_pins"
       ? `Create ${keep.size} pin${keep.size === 1 ? "" : "s"}`
       : action.type === "hide_pins"
         ? `Delete ${action.pins.length} pin${action.pins.length === 1 ? "" : "s"}`
         : action.type === "hotspot_state"
-          ? { pause: "Pause hotspot", resume: "Resume hotspot", delete: "Delete hotspot" }[action.op]
+          ? {
+              pause: "Pause hotspot",
+              resume: "Resume hotspot",
+              delete: "Delete hotspot",
+            }[action.op]
           : action.type.startsWith("delete_")
             ? "Delete"
             : action.type.startsWith("create_")
@@ -79,42 +105,64 @@ export function ProposalCard({
   };
 
   return (
-    <Card icon={ClipboardCheck} title={block.summary} className={cn(open && "border-primary/40 ring-1 ring-primary/15")}>
-      <Body action={action} keep={keep} setKeep={setKeep} defaults={defaults} setDefaults={setDefaults} draft={draft} setDraft={setDraft} locked={locked} />
+    <Card
+      icon={ClipboardCheck}
+      title={block.summary}
+      className={cn(open && "border-primary/40 ring-primary/15 ring-1")}
+    >
+      <Body
+        action={action}
+        keep={keep}
+        setKeep={setKeep}
+        defaults={defaults}
+        setDefaults={setDefaults}
+        draft={draft}
+        setDraft={setDraft}
+        locked={locked}
+      />
 
       <footer className="flex flex-wrap items-center gap-2 px-3 py-2.5">
         {status === "pending" && (
           <>
-            <Button size="sm" variant={destructive ? "destructive" : "default"} onClick={confirm} disabled={busy || cancelling || (action.type === "create_pins" && keep.size === 0)}>
+            <Button
+              size="sm"
+              variant={destructive ? "destructive" : "default"}
+              onClick={confirm}
+              disabled={busy || cancelling || (action.type === "create_pins" && keep.size === 0)}
+            >
               {busy ? <Loader2 className="animate-spin" /> : <Check />} {confirmLabel}
             </Button>
             <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy || cancelling}>
-              {cancelling && <Loader2 className="animate-spin" />} {cancelling ? "Cancelling…" : "Cancel"}
+              {cancelling && <Loader2 className="animate-spin" />}{" "}
+              {cancelling ? "Cancelling…" : "Cancel"}
             </Button>
-            {state?.result?.message && <p className="w-full text-xs text-destructive">{state.result.message}</p>}
+            {state?.result?.message && (
+              <p className="text-destructive w-full text-xs">{state.result.message}</p>
+            )}
           </>
         )}
         {status === "running" && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
             <Loader2 className="size-3.5 animate-spin" /> Working on it…
           </span>
         )}
         {status === "done" && (
           <div className="w-full space-y-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
+            <span className="text-success inline-flex items-center gap-1.5 text-xs font-medium">
               <Check className="size-3.5" /> {state?.result?.message ?? "Done"}
             </span>
             {state?.result?.pinJobId && <PinJobProgress jobId={state.result.pinJobId} />}
           </div>
         )}
         {status === "cancelled" && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
             <CircleSlash className="size-3.5" /> Cancelled
           </span>
         )}
         {status === "failed" && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-destructive">
-            <AlertTriangle className="size-3.5" /> {state?.result?.message ?? "This change couldn't be made."}
+          <span className="text-destructive inline-flex items-center gap-1.5 text-xs">
+            <AlertTriangle className="size-3.5" />{" "}
+            {state?.result?.message ?? "This change couldn't be made."}
           </span>
         )}
       </footer>
@@ -145,21 +193,41 @@ function Body({
     case "create_pins":
       return (
         <>
-          <PinSettings value={defaults!} onChange={setDefaults} disabled={locked} hasEvents={action.items.some((i) => i.kind === "event")} />
+          <PinSettings
+            value={defaults!}
+            onChange={setDefaults}
+            disabled={locked}
+            hasEvents={action.items.some((i) => i.kind === "event")}
+          />
           <PlacePicker items={action.items} keep={keep} onChange={setKeep} disabled={locked} />
         </>
       );
     case "create_event":
-      return <DraftFields fields={EVENT_FIELDS} value={draft!} onChange={setDraft} disabled={locked} />;
+      return (
+        <DraftFields fields={EVENT_FIELDS} value={draft!} onChange={setDraft} disabled={locked} />
+      );
     case "create_announcement":
-      return <DraftFields fields={ANNOUNCEMENT_FIELDS} value={draft!} onChange={setDraft} disabled={locked} />;
+      return (
+        <DraftFields
+          fields={ANNOUNCEMENT_FIELDS}
+          value={draft!}
+          onChange={setDraft}
+          disabled={locked}
+        />
+      );
     case "create_hotspot":
       return (
         <>
-          <p className="px-3 pt-2 text-xs text-muted-foreground">
-            A circle around {draft?.lat?.toString().slice(0, 7)}, {draft?.lng?.toString().slice(0, 8)} that drops new pins on a schedule.
+          <p className="text-muted-foreground px-3 pt-2 text-xs">
+            A circle around {draft?.lat?.toString().slice(0, 7)},{" "}
+            {draft?.lng?.toString().slice(0, 8)} that drops new pins on a schedule.
           </p>
-          <DraftFields fields={HOTSPOT_FIELDS} value={draft!} onChange={setDraft} disabled={locked} />
+          <DraftFields
+            fields={HOTSPOT_FIELDS}
+            value={draft!}
+            onChange={setDraft}
+            disabled={locked}
+          />
         </>
       );
     case "update_pins":
@@ -172,7 +240,10 @@ function Body({
     case "hide_pins":
       return (
         <>
-          <p className="px-3 pt-2 text-xs text-muted-foreground">Deleted pins disappear from the map for fans. Their collection history stays in your reports.</p>
+          <p className="text-muted-foreground px-3 pt-2 text-xs">
+            Deleted pins disappear from the map for fans. Their collection history stays in your
+            reports.
+          </p>
           <Names items={action.pins} />
         </>
       );
@@ -183,15 +254,30 @@ function Body({
     case "update_announcement":
       return <Changes changes={action.changes} />;
     case "hotspot_state":
-      return action.op === "delete" ? <p className="px-3 pt-2 text-xs text-muted-foreground">The hotspot stops dropping pins and its live drops are removed.</p> : null;
+      return action.op === "delete" ? (
+        <p className="text-muted-foreground px-3 pt-2 text-xs">
+          The hotspot stops dropping pins and its live drops are removed.
+        </p>
+      ) : null;
     case "delete_event":
     case "delete_announcement":
-      return <p className="px-3 pt-2 text-xs text-muted-foreground">This can&rsquo;t be undone.</p>;
+      return <p className="text-muted-foreground px-3 pt-2 text-xs">This can&rsquo;t be undone.</p>;
   }
 }
 
 function Names({ items }: { items: NamedRef[] }) {
-  return <ShortList items={items} initial={4} empty="" render={(p) => <li key={p.id} className="truncate px-3 py-1.5 text-sm">{p.title}</li>} />;
+  return (
+    <ShortList
+      items={items}
+      initial={4}
+      empty=""
+      render={(p) => (
+        <li key={p.id} className="truncate px-3 py-1.5 text-sm">
+          {p.title}
+        </li>
+      )}
+    />
+  );
 }
 
 const LABEL: Record<string, string> = {
@@ -224,7 +310,9 @@ function show(key: string, value: unknown): string {
 }
 
 function Changes({ changes }: { changes: Record<string, unknown> }) {
-  const rows = Object.entries(changes).filter(([k, v]) => v !== undefined && k !== "lat" && k !== "lng");
+  const rows = Object.entries(changes).filter(
+    ([k, v]) => v !== undefined && k !== "lat" && k !== "lng",
+  );
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-b px-3 py-2 text-xs">
       {rows.map(([k, v]) => (
@@ -240,7 +328,13 @@ function Changes({ changes }: { changes: Record<string, unknown> }) {
 /** Live progress of a confirmed bulk pin creation. */
 function PinJobProgress({ jobId }: { jobId: string }) {
   const utils = api.useUtils();
-  const job = api.agent.pinJob.useQuery({ jobId }, { refetchInterval: (q) => (q.state.data?.status === "completed" || q.state.data?.status === "failed" ? false : 1500) });
+  const job = api.agent.pinJob.useQuery(
+    { jobId },
+    {
+      refetchInterval: (q) =>
+        q.state.data?.status === "completed" || q.state.data?.status === "failed" ? false : 1500,
+    },
+  );
   const finished = job.data?.status === "completed" || job.data?.status === "failed";
   useEffect(() => {
     if (finished) void utils.maps.pin.invalidate();
@@ -251,7 +345,7 @@ function PinJobProgress({ jobId }: { jobId: string }) {
   return (
     <div className="space-y-1">
       <Progress value={total ? (completed / total) * 100 : 0} className="h-1.5" />
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-muted-foreground text-[11px]">
         {status === "completed"
           ? `All ${total} pins are on the map.`
           : status === "failed"

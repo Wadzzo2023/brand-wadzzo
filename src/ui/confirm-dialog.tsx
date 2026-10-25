@@ -39,14 +39,20 @@ export function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <AlertDialogContent className="sm:max-w-md">
+      <AlertDialogContent className="border-foreground/15 rounded-[1.4rem] border-2 shadow-[8px_9px_0_0_hsl(var(--primary))] sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-hud">{title}</AlertDialogTitle>
+          <AlertDialogTitle className="display text-3xl leading-none font-normal">
+            {title}
+          </AlertDialogTitle>
           {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-          <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm} disabled={busy}>
+          <Button
+            variant={destructive ? "destructive" : "default"}
+            onClick={onConfirm}
+            disabled={busy}
+          >
             {busy && <Loader2 className="animate-spin" />}
             {confirmLabel}
           </Button>

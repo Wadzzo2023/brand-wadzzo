@@ -21,7 +21,13 @@ import {
 } from "~/components/pins/pin-form-parts";
 import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Textarea } from "~/components/shadcn/ui/textarea";
 import { cn } from "~/lib/utils";
 import { useSelectCreatorStore } from "~/components/store/creator-selection-store";
@@ -50,7 +56,10 @@ export default function AdminNewPinPage() {
 
   const qLat = Number(search?.get("lat"));
   const qLng = Number(search?.get("lng"));
-  const fromQuery = search?.get("lat") && Number.isFinite(qLat) && Number.isFinite(qLng) ? { lat: qLat, lng: qLng } : null;
+  const fromQuery =
+    search?.get("lat") && Number.isFinite(qLat) && Number.isFinite(qLng)
+      ? { lat: qLat, lng: qLng }
+      : null;
   const qCreatorId = search?.get("creatorId");
 
   const today = new Date();
@@ -59,12 +68,16 @@ export default function AdminNewPinPage() {
   const creatorsQuery = api.fan.creator.getCreators.useQuery();
   const { data: storeCreator, setData: setStoreCreator } = useSelectCreatorStore();
 
-  const [selectedCreatorId, setSelectedCreatorId] = useState<string>(qCreatorId ?? storeCreator?.id ?? "");
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string>(
+    qCreatorId ?? storeCreator?.id ?? "",
+  );
 
   // Sync creator selection
   useEffect(() => {
     if (!selectedCreatorId && creatorsQuery.data && creatorsQuery.data.length > 0) {
-      const first = qCreatorId ? creatorsQuery.data.find((c) => c.id === qCreatorId) : creatorsQuery.data[0];
+      const first = qCreatorId
+        ? creatorsQuery.data.find((c) => c.id === qCreatorId)
+        : creatorsQuery.data[0];
       if (first) {
         setSelectedCreatorId(first.id);
         setStoreCreator(first);
@@ -139,7 +152,10 @@ export default function AdminNewPinPage() {
   const lat = watch("lat");
   const lng = watch("lng");
   const values = watch();
-  const location = Number.isFinite(lat) && Number.isFinite(lng) && lat !== undefined && lng !== undefined ? { lat, lng } : null;
+  const location =
+    Number.isFinite(lat) && Number.isFinite(lng) && lat !== undefined && lng !== undefined
+      ? { lat, lng }
+      : null;
 
   const [imageBrief, setImageBrief] = useState("");
   const [tagIdeas, setTagIdeas] = useState<string[]>([]);
@@ -149,7 +165,8 @@ export default function AdminNewPinPage() {
     type: values.type ?? "",
     location: location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : "",
   };
-  const imagePrompt = imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
+  const imagePrompt =
+    imageBrief || [values.title, values.description?.slice(0, 400)].filter(Boolean).join(". ");
 
   const actions = (
     <>
@@ -173,7 +190,11 @@ export default function AdminNewPinPage() {
         actions={actions}
         aside={
           <>
-            <FormSection title="Location" icon={MapPin} description="Click the map, search, or type coordinates.">
+            <FormSection
+              title="Location"
+              icon={MapPin}
+              description="Click the map, search, or type coordinates."
+            >
               <MapPicker
                 value={location}
                 radiusMetres={values.radius}
@@ -182,18 +203,40 @@ export default function AdminNewPinPage() {
                   setValue("lng", v.lng, { shouldValidate: true });
                 }}
               />
-              {(errors.lat ?? errors.lng) && <p className="text-xs text-destructive">Choose where the pin goes.</p>}
-              <Field label="Collection radius (m)" htmlFor="radius" error={errors.radius?.message} hint="How close fans must be to collect it.">
-                <Input id="radius" type="number" min={1} {...register("radius", { valueAsNumber: true })} />
+              {(errors.lat ?? errors.lng) && (
+                <p className="text-destructive text-xs">Choose where the pin goes.</p>
+              )}
+              <Field
+                label="Collection radius (m)"
+                htmlFor="radius"
+                error={errors.radius?.message}
+                hint="How close fans must be to collect it."
+              >
+                <Input
+                  id="radius"
+                  type="number"
+                  min={1}
+                  {...register("radius", { valueAsNumber: true })}
+                />
               </Field>
             </FormSection>
-            <Summary values={values} mode={collectionMode} token={selectedToken} remaining={remainingBalance} creatorName={selectedCreator?.name} />
+            <Summary
+              values={values}
+              mode={collectionMode}
+              token={selectedToken}
+              remaining={remainingBalance}
+              creatorName={selectedCreator?.name}
+            />
           </>
         }
       >
         {/* Creator Selection Header Section */}
         <FormSection title="Brand" icon={UserRound} description="Who this pin belongs to.">
-          <Field label="Brand" required hint="The brand owns the pin, sees it on its map, and gives its rewards.">
+          <Field
+            label="Brand"
+            required
+            hint="The brand owns the pin, sees it on its map, and gives its rewards."
+          >
             <BrandPicker
               className="w-full"
               brands={creatorsQuery.data}
@@ -210,7 +253,11 @@ export default function AdminNewPinPage() {
         <AiFillCard
           form="pin"
           context={aiContext}
-          examples={["Coffee voucher near Central Park", "Exclusive music track drop at the venue", "Secret artwork pin at the gallery"]}
+          examples={[
+            "Coffee voucher near Central Park",
+            "Exclusive music track drop at the venue",
+            "Secret artwork pin at the gallery",
+          ]}
           apply={(r) => {
             const before = { ...values, mode: collectionMode };
             setValue("title", r.title, { shouldValidate: true });
@@ -223,9 +270,20 @@ export default function AdminNewPinPage() {
             setTagIdeas(r.tags);
             setImageBrief(r.imagePrompt);
             return () => {
-              (["title", "description", "type", "url", "startDate", "endDate", "pinNumber", "pinCollectionLimit", "radius", "multiPin"] as const).forEach((k) =>
-                setValue(k, before[k] as never),
-              );
+              (
+                [
+                  "title",
+                  "description",
+                  "type",
+                  "url",
+                  "startDate",
+                  "endDate",
+                  "pinNumber",
+                  "pinCollectionLimit",
+                  "radius",
+                  "multiPin",
+                ] as const
+              ).forEach((k) => setValue(k, before[k] as never));
               setCollectionMode(before.mode);
               setTagIdeas([]);
             };
@@ -248,11 +306,13 @@ export default function AdminNewPinPage() {
                 onClick={() => setCollectionMode(id)}
                 className={cn(
                   "rounded-lg border p-3 text-left transition-colors",
-                  collectionMode === id ? "border-primary bg-primary/5" : "hover:border-line-bright",
+                  collectionMode === id
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-line-bright",
                 )}
               >
-                <span className="block font-hud text-sm font-semibold">{label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{text}</span>
+                <span className="font-hud block text-sm font-semibold">{label}</span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">{text}</span>
               </button>
             ))}
           </div>
@@ -264,7 +324,16 @@ export default function AdminNewPinPage() {
             htmlFor="title"
             required
             error={errors.title?.message}
-            action={<AiTextButton form="pin" field="title" maxChars={60} value={values.title ?? ""} context={aiContext} onChange={(t) => setValue("title", t, { shouldValidate: true })} />}
+            action={
+              <AiTextButton
+                form="pin"
+                field="title"
+                maxChars={60}
+                value={values.title ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("title", t, { shouldValidate: true })}
+              />
+            }
           >
             <Input id="title" placeholder="A catchy name fans will see" {...register("title")} />
           </Field>
@@ -272,9 +341,23 @@ export default function AdminNewPinPage() {
             label="Description"
             htmlFor="description"
             error={errors.description?.message}
-            action={<AiTextButton form="pin" field="description" value={values.description ?? ""} context={aiContext} onChange={(t) => setValue("description", t)} />}
+            action={
+              <AiTextButton
+                form="pin"
+                field="description"
+                value={values.description ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("description", t)}
+              />
+            }
           >
-            <Textarea id="description" rows={4} className="resize-none" placeholder="What makes this drop worth walking to?" {...register("description")} />
+            <Textarea
+              id="description"
+              rows={4}
+              className="resize-none"
+              placeholder="What makes this drop worth walking to?"
+              {...register("description")}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Pin type">
@@ -297,14 +380,27 @@ export default function AdminNewPinPage() {
                 )}
               />
             </Field>
-            <Field label="Link" htmlFor="url" error={errors.url?.message} hint="Optional — where the pin sends fans.">
+            <Field
+              label="Link"
+              htmlFor="url"
+              error={errors.url?.message}
+              hint="Optional — where the pin sends fans."
+            >
               <Input id="url" type="url" placeholder="https://example.com" {...register("url")} />
             </Field>
           </div>
-          <ImageUploadField value={values.image} onChange={(url) => setValue("image", url)} ai={{ form: "pin", suggestedPrompt: imagePrompt }} />
+          <ImageUploadField
+            value={values.image}
+            onChange={(url) => setValue("image", url)}
+            ai={{ form: "pin", suggestedPrompt: imagePrompt }}
+          />
         </FormSection>
 
-        <FormSection title="Collection & tier" icon={Settings} description="Who can collect it, how many, and what they get.">
+        <FormSection
+          title="Collection & tier"
+          icon={Settings}
+          description="Who can collect it, how many, and what they get."
+        >
           <TiersOptions creatorId={selectedCreatorId} />
           {assetsQuery.data && (
             <CollectionInputs
@@ -320,12 +416,23 @@ export default function AdminNewPinPage() {
         <FormSection title="Schedule" icon={Calendar}>
           <div className="grid gap-4 sm:grid-cols-2">
             {(["startDate", "endDate"] as const).map((name) => (
-              <Field key={name} label={name === "startDate" ? "Starts" : "Ends"} required error={errors[name]?.message}>
+              <Field
+                key={name}
+                label={name === "startDate" ? "Starts" : "Ends"}
+                required
+                error={errors[name]?.message}
+              >
                 <Controller
                   name={name}
                   control={control}
                   render={({ field }) => (
-                    <Input type="datetime-local" value={toInput(field.value)} onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)} />
+                    <Input
+                      type="datetime-local"
+                      value={toInput(field.value)}
+                      onChange={(e) =>
+                        field.onChange(e.target.value ? new Date(e.target.value) : undefined)
+                      }
+                    />
                   )}
                 />
               </Field>
@@ -338,7 +445,7 @@ export default function AdminNewPinPage() {
           <PinTypeToggles />
         </FormSection>
 
-        {create.isError && <p className="text-sm text-destructive">{create.error.message}</p>}
+        {create.isError && <p className="text-destructive text-sm">{create.error.message}</p>}
       </FormPage>
     </FormProvider>
   );
@@ -364,11 +471,15 @@ function Summary({
     </div>
   );
   return (
-    <section className="rounded-xl border bg-card p-5">
-      <h2 className="mb-3 font-hud text-base font-semibold">Summary</h2>
+    <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-5">
+      <h2 className="font-hud mb-3 text-base font-semibold">Summary</h2>
       {values.image && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={values.image} alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" />
+        <img
+          src={values.image}
+          alt=""
+          className="mb-3 aspect-video w-full rounded-lg object-cover"
+        />
       )}
       <p className="font-hud text-sm font-semibold">{values.title ?? "Untitled pin"}</p>
       <div className="mt-2 divide-y">
@@ -379,8 +490,16 @@ function Summary({
         {row("Limit per pin", values.pinCollectionLimit ?? 0)}
         {row("Starts", values.startDate ? values.startDate.toLocaleString() : "—")}
         {row("Ends", values.endDate ? values.endDate.toLocaleString() : "—")}
-        {token && row("Token", `${token.code} · ${token.bal >= 1_000_000 ? "open edition" : `${token.bal} available`}`)}
-        {token && row("Left after", <span className={remaining < 0 ? "text-destructive" : undefined}>{remaining}</span>)}
+        {token &&
+          row(
+            "Token",
+            `${token.code} · ${token.bal >= 1_000_000 ? "open edition" : `${token.bal} available`}`,
+          )}
+        {token &&
+          row(
+            "Left after",
+            <span className={remaining < 0 ? "text-destructive" : undefined}>{remaining}</span>,
+          )}
       </div>
     </section>
   );

@@ -1,15 +1,41 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar, ChevronDown, Landmark, Map as MapIcon, MapPin, MoreHorizontal, Pause, Pencil, Play, Plus, Radar, Search, Trash2, Zap } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  Landmark,
+  Map as MapIcon,
+  MapPin,
+  MoreHorizontal,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Radar,
+  Search,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import { PinQRButton, PinQRDownloadAllButton, pinQRBulkActions, useDropQRs } from "~/components/pins/qr";
+import {
+  PinQRButton,
+  PinQRDownloadAllButton,
+  pinQRBulkActions,
+  useDropQRs,
+} from "~/components/pins/qr";
 import { Button } from "~/components/shadcn/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "~/components/shadcn/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/shadcn/ui/dropdown-menu";
 import { Input } from "~/components/shadcn/ui/input";
 import { cn } from "~/lib/utils";
 import { ConfirmDialog } from "~/ui/confirm-dialog";
@@ -23,28 +49,50 @@ import { api, type RouterOutputs } from "~/utils/api";
 type Kind = "general" | "landmark" | "event" | "hotspot";
 type Group = RouterOutputs["maps"]["pin"]["getLocationGroups"]["groups"][number];
 type Hotspot = RouterOutputs["maps"]["pin"]["getHotspots"]["hotspots"][number];
-type Confirm = { title: string; description: string; confirmLabel?: string; run: () => Promise<unknown> };
+type Confirm = {
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  run: () => Promise<unknown>;
+};
 
 const KINDS: { id: Kind; label: string; icon: typeof MapIcon; hint: string }[] = [
   { id: "general", label: "General", icon: MapIcon, hint: "Everyday drops" },
-  { id: "landmark", label: "Landmark", icon: Landmark, hint: "Places that stay" },
+  {
+    id: "landmark",
+    label: "Landmark",
+    icon: Landmark,
+    hint: "Places that stay",
+  },
   { id: "event", label: "Event", icon: Calendar, hint: "Tied to a date" },
-  { id: "hotspot", label: "Hotspot", icon: Zap, hint: "Areas that keep dropping" },
+  {
+    id: "hotspot",
+    label: "Hotspot",
+    icon: Zap,
+    hint: "Areas that keep dropping",
+  },
 ];
 
 const fmt = (d: Date | string) => format(new Date(d), "MMM d, yyyy");
 const coords = (lat: number, lng: number) => `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** Where a drop is in time: not started, live, or over. */
 function timing(start: Date | string, end: Date | string, now: number) {
-  if (now < new Date(start).getTime()) return { label: "Scheduled", tone: "bg-warning/10 text-warning" };
-  if (now > new Date(end).getTime()) return { label: "Ended", tone: "bg-muted text-muted-foreground" };
+  if (now < new Date(start).getTime())
+    return { label: "Scheduled", tone: "bg-warning/10 text-warning" };
+  if (now > new Date(end).getTime())
+    return { label: "Ended", tone: "bg-muted text-muted-foreground" };
   return { label: "Live", tone: "bg-primary/10 text-primary" };
 }
 
 function Pill({ tone, children }: { tone: string; children: React.ReactNode }) {
-  return <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>{children}</span>;
+  return (
+    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>
+      {children}
+    </span>
+  );
 }
 
 /**
@@ -58,7 +106,10 @@ export default function PinManagementPage() {
   const pathname = usePathname() ?? "";
   const kindParam = search?.get("type") as Kind | null;
   const kind: Kind = kindParam && KINDS.some((k) => k.id === kindParam) ? kindParam : "general";
-  const setKind = (k: Kind) => router.replace(k === "general" ? pathname : `${pathname}?type=${k}`, { scroll: false });
+  const setKind = (k: Kind) =>
+    router.replace(k === "general" ? pathname : `${pathname}?type=${k}`, {
+      scroll: false,
+    });
 
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query.trim(), 350);
@@ -104,7 +155,11 @@ export default function PinManagementPage() {
         }
       />
 
-      <div role="tablist" aria-label="Pin type" className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div
+        role="tablist"
+        aria-label="Pin type"
+        className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4"
+      >
         {KINDS.map((k) => (
           <button
             key={k.id}
@@ -113,23 +168,27 @@ export default function PinManagementPage() {
             aria-selected={kind === k.id}
             onClick={() => setKind(k.id)}
             className={cn(
-              "rounded-xl border bg-card p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-              kind === k.id ? "border-primary ring-1 ring-primary" : "hover:border-primary/40",
+              "bg-card focus-visible:outline-primary border-foreground/10 rounded-[1.4rem] border-2 p-3 text-left transition-colors focus-visible:outline-2",
+              kind === k.id ? "border-primary ring-primary ring-1" : "hover:border-primary/40",
             )}
           >
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
               <k.icon className="size-3.5" /> {k.label}
             </span>
-            <span className="mt-1 block font-hud text-2xl font-semibold tabular-nums">
-              {summary.data ? summary.data[k.id].toLocaleString() : <span className="inline-block h-7 w-10 rounded-md align-middle skeleton" />}
+            <span className="font-hud mt-1 block text-2xl font-semibold tabular-nums">
+              {summary.data ? (
+                summary.data[k.id].toLocaleString()
+              ) : (
+                <span className="skeleton inline-block h-7 w-10 rounded-md align-middle" />
+              )}
             </span>
-            <span className="text-[11px] text-faint">{k.hint}</span>
+            <span className="text-faint text-[11px]">{k.hint}</span>
           </button>
         ))}
       </div>
 
       <div className="relative mt-4">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -143,7 +202,13 @@ export default function PinManagementPage() {
         {kind === "hotspot" ? (
           <HotspotList key={`h-${debounced}`} search={debounced} now={now} ask={ask} />
         ) : (
-          <GroupList key={`${kind}-${debounced}`} kind={kind} search={debounced} now={now} ask={ask} />
+          <GroupList
+            key={`${kind}-${debounced}`}
+            kind={kind}
+            search={debounced}
+            now={now}
+            ask={ask}
+          />
         )}
       </div>
 
@@ -162,7 +227,17 @@ export default function PinManagementPage() {
 
 // ── Pin groups (general / landmark / event) ────────────────────────────────
 
-function GroupList({ kind, search, now, ask }: { kind: Exclude<Kind, "hotspot">; search: string; now: number; ask: (c: Confirm) => void }) {
+function GroupList({
+  kind,
+  search,
+  now,
+  ask,
+}: {
+  kind: Exclude<Kind, "hotspot">;
+  search: string;
+  now: number;
+  ask: (c: Confirm) => void;
+}) {
   const utils = api.useUtils();
   const list = api.maps.pin.getLocationGroups.useInfiniteQuery(
     { type: kind, search: search || undefined, limit: 20 },
@@ -187,7 +262,8 @@ function GroupList({ kind, search, now, ask }: { kind: Exclude<Kind, "hotspot">;
     });
 
   if (list.isPending) return <ListSkeleton />;
-  if (list.isError) return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
+  if (list.isError)
+    return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
   if (!groups.length)
     return search ? (
       <EmptyState icon={Search} title="No matches" description={`Nothing called “${search}”.`} />
@@ -228,7 +304,15 @@ function GroupList({ kind, search, now, ask }: { kind: Exclude<Kind, "hotspot">;
       />
       <ul className="mt-3 space-y-2">
         {groups.map((g) => (
-          <GroupRow key={g.id} group={g} now={now} selected={selected.has(g.id)} onSelect={(on) => toggle(g.id, on)} ask={ask} onChanged={refresh} />
+          <GroupRow
+            key={g.id}
+            group={g}
+            now={now}
+            selected={selected.has(g.id)}
+            onSelect={(on) => toggle(g.id, on)}
+            ask={ask}
+            onChanged={refresh}
+          />
         ))}
       </ul>
       <LoadMore query={list} />
@@ -258,7 +342,12 @@ function GroupRow({
   const removePins = api.maps.pin.bulkDeleteLocations.useMutation();
 
   const t = timing(g.startDate, g.endDate, now);
-  const review = g.approved === false ? { label: "Rejected", tone: "bg-destructive/10 text-destructive" } : g.approved == null ? { label: "In review", tone: "bg-warning/10 text-warning" } : null;
+  const review =
+    g.approved === false
+      ? { label: "Rejected", tone: "bg-destructive/10 text-destructive" }
+      : g.approved == null
+        ? { label: "In review", tone: "bg-warning/10 text-warning" }
+        : null;
   const collected = g.locations.reduce((n, l) => n + l._count.consumers, 0);
   const editHref = g.locations[0] ? `/pins/${g.locations[0].id}/edit` : null;
 
@@ -285,25 +374,42 @@ function GroupRow({
   });
 
   return (
-    <li className={cn("overflow-hidden rounded-xl border bg-card", selected && "border-primary/60")}>
+    <li
+      className={cn(
+        "bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2",
+        selected && "border-primary/60",
+      )}
+    >
       <div className="flex items-center gap-3 p-3">
-        <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={`Select ${g.title}`} className="size-4 shrink-0 accent-primary" />
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onSelect(e.target.checked)}
+          aria-label={`Select ${g.title}`}
+          className="accent-primary size-4 shrink-0"
+        />
         {g.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={g.image} alt="" className="size-11 shrink-0 rounded-lg object-cover" />
         ) : (
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-faint">
+          <span className="bg-surface-2 text-faint flex size-11 shrink-0 items-center justify-center rounded-lg">
             <MapPin className="size-5" />
           </span>
         )}
-        <button type="button" onClick={() => setOpen((o) => !o)} className="min-w-0 flex-1 text-left" aria-expanded={open}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="min-w-0 flex-1 text-left"
+          aria-expanded={open}
+        >
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="truncate font-medium">{g.title}</span>
             <Pill tone={t.tone}>{t.label}</Pill>
             {review && <Pill tone={review.tone}>{review.label}</Pill>}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {fmt(g.startDate)} → {fmt(g.endDate)} · {plural(g.locations.length, "pin")} · {collected.toLocaleString()} collected
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+            {fmt(g.startDate)} → {fmt(g.endDate)} · {plural(g.locations.length, "pin")} ·{" "}
+            {collected.toLocaleString()} collected
           </span>
         </button>
         {editHref && (
@@ -358,20 +464,27 @@ function GroupRow({
         {liveCount > 0 && (
           <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={liveCount} />
         )}
-        <Button variant="ghost" size="icon-sm" onClick={() => setOpen((o) => !o)} aria-label={open ? "Hide pins" : "Show pins"}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Hide pins" : "Show pins"}
+        >
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
         </Button>
       </div>
 
       {open && (
-        <div className="border-t bg-muted/30 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="bg-muted/30 border-t p-3">
+          <div className="text-muted-foreground mb-2 flex items-center justify-between gap-2 text-xs">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                className="size-3.5 accent-primary"
+                className="accent-primary size-3.5"
                 checked={g.locations.length > 0 && g.locations.every((l) => picked.has(l.id))}
-                onChange={(e) => setPicked(e.target.checked ? new Set(g.locations.map((l) => l.id)) : new Set())}
+                onChange={(e) =>
+                  setPicked(e.target.checked ? new Set(g.locations.map((l) => l.id)) : new Set())
+                }
               />
               {plural(g.locations.length, "pin")}
             </label>
@@ -379,13 +492,16 @@ function GroupRow({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive h-7"
                 onClick={() =>
                   ask({
                     title: `Delete ${plural(picked.size, "pin")}?`,
                     description: "Fans can no longer collect them. This can't be undone.",
                     run: async () => {
-                      await removePins.mutateAsync({ locationIds: [...picked], locationGroupId: g.id });
+                      await removePins.mutateAsync({
+                        locationIds: [...picked],
+                        locationGroupId: g.id,
+                      });
                       toast.success(`${plural(picked.size, "pin")} deleted`);
                       setPicked(new Set());
                       onChanged();
@@ -398,14 +514,17 @@ function GroupRow({
             )}
           </div>
           {g.locations.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">No pins in this group.</p>
+            <p className="text-muted-foreground py-3 text-center text-xs">No pins in this group.</p>
           ) : (
             <ul className="space-y-1">
               {g.locations.map((l) => (
-                <li key={l.id} className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-sm">
+                <li
+                  key={l.id}
+                  className="bg-card flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm"
+                >
                   <input
                     type="checkbox"
-                    className="size-3.5 accent-primary"
+                    className="accent-primary size-3.5"
                     checked={picked.has(l.id)}
                     onChange={(e) =>
                       setPicked((s) => {
@@ -417,10 +536,20 @@ function GroupRow({
                     }
                     aria-label={`Select pin at ${coords(l.latitude, l.longitude)}`}
                   />
-                  <span className={cn("size-2 shrink-0 rounded-full", l.autoCollect ? "bg-primary" : "bg-muted-foreground/50")} title={l.autoCollect ? "Auto-collect" : "Collected by hand"} />
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs">{coords(l.latitude, l.longitude)}</span>
+                  <span
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      l.autoCollect ? "bg-primary" : "bg-muted-foreground/50",
+                    )}
+                    title={l.autoCollect ? "Auto-collect" : "Collected by hand"}
+                  />
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                    {coords(l.latitude, l.longitude)}
+                  </span>
                   {l.hidden && <Pill tone="bg-muted text-muted-foreground">Hidden</Pill>}
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{l._count.consumers.toLocaleString()} collected</span>
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    {l._count.consumers.toLocaleString()} collected
+                  </span>
                   {/* No QR on a hidden pin — it's soft-deleted, so the code leads
                       nowhere and the server refuses it. The pill above says why. */}
                   {!l.hidden && <PinQRButton target={qrTarget(l.id)} />}
@@ -439,7 +568,10 @@ function GroupRow({
                         title: "Delete this pin?",
                         description: `The pin at ${coords(l.latitude, l.longitude)} is removed. This can't be undone.`,
                         run: async () => {
-                          await removePin.mutateAsync({ locationId: l.id, locationGroupId: g.id });
+                          await removePin.mutateAsync({
+                            locationId: l.id,
+                            locationGroupId: g.id,
+                          });
                           toast.success("Pin deleted");
                           onChanged();
                         },
@@ -460,15 +592,31 @@ function GroupRow({
 
 // ── Hotspots ──────────────────────────────────────────────────────────────
 
-function HotspotList({ search, now, ask }: { search: string; now: number; ask: (c: Confirm) => void }) {
-  const list = api.maps.pin.getHotspots.useInfiniteQuery({ search: search || undefined, limit: 20 }, { getNextPageParam: (l) => l.nextCursor });
+function HotspotList({
+  search,
+  now,
+  ask,
+}: {
+  search: string;
+  now: number;
+  ask: (c: Confirm) => void;
+}) {
+  const list = api.maps.pin.getHotspots.useInfiniteQuery(
+    { search: search || undefined, limit: 20 },
+    { getNextPageParam: (l) => l.nextCursor },
+  );
   const hotspots = list.data?.pages.flatMap((p) => p.hotspots) ?? [];
 
   if (list.isPending) return <ListSkeleton />;
-  if (list.isError) return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
+  if (list.isError)
+    return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
   if (!hotspots.length)
     return search ? (
-      <EmptyState icon={Search} title="No matches" description={`No hotspot drops called “${search}”.`} />
+      <EmptyState
+        icon={Search}
+        title="No matches"
+        description={`No hotspot drops called “${search}”.`}
+      />
     ) : (
       <EmptyState
         icon={Radar}
@@ -496,7 +644,15 @@ function HotspotList({ search, now, ask }: { search: string; now: number; ask: (
   );
 }
 
-function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; ask: (c: Confirm) => void }) {
+function HotspotRow({
+  hotspot: h,
+  now,
+  ask,
+}: {
+  hotspot: Hotspot;
+  now: number;
+  ask: (c: Confirm) => void;
+}) {
   const utils = api.useUtils();
   const refresh = () => {
     void utils.maps.pin.getHotspots.invalidate();
@@ -513,7 +669,10 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
   const removeDrops = api.maps.pin.bulkDeleteHotspotDropGroups.useMutation();
   const removeHotspot = api.maps.pin.deleteHotspotCascade.useMutation();
 
-  const title = h.locationGroups[h.locationGroups.length - 1]?.title ?? h.locationGroups[0]?.title ?? "Untitled hotspot";
+  const title =
+    h.locationGroups[h.locationGroups.length - 1]?.title ??
+    h.locationGroups[0]?.title ??
+    "Untitled hotspot";
   const ended = now > new Date(h.hotspotEndDate).getTime();
   const notStarted = now < new Date(h.hotspotStartDate).getTime();
   const state = ended
@@ -521,9 +680,15 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
     : !h.isActive
       ? { label: "Paused", tone: "bg-warning/10 text-warning" }
       : notStarted
-        ? { label: "Starts " + fmt(h.hotspotStartDate), tone: "bg-warning/10 text-warning" }
+        ? {
+            label: "Starts " + fmt(h.hotspotStartDate),
+            tone: "bg-warning/10 text-warning",
+          }
         : { label: "Active", tone: "bg-primary/10 text-primary" };
-  const collected = h.locationGroups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l._count.consumers, 0), 0);
+  const collected = h.locationGroups.reduce(
+    (n, g) => n + g.locations.reduce((m, l) => m + l._count.consumers, 0),
+    0,
+  );
 
   /**
    * A hotspot's codes come from its drops, not the hotspot itself — each drop is
@@ -532,24 +697,42 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
    * header above them.
    */
   return (
-    <li className="overflow-hidden rounded-xl border bg-card">
+    <li className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
       <div className="flex items-center gap-3 p-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg">
           <Radar className="size-5" />
         </span>
-        <button type="button" onClick={() => setOpen((o) => !o)} className="min-w-0 flex-1 text-left" aria-expanded={open}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="min-w-0 flex-1 text-left"
+          aria-expanded={open}
+        >
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="truncate font-medium">{title}</span>
             <Pill tone={state.tone}>{state.label}</Pill>
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            Every {plural(h.dropEveryDays, "day")} · pins last {plural(h.pinDurationDays, "day")} · until {fmt(h.hotspotEndDate)} · {plural(h.locationGroups.length, "drop")} ·{" "}
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+            Every {plural(h.dropEveryDays, "day")} · pins last {plural(h.pinDurationDays, "day")} ·
+            until {fmt(h.hotspotEndDate)} · {plural(h.locationGroups.length, "drop")} ·{" "}
             {collected.toLocaleString()} collected
           </span>
         </button>
         {!ended && (
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex" disabled={toggleActive.isPending} onClick={() => toggleActive.mutate({ id: h.id })}>
-            {toggleActive.isPending ? <Spinner className="size-4" /> : h.isActive ? <Pause /> : <Play />}
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex"
+            disabled={toggleActive.isPending}
+            onClick={() => toggleActive.mutate({ id: h.id })}
+          >
+            {toggleActive.isPending ? (
+              <Spinner className="size-4" />
+            ) : h.isActive ? (
+              <Pause />
+            ) : (
+              <Play />
+            )}
             {h.isActive ? "Pause" : "Resume"}
           </Button>
         )}
@@ -571,7 +754,10 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
               </Link>
             </DropdownMenuItem>
             {!ended && (
-              <DropdownMenuItem className="sm:hidden" onClick={() => toggleActive.mutate({ id: h.id })}>
+              <DropdownMenuItem
+                className="sm:hidden"
+                onClick={() => toggleActive.mutate({ id: h.id })}
+              >
                 {h.isActive ? <Pause /> : <Play />} {h.isActive ? "Pause" : "Resume"}
               </DropdownMenuItem>
             )}
@@ -595,26 +781,34 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="icon-sm" onClick={() => setOpen((o) => !o)} aria-label={open ? "Hide drops" : "Show drops"}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Hide drops" : "Show drops"}
+        >
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
         </Button>
       </div>
 
       {open && (
-        <div className="border-t bg-muted/30 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="bg-muted/30 border-t p-3">
+          <div className="text-muted-foreground mb-2 flex items-center justify-between gap-2 text-xs">
             <span>{plural(h.locationGroups.length, "drop")}, newest first</span>
             {picked.size > 0 && (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive h-7"
                 onClick={() =>
                   ask({
                     title: `Delete ${plural(picked.size, "drop")}?`,
                     description: "Their pins are removed. The hotspot keeps dropping on schedule.",
                     run: async () => {
-                      await removeDrops.mutateAsync({ locationGroupIds: [...picked], hotspotId: h.id });
+                      await removeDrops.mutateAsync({
+                        locationGroupIds: [...picked],
+                        hotspotId: h.id,
+                      });
                       toast.success(`${plural(picked.size, "drop")} deleted`);
                       setPicked(new Set());
                       refresh();
@@ -627,7 +821,9 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
             )}
           </div>
           {h.locationGroups.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">No drops yet — the first one comes on schedule.</p>
+            <p className="text-muted-foreground py-3 text-center text-xs">
+              No drops yet — the first one comes on schedule.
+            </p>
           ) : (
             <ul className="space-y-1">
               {h.locationGroups.map((g) => (
@@ -649,7 +845,10 @@ function HotspotRow({ hotspot: h, now, ask }: { hotspot: Hotspot; now: number; a
                       title: "Delete this drop?",
                       description: "Its pins are removed. The hotspot keeps dropping on schedule.",
                       run: async () => {
-                        await removeDrop.mutateAsync({ locationGroupId: g.id, hotspotId: h.id });
+                        await removeDrop.mutateAsync({
+                          locationGroupId: g.id,
+                          hotspotId: h.id,
+                        });
                         toast.success("Drop deleted");
                         refresh();
                       },
@@ -686,28 +885,39 @@ function HotspotDropRow({
   onCheck: (on: boolean) => void;
   onDelete: () => void;
 }) {
-  const t = g.hidden ? { label: "Scheduled", tone: "bg-warning/10 text-warning" } : timing(g.startDate, g.endDate, now);
+  const t = g.hidden
+    ? { label: "Scheduled", tone: "bg-warning/10 text-warning" }
+    : timing(g.startDate, g.endDate, now);
   const got = g.locations.reduce((n, l) => n + l._count.consumers, 0);
   const bulkQR = useDropQRs({ locationGroupId: g.id });
 
   return (
-    <li className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-sm">
+    <li className="bg-card flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm">
       <input
         type="checkbox"
-        className="size-3.5 accent-primary"
+        className="accent-primary size-3.5"
         checked={checked}
         onChange={(e) => onCheck(e.target.checked)}
         aria-label={`Select drop from ${fmt(g.startDate)}`}
       />
       <span className="min-w-0 flex-1 truncate">
         {fmt(g.startDate)} → {fmt(g.endDate)}
-        <span className="text-muted-foreground"> · {plural(g.locations.length, "pin")} · {got.toLocaleString()} collected</span>
+        <span className="text-muted-foreground">
+          {" "}
+          · {plural(g.locations.length, "pin")} · {got.toLocaleString()} collected
+        </span>
       </span>
       <Pill tone={t.tone}>{t.label}</Pill>
-      {g.locations.length > 0 && <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={g.locations.length} />}
+      {g.locations.length > 0 && (
+        <PinQRDownloadAllButton locationGroupId={g.id} title={g.title} count={g.locations.length} />
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for the ${fmt(g.startDate)} drop`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Actions for the ${fmt(g.startDate)} drop`}
+          >
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
@@ -744,12 +954,22 @@ function SelectionBar({
 }) {
   return (
     <div className="flex min-h-9 items-center justify-between gap-2 px-3 text-sm">
-      <label className="flex items-center gap-2 text-muted-foreground">
-        <input type="checkbox" className="size-4 accent-primary" checked={allSelected} onChange={(e) => onSelectAll(e.target.checked)} />
+      <label className="text-muted-foreground flex items-center gap-2">
+        <input
+          type="checkbox"
+          className="accent-primary size-4"
+          checked={allSelected}
+          onChange={(e) => onSelectAll(e.target.checked)}
+        />
         {count > 0 ? `${count} selected` : `Select all ${label}`}
       </label>
       {count > 0 && (
-        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={onDelete}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
           <Trash2 /> Delete {count}
         </Button>
       )}
@@ -757,11 +977,23 @@ function SelectionBar({
   );
 }
 
-function LoadMore({ query }: { query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown } }) {
+function LoadMore({
+  query,
+}: {
+  query: {
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => unknown;
+  };
+}) {
   if (!query.hasNextPage) return null;
   return (
     <div className="mt-4 flex justify-center">
-      <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
+      <Button
+        variant="outline"
+        onClick={() => void query.fetchNextPage()}
+        disabled={query.isFetchingNextPage}
+      >
         {query.isFetchingNextPage && <Spinner className="size-4" />}
         {query.isFetchingNextPage ? "Loading…" : "Load more"}
       </Button>

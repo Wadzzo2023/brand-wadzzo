@@ -21,17 +21,36 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({
   const { nearbyPins } = useNearbyPinsStore();
   const [open, setOpen] = useState(true);
   return (
-    <section className={cn("pointer-events-auto hidden w-80 overflow-hidden rounded-xl border bg-card/95 shadow-lg backdrop-blur-sm md:block", className)}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left" aria-expanded={open}>
-        <MapPin className="size-4 text-primary" />
+    <section
+      className={cn(
+        "bg-card/95 border-foreground/10 pointer-events-auto hidden w-80 overflow-hidden rounded-[1.4rem] border-2 shadow-lg md:block",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+        aria-expanded={open}
+      >
+        <MapPin className="text-primary size-4" />
         <span className="font-hud text-sm font-semibold">In view</span>
-        <span className="rounded-full bg-surface-2 px-2 py-0.5 font-hud text-xs font-semibold tabular-nums">{nearbyPins.length}</span>
-        <ChevronDown className={cn("ml-auto size-4 text-muted-foreground transition-transform", !open && "-rotate-90")} />
+        <span className="bg-surface-2 font-hud rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
+          {nearbyPins.length}
+        </span>
+        <ChevronDown
+          className={cn(
+            "text-muted-foreground ml-auto size-4 transition-transform",
+            !open && "-rotate-90",
+          )}
+        />
       </button>
       {open && (
-        <div className="max-h-80 overflow-y-auto border-t scrollbar-thin">
+        <div className="max-h-80 scrollbar-thin overflow-y-auto border-t">
           {nearbyPins.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">No pins in this area. Zoom out or move the map.</p>
+            <p className="text-muted-foreground px-4 py-8 text-center text-sm">
+              No pins in this area. Zoom out or move the map.
+            </p>
           ) : (
             <ul className="divide-y">
               {nearbyPins.map((pin) => (
@@ -39,31 +58,38 @@ export const NearbyLocationsPanel = memo(function NearbyLocationsPanel({
                   <button
                     type="button"
                     onClick={() => onSelectPlace({ lat: pin.latitude, lng: pin.longitude })}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent"
+                    className="hover:bg-accent flex w-full items-center gap-3 px-4 py-2.5 text-left"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={pin.locationGroup?.image ?? pin.locationGroup?.creator.profileUrl ?? "/images/logo.png"}
+                      src={
+                        pin.locationGroup?.image ??
+                        pin.locationGroup?.creator.profileUrl ??
+                        "/images/logo.png"
+                      }
                       alt=""
                       className="size-9 shrink-0 rounded-lg object-cover"
                       onError={(e) => (e.currentTarget.src = "/images/logo.png")}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="truncate text-sm font-medium">{pin.locationGroup?.title ?? "Untitled pin"}</span>
+                        <span className="truncate text-sm font-medium">
+                          {pin.locationGroup?.title ?? "Untitled pin"}
+                        </span>
                         {pin.locationGroup?.hotspotId && (
-                          <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 font-hud text-[10px] font-semibold uppercase text-primary">
+                          <span className="bg-primary/10 font-hud text-primary inline-flex shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
                             <Hexagon className="size-2.5" /> Hotspot
                           </span>
                         )}
                       </span>
-                      <span className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="text-muted-foreground mt-0.5 flex items-center gap-3 text-xs">
                         <span className="inline-flex items-center gap-1">
                           <Users className="size-3" /> {pin._count.consumers}
                         </span>
                         {pin.locationGroup?.endDate && (
                           <span className="inline-flex items-center gap-1 truncate">
-                            <Clock className="size-3" /> Ends {format(new Date(pin.locationGroup.endDate), "MMM d")}
+                            <Clock className="size-3" /> Ends{" "}
+                            {format(new Date(pin.locationGroup.endDate), "MMM d")}
                           </span>
                         )}
                       </span>

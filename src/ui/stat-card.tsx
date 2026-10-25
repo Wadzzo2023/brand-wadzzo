@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
 
-/** A single number with its label (dashboards, report headers). */
+/** A single number with its label, as a sticker: label in caps, the number in display type. */
 export function StatCard({
   label,
   value,
@@ -27,18 +27,18 @@ export function StatCard({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-1 rounded-xl border bg-card p-4 text-left transition-colors",
-        onClick && "hover:border-line-bright",
-        active && "border-primary/50 bg-primary/5",
+        "bg-card border-foreground/10 flex flex-col gap-1 rounded-[1.4rem] border-2 p-4 text-left transition-[transform,border-color] duration-200",
+        onClick && "hover:border-foreground hover:-translate-y-0.5",
+        active && "border-primary bg-primary/10",
         className,
       )}
     >
-      <span className="flex items-center gap-1.5 font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="label-caps text-muted-foreground flex items-center gap-1.5">
         {Icon && <Icon className="size-3.5" />}
         {label}
       </span>
-      <span className="font-hud text-2xl font-bold tabular-nums text-foreground">{value}</span>
-      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      <span className="display text-foreground text-4xl tabular-nums">{value}</span>
+      {hint && <span className="text-muted-foreground text-xs">{hint}</span>}
     </Comp>
   );
 }

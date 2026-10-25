@@ -1,7 +1,18 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { CalendarDays, ChevronLeft, Copy, Download, Link2, MapPin, Pencil, ScanLine, Ticket, Users } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  Copy,
+  Download,
+  Link2,
+  MapPin,
+  Pencil,
+  ScanLine,
+  Ticket,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -31,12 +42,20 @@ type Consumer = Report["consumers"][number];
 export default function PinReportPage() {
   const id = useParams<{ id: string }>()?.id ?? "";
   const admin = (usePathname() ?? "").startsWith("/admin");
-  const back = admin ? { href: "/admin/reports", label: "Collection reports" } : { href: "/reports", label: "Reports" };
-  const report = api.maps.report.pin.useQuery(id, { retry: false, refetchOnWindowFocus: false });
+  const back = admin
+    ? { href: "/admin/reports", label: "Collection reports" }
+    : { href: "/reports", label: "Reports" };
+  const report = api.maps.report.pin.useQuery(id, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   return (
     <PageBody wide>
-      <Link href={back.href} className="label-caps mb-4 inline-flex items-center gap-1 hover:text-foreground">
+      <Link
+        href={back.href}
+        className="label-caps hover:text-foreground mb-4 inline-flex items-center gap-1"
+      >
         <ChevronLeft className="size-3.5" /> {back.label}
       </Link>
       {report.isPending ? (
@@ -71,7 +90,8 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       r.consumers.filter(
         (c) =>
           (!selectedLoc || c.locationId === selectedLoc) &&
-          (!query || [c.user.name, c.email, c.user.id].some((v) => v?.toLowerCase().includes(query))),
+          (!query ||
+            [c.user.name, c.email, c.user.id].some((v) => v?.toLowerCase().includes(query))),
       ),
     [r.consumers, selectedLoc, query],
   );
@@ -99,15 +119,24 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       id: "who",
       header: "Collector",
       skeleton: "person",
-      cell: (c) => <Person name={c.user.name} image={c.user.image} id={c.user.id} sub={c.email ?? <span className="font-mono">{addrShort(c.user.id, 5)}</span>} />,
+      cell: (c) => (
+        <Person
+          name={c.user.name}
+          image={c.user.image}
+          id={c.user.id}
+          sub={c.email ?? <span className="font-mono">{addrShort(c.user.id, 5)}</span>}
+        />
+      ),
     },
     {
       id: "where",
       header: "Location",
       skeleton: "short",
       cell: (c) => (
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground tabular-nums">{index.get(c.locationId) ?? "?"}</span>
+        <span className="text-muted-foreground inline-flex items-center gap-1.5">
+          <span className="bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums">
+            {index.get(c.locationId) ?? "?"}
+          </span>
         </span>
       ),
     },
@@ -116,7 +145,10 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       header: "Collected",
       skeleton: "short",
       cell: (c) => (
-        <span className="whitespace-nowrap text-muted-foreground" title={format(new Date(c.createdAt), "PPpp")}>
+        <span
+          className="text-muted-foreground whitespace-nowrap"
+          title={format(new Date(c.createdAt), "PPpp")}
+        >
           {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
         </span>
       ),
@@ -128,7 +160,8 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       cell: (c) =>
         c.isRedeemed ? (
           <StatusPill tone="success" icon={Ticket}>
-            Redeemed{c.redeemedAt ? ` ${format(new Date(c.redeemedAt), "MMM d")}` : ""}
+            Redeemed
+            {c.redeemedAt ? ` ${format(new Date(c.redeemedAt), "MMM d")}` : ""}
           </StatusPill>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -143,9 +176,11 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            void navigator.clipboard.writeText(c.user.id).then(() => toast.success("Wallet copied"));
+            void navigator.clipboard
+              .writeText(c.user.id)
+              .then(() => toast.success("Wallet copied"));
           }}
-          className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-xs"
         >
           {addrShort(c.user.id, 5)} <Copy className="size-3" />
         </button>
@@ -169,9 +204,13 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {r.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={r.image} alt="" className="aspect-video w-full rounded-xl border object-cover sm:size-28 sm:aspect-square" />
+          <img
+            src={r.image}
+            alt=""
+            className="aspect-video w-full rounded-xl border object-cover sm:aspect-square sm:size-28"
+          />
         ) : (
-          <span className="hidden size-28 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground sm:flex">
+          <span className="bg-muted text-muted-foreground hidden size-28 shrink-0 items-center justify-center rounded-xl sm:flex">
             <MapPin className="size-8" />
           </span>
         )}
@@ -181,16 +220,25 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
             <StatusPill tone={status.tone}>{status.label}</StatusPill>
           </div>
           {admin && (
-            <Link href={`/admin/creators/${r.creator.id}`} className="mt-1 inline-block hover:opacity-80">
+            <Link
+              href={`/admin/creators/${r.creator.id}`}
+              className="mt-1 inline-block hover:opacity-80"
+            >
               <Person name={r.creator.name} image={r.creator.profileUrl} size="sm" />
             </Link>
           )}
-          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="inline-flex items-center gap-1">
-              <CalendarDays className="size-3.5" /> {format(new Date(r.startDate), "MMM d, yyyy")} → {format(new Date(r.endDate), "MMM d, yyyy")}
+              <CalendarDays className="size-3.5" /> {format(new Date(r.startDate), "MMM d, yyyy")} →{" "}
+              {format(new Date(r.endDate), "MMM d, yyyy")}
             </span>
             {r.link && (
-              <a href={r.link} target="_blank" rel="noreferrer" className="inline-flex max-w-xs items-center gap-1 truncate text-primary hover:underline">
+              <a
+                href={r.link}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary inline-flex max-w-xs items-center gap-1 truncate hover:underline"
+              >
                 <Link2 className="size-3.5 shrink-0" /> <span className="truncate">{r.link}</span>
               </a>
             )}
@@ -210,18 +258,54 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
       </header>
 
       <dl className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <StatCard label="Collections" icon={ScanLine} value={total.toLocaleString()} hint={r.consumers[0] ? `Last ${formatDistanceToNow(new Date(r.consumers[0].createdAt), { addSuffix: true })}` : "None yet"} />
-        <StatCard label="Collectors" icon={Users} value={collectors.toLocaleString()} hint={total > collectors ? `${(total / Math.max(1, collectors)).toFixed(1)} each on average` : undefined} />
-        <StatCard label="Collections left" icon={MapPin} value={r.limit > 0 ? `${r.remaining.toLocaleString()} / ${r.limit.toLocaleString()}` : "No limit"} hint={`${r.locations.length} location${r.locations.length === 1 ? "" : "s"}`} />
-        <StatCard label="Redeemed" icon={Ticket} value={redeemed.toLocaleString()} hint={total ? `${Math.round((redeemed / total) * 100)}% of collections` : undefined} />
+        <StatCard
+          label="Collections"
+          icon={ScanLine}
+          value={total.toLocaleString()}
+          hint={
+            r.consumers[0]
+              ? `Last ${formatDistanceToNow(new Date(r.consumers[0].createdAt), { addSuffix: true })}`
+              : "None yet"
+          }
+        />
+        <StatCard
+          label="Collectors"
+          icon={Users}
+          value={collectors.toLocaleString()}
+          hint={
+            total > collectors
+              ? `${(total / Math.max(1, collectors)).toFixed(1)} each on average`
+              : undefined
+          }
+        />
+        <StatCard
+          label="Collections left"
+          icon={MapPin}
+          value={
+            r.limit > 0
+              ? `${r.remaining.toLocaleString()} / ${r.limit.toLocaleString()}`
+              : "No limit"
+          }
+          hint={`${r.locations.length} location${r.locations.length === 1 ? "" : "s"}`}
+        />
+        <StatCard
+          label="Redeemed"
+          icon={Ticket}
+          value={redeemed.toLocaleString()}
+          hint={total ? `${Math.round((redeemed / total) * 100)}% of collections` : undefined}
+        />
       </dl>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <h2 className="label-caps">Locations</h2>
             {selectedLoc && (
-              <button type="button" className="text-xs text-primary hover:underline" onClick={() => setSelectedLoc(null)}>
+              <button
+                type="button"
+                className="text-primary text-xs hover:underline"
+                onClick={() => setSelectedLoc(null)}
+              >
                 Show all collectors
               </button>
             )}
@@ -229,18 +313,35 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
           {r.locations.length ? (
             <div className="h-60">
               <BaseMap
-                initialViewState={bounds ? { bounds, fitBoundsOptions: { padding: 48, maxZoom: 16 } } : { latitude: r.locations[0]!.latitude, longitude: r.locations[0]!.longitude, zoom: 14 }}
+                initialViewState={
+                  bounds
+                    ? { bounds, fitBoundsOptions: { padding: 48, maxZoom: 16 } }
+                    : {
+                        latitude: r.locations[0]!.latitude,
+                        longitude: r.locations[0]!.longitude,
+                        zoom: 14,
+                      }
+                }
                 controlsPosition="top-right"
               >
                 {r.locations.map((l, i) => (
-                  <Marker key={l.id} latitude={l.latitude} longitude={l.longitude} anchor="center" onClick={(e) => (e.originalEvent.stopPropagation(), setSelectedLoc(selectedLoc === l.id ? null : l.id))}>
+                  <Marker
+                    key={l.id}
+                    latitude={l.latitude}
+                    longitude={l.longitude}
+                    anchor="center"
+                    onClick={(e) => (
+                      e.originalEvent.stopPropagation(),
+                      setSelectedLoc(selectedLoc === l.id ? null : l.id)
+                    )}
+                  >
                     <button
                       type="button"
                       title={`Location ${i + 1} · ${l._count.consumers} collected`}
                       className={
                         selectedLoc === l.id
-                          ? "flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-foreground px-1.5 text-[11px] font-semibold text-background shadow-md"
-                          : "flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground shadow-md"
+                          ? "bg-foreground text-background flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white px-1.5 text-[11px] font-semibold shadow-md"
+                          : "bg-primary text-primary-foreground flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white px-1.5 text-[11px] font-semibold shadow-md"
                       }
                     >
                       {i + 1}
@@ -250,7 +351,9 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
               </BaseMap>
             </div>
           ) : (
-            <p className="mx-4 mb-4 rounded-lg border border-dashed py-16 text-center text-sm text-muted-foreground">No locations left.</p>
+            <p className="text-muted-foreground mx-4 mb-4 rounded-lg border border-dashed py-16 text-center text-sm">
+              No locations left.
+            </p>
           )}
           {r.locations.length > 1 && (
             <ul className="flex gap-1.5 overflow-x-auto border-t px-4 py-2.5">
@@ -261,26 +364,32 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
                     onClick={() => setSelectedLoc(selectedLoc === l.id ? null : l.id)}
                     className={
                       selectedLoc === l.id
-                        ? "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs whitespace-nowrap"
-                        : "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap text-muted-foreground hover:text-foreground"
+                        ? "border-primary bg-primary/10 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap"
+                        : "text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap"
                     }
                   >
-                    <span className="font-semibold">{i + 1}</span> {l._count.consumers.toLocaleString()} collected
+                    <span className="font-semibold">{i + 1}</span>{" "}
+                    {l._count.consumers.toLocaleString()} collected
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </section>
-        <CollectionsChart daily={r.daily} from={new Date(r.startDate).getTime() < now ? new Date(r.startDate) : undefined} />
+        <CollectionsChart
+          daily={r.daily}
+          from={new Date(r.startDate).getTime() < now ? new Date(r.startDate) : undefined}
+        />
       </div>
 
       <section className="mt-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-hud text-lg font-semibold">Collectors</h2>
-            <p className="text-sm text-muted-foreground">
-              {selectedLoc ? `Who collected location ${index.get(selectedLoc)}.` : "Everyone who collected this pin, newest first."}
+            <p className="text-muted-foreground text-sm">
+              {selectedLoc
+                ? `Who collected location ${index.get(selectedLoc)}.`
+                : "Everyone who collected this pin, newest first."}
               {r.consumers.length >= 1000 && " Showing the latest 1,000 — the CSV has them all."}
             </p>
           </div>
@@ -297,7 +406,10 @@ function Body({ r, admin }: { r: Report; admin: boolean }) {
           empty={{
             icon: Users,
             title: query || selectedLoc ? "No collectors match" : "Not collected yet",
-            description: query || selectedLoc ? "Try another search or show all locations." : "Fans who collect this pin show up here.",
+            description:
+              query || selectedLoc
+                ? "Try another search or show all locations."
+                : "Fans who collect this pin show up here.",
           }}
         />
       </section>
@@ -329,4 +441,3 @@ function ReportSkeleton() {
     </>
   );
 }
-

@@ -67,7 +67,17 @@ export default function UsersPage() {
       id: "user",
       header: "User",
       skeleton: "person",
-      cell: (u) => <Person name={u.name} image={u.image} id={u.id} sub={u.email ?? (u.name ? <span className="font-mono">{addrShort(u.id, 6)}</span> : "Wallet account")} />,
+      cell: (u) => (
+        <Person
+          name={u.name}
+          image={u.image}
+          id={u.id}
+          sub={
+            u.email ??
+            (u.name ? <span className="font-mono">{addrShort(u.id, 6)}</span> : "Wallet account")
+          }
+        />
+      ),
     },
     {
       id: "role",
@@ -81,8 +91,18 @@ export default function UsersPage() {
             </StatusPill>
           )}
           {u.creator ? (
-            <StatusPill tone={u.creator.approved === false ? "danger" : u.creator.approved ? "success" : "warning"} icon={Store}>
-              Brand{u.creator.approved === null ? " (pending)" : u.creator.approved === false ? " (banned)" : ""}
+            <StatusPill
+              tone={
+                u.creator.approved === false ? "danger" : u.creator.approved ? "success" : "warning"
+              }
+              icon={Store}
+            >
+              Brand
+              {u.creator.approved === null
+                ? " (pending)"
+                : u.creator.approved === false
+                  ? " (banned)"
+                  : ""}
             </StatusPill>
           ) : (
             u.Admin.length === 0 && <StatusPill>Fan</StatusPill>
@@ -95,13 +115,19 @@ export default function UsersPage() {
       header: "Collected",
       align: "right",
       skeleton: "number",
-      cell: (u) => <span className="tabular-nums">{u._count.LocationConsumer.toLocaleString()}</span>,
+      cell: (u) => (
+        <span className="tabular-nums">{u._count.LocationConsumer.toLocaleString()}</span>
+      ),
     },
     {
       id: "signup",
       header: "Signed up with",
       skeleton: "short",
-      cell: (u) => <span className="text-muted-foreground">{u.firstSignUpMethod ? (SIGNUP[u.firstSignUpMethod] ?? u.firstSignUpMethod) : "—"}</span>,
+      cell: (u) => (
+        <span className="text-muted-foreground">
+          {u.firstSignUpMethod ? (SIGNUP[u.firstSignUpMethod] ?? u.firstSignUpMethod) : "—"}
+        </span>
+      ),
     },
     {
       id: "platform",
@@ -115,7 +141,10 @@ export default function UsersPage() {
       skeleton: "short",
       cell: (u) =>
         u.joinedAt ? (
-          <span className="whitespace-nowrap text-muted-foreground" title={new Date(u.joinedAt).toLocaleString()}>
+          <span
+            className="text-muted-foreground whitespace-nowrap"
+            title={new Date(u.joinedAt).toLocaleString()}
+          >
             {formatDistanceToNow(new Date(u.joinedAt), { addSuffix: true })}
           </span>
         ) : (
@@ -129,7 +158,11 @@ export default function UsersPage() {
       <PageHeader
         eyebrow="Admin"
         title="Users"
-        description={total !== undefined ? `${total.toLocaleString()} accounts — fans, brands and admins.` : "Everyone with an account here — fans, brands and admins."}
+        description={
+          total !== undefined
+            ? `${total.toLocaleString()} accounts — fans, brands and admins.`
+            : "Everyone with an account here — fans, brands and admins."
+        }
       />
 
       <Toolbar className="mt-6">
@@ -148,17 +181,41 @@ export default function UsersPage() {
         onRetry={() => void users.refetch()}
         rowHref={(u) => `/admin/users/${u.id}`}
         actions={(u) => [
-          { label: "View details", icon: ExternalLink, href: `/admin/users/${u.id}` },
+          {
+            label: "View details",
+            icon: ExternalLink,
+            href: `/admin/users/${u.id}`,
+          },
           // Accounts are shared by every platform: only Wadzzo admins delete them.
-          ...(isSuperAdmin ? [{ label: "Delete user", icon: Trash2, destructive: true, separator: true, onSelect: () => setDeleting(u) }] : []),
+          ...(isSuperAdmin
+            ? [
+                {
+                  label: "Delete user",
+                  icon: Trash2,
+                  destructive: true,
+                  separator: true,
+                  onSelect: () => setDeleting(u),
+                },
+              ]
+            : []),
         ]}
-        empty={{ icon: Users, title: search ? "No users match" : "No users yet", description: search ? "Try a name, email or wallet." : undefined }}
+        empty={{
+          icon: Users,
+          title: search ? "No users match" : "No users yet",
+          description: search ? "Try a name, email or wallet." : undefined,
+        }}
         footer={
           users.hasNextPage && (
             <div className="flex justify-center">
-              <Button variant="outline" onClick={() => void users.fetchNextPage()} disabled={users.isFetchingNextPage}>
+              <Button
+                variant="outline"
+                onClick={() => void users.fetchNextPage()}
+                disabled={users.isFetchingNextPage}
+              >
                 {users.isFetchingNextPage && <Spinner className="size-4" />}
-                {users.isFetchingNextPage ? "Loading…" : `Load more${total && rows ? ` (${(total - rows.length).toLocaleString()} left)` : ""}`}
+                {users.isFetchingNextPage
+                  ? "Loading…"
+                  : `Load more${total && rows ? ` (${(total - rows.length).toLocaleString()} left)` : ""}`}
               </Button>
             </div>
           )

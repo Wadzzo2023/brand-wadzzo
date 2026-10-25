@@ -3,7 +3,17 @@
 import type { SubmissionAttachment, SubmissionViewType } from "@prisma/client";
 import { format } from "date-fns";
 import DOMPurify from "isomorphic-dompurify";
-import { Calendar, Crown, MessageSquare, Paperclip, Pencil, Target, Trash2, Trophy, Users } from "lucide-react";
+import {
+  Calendar,
+  Crown,
+  MessageSquare,
+  Paperclip,
+  Pencil,
+  Target,
+  Trash2,
+  Trophy,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { submitSignedXDRToServer4User } from "package/connect_wallet/src/lib/stellar/trx/payment_fb_g";
@@ -16,7 +26,13 @@ import ViewBountyComment from "~/components/comment/View-Bounty-Comment";
 import CustomAvatar from "~/components/common/custom-avatar";
 import ViewBountyAttachmentModal from "~/components/modals/view-bounty-attachment-modal";
 import { Button } from "~/components/shadcn/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/shadcn/ui/tabs";
 import { PLATFORM_ASSET } from "~/lib/stellar/constant";
 import { cn } from "~/lib/utils";
@@ -47,27 +63,46 @@ const STATUS_LABEL: Record<SubmissionViewType, string> = {
 };
 
 function SafeHTML({ html, className }: { html: string; className?: string }) {
-  return <div className={className} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />;
+  return (
+    <div className={className} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
+  );
 }
 
 /** One bounty, for the brand that runs it: brief, entries, winners, chat and comments. */
 export default function BountyDetailPage() {
   const id = Number(useParams<{ id: string }>()?.id);
   const valid = Number.isInteger(id) && id > 0;
-  const owner = api.bounty.Bounty.isOwnerOfBounty.useQuery({ BountyId: id }, { enabled: valid, retry: false });
-  const bounty = api.bounty.Bounty.getBountyByID.useQuery({ BountyId: id }, { enabled: valid && Boolean(owner.data?.isOwner) });
+  const owner = api.bounty.Bounty.isOwnerOfBounty.useQuery(
+    { BountyId: id },
+    { enabled: valid, retry: false },
+  );
+  const bounty = api.bounty.Bounty.getBountyByID.useQuery(
+    { BountyId: id },
+    { enabled: valid && Boolean(owner.data?.isOwner) },
+  );
 
   if (!valid) return <NotFound />;
   if (owner.isPending || (owner.data?.isOwner && bounty.isLoading)) return <DetailSkeleton />;
-  if (owner.isError) return /not found/i.test(owner.error.message) ? <NotFound /> : <Failed message={owner.error.message} retry={() => void owner.refetch()} />;
+  if (owner.isError)
+    return /not found/i.test(owner.error.message) ? (
+      <NotFound />
+    ) : (
+      <Failed message={owner.error.message} retry={() => void owner.refetch()} />
+    );
   if (!owner.data.isOwner)
     return (
       <PageBody className="max-w-5xl">
         <PageHeader title="Bounty" back={back} />
-        <EmptyState className="mt-6" icon={Target} title="Not your bounty" description="Only the brand that created a bounty can manage it here." />
+        <EmptyState
+          className="mt-6"
+          icon={Target}
+          title="Not your bounty"
+          description="Only the brand that created a bounty can manage it here."
+        />
       </PageBody>
     );
-  if (bounty.isError) return <Failed message={bounty.error.message} retry={() => void bounty.refetch()} />;
+  if (bounty.isError)
+    return <Failed message={bounty.error.message} retry={() => void bounty.refetch()} />;
   if (!bounty.data) return <NotFound />;
   return <BountyView bounty={bounty.data} />;
 }
@@ -78,12 +113,17 @@ function BountyView({ bounty: b }: { bounty: Bounty }) {
   const pathname = usePathname() ?? "";
   const tabParam = search?.get("tab") as Tab | null;
   const tab: Tab = tabParam && TABS.includes(tabParam) ? tabParam : "details";
-  const setTab = (t: string) => router.replace(t === "details" ? pathname : `${pathname}?tab=${t}`, { scroll: false });
+  const setTab = (t: string) =>
+    router.replace(t === "details" ? pathname : `${pathname}?tab=${t}`, {
+      scroll: false,
+    });
 
   const utils = api.useUtils();
   const refresh = () => {
     void utils.bounty.Bounty.getBountyByID.invalidate({ BountyId: b.id });
-    void utils.bounty.Bounty.getBountyAllSubmission.invalidate({ BountyId: b.id });
+    void utils.bounty.Bounty.getBountyAllSubmission.invalidate({
+      BountyId: b.id,
+    });
   };
 
   const status = bountyStatus(b);
@@ -141,19 +181,25 @@ function BountyView({ bounty: b }: { bounty: Bounty }) {
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_300px]">
         {b.imageUrls[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={b.imageUrls[0]} alt="" className="aspect-video w-full rounded-xl border object-cover" />
+          <img
+            src={b.imageUrls[0]}
+            alt=""
+            className="aspect-video w-full rounded-xl border object-cover"
+          />
         ) : (
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl border bg-muted">
-            <Target className="size-10 text-muted-foreground" />
+          <div className="bg-muted flex aspect-video w-full items-center justify-center rounded-xl border">
+            <Target className="text-muted-foreground size-10" />
           </div>
         )}
         <dl className="grid grid-cols-2 gap-3 self-start lg:grid-cols-1">
           <Stat label="Status">
-            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", status.tone)}>{status.label}</span>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", status.tone)}>
+              {status.label}
+            </span>
           </Stat>
           <Stat label="Prize" icon={Trophy}>
             <span className="tabular-nums">${b.priceInUSD.toLocaleString()}</span>
-            <span className="block text-xs font-normal text-muted-foreground tabular-nums">
+            <span className="text-muted-foreground block text-xs font-normal tabular-nums">
               {b.priceInBand.toFixed(3)} {PLATFORM_ASSET.code.toUpperCase()}
             </span>
           </Stat>
@@ -180,25 +226,30 @@ function BountyView({ bounty: b }: { bounty: Bounty }) {
               <Target className="size-4" /> Brief
             </TabsTrigger>
             <TabsTrigger value="submissions" className="gap-1.5">
-              <Paperclip className="size-4" /> Entries <span className="tabular-nums text-muted-foreground">{b._count.submissions}</span>
+              <Paperclip className="size-4" /> Entries{" "}
+              <span className="text-muted-foreground tabular-nums">{b._count.submissions}</span>
             </TabsTrigger>
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Chat
             </TabsTrigger>
             <TabsTrigger value="comments" className="gap-1.5">
-              <MessageSquare className="size-4" /> Comments <span className="tabular-nums text-muted-foreground">{b._count.comments}</span>
+              <MessageSquare className="size-4" /> Comments{" "}
+              <span className="text-muted-foreground tabular-nums">{b._count.comments}</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="details" className="mt-5">
-          <SafeHTML html={b.description} className="prose prose-sm max-w-none rounded-xl border bg-card p-5 dark:prose-invert" />
+          <SafeHTML
+            html={b.description}
+            className="prose prose-sm bg-card dark:prose-invert border-foreground/10 max-w-none rounded-[1.4rem] border-2 p-5"
+          />
         </TabsContent>
         <TabsContent value="submissions" className="mt-5">
           <Submissions bounty={b} onChanged={refresh} />
         </TabsContent>
         <TabsContent value="chat" className="mt-5">
-          <div className="rounded-xl border bg-card">
+          <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2">
             <Chat bountyId={b.id} />
           </div>
         </TabsContent>
@@ -221,7 +272,9 @@ function BountyView({ bounty: b }: { bounty: Bounty }) {
 }
 
 function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () => void }) {
-  const list = api.bounty.Bounty.getBountyAllSubmission.useQuery({ BountyId: b.id });
+  const list = api.bounty.Bounty.getBountyAllSubmission.useQuery({
+    BountyId: b.id,
+  });
   const [attachments, setAttachments] = useState<SubmissionAttachment[] | null>(null);
   const [crowning, setCrowning] = useState<Submission | null>(null);
 
@@ -262,9 +315,16 @@ function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () =
         ))}
       </div>
     );
-  if (list.isError) return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
+  if (list.isError)
+    return <ErrorState message={list.error.message} onRetry={() => void list.refetch()} />;
   if (!list.data.length)
-    return <EmptyState icon={Paperclip} title="No entries yet" description="When fans submit to this bounty, their entries show up here for you to review." />;
+    return (
+      <EmptyState
+        icon={Paperclip}
+        title="No entries yet"
+        description="When fans submit to this bounty, their entries show up here for you to review."
+      />
+    );
 
   return (
     <>
@@ -272,22 +332,36 @@ function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () =
         {list.data.map((s) => {
           const won = winners.has(s.user.id);
           return (
-            <li key={s.id} className={cn("rounded-xl border bg-card p-4 sm:p-5", won && "border-primary/50")}>
+            <li
+              key={s.id}
+              className={cn(
+                "bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4 sm:p-5",
+                won && "border-primary/50",
+              )}
+            >
               <div className="flex flex-wrap items-center gap-3">
                 <CustomAvatar url={s.user.image} winnerCount={s.userWinCount} className="size-10" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{s.user.name ?? addrShort(s.userId, 6)}</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(s.createdAt), "MMM d, yyyy · HH:mm")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {format(new Date(s.createdAt), "MMM d, yyyy · HH:mm")}
+                  </p>
                 </div>
                 {won ? (
-                  <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                  <span className="bg-primary/10 text-primary flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold">
                     <Crown className="size-3.5" /> Winner
                   </span>
                 ) : (
                   <Select
                     value={s.status}
                     disabled={setStatus.isPending && setStatus.variables?.submissionId === s.id}
-                    onValueChange={(v) => setStatus.mutate({ creatorId: b.creatorId, submissionId: s.id, status: v as SubmissionViewType })}
+                    onValueChange={(v) =>
+                      setStatus.mutate({
+                        creatorId: b.creatorId,
+                        submissionId: s.id,
+                        status: v as SubmissionViewType,
+                      })
+                    }
                   >
                     <SelectTrigger className="w-32" aria-label="Entry status">
                       <SelectValue />
@@ -311,14 +385,25 @@ function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () =
                   size="sm"
                   disabled={!s.medias.length}
                   onClick={() => {
-                    if (s.status === "UNCHECKED") setStatus.mutate({ creatorId: b.creatorId, submissionId: s.id, status: "CHECKED" });
+                    if (s.status === "UNCHECKED")
+                      setStatus.mutate({
+                        creatorId: b.creatorId,
+                        submissionId: s.id,
+                        status: "CHECKED",
+                      });
                     setAttachments(s.medias);
                   }}
                 >
-                  <Paperclip /> {s.medias.length ? `Attachments (${s.medias.length})` : "No attachments"}
+                  <Paperclip />{" "}
+                  {s.medias.length ? `Attachments (${s.medias.length})` : "No attachments"}
                 </Button>
                 {!won && (
-                  <Button size="sm" disabled={full || crowningBusy} title={full ? "All winners are picked" : undefined} onClick={() => setCrowning(s)}>
+                  <Button
+                    size="sm"
+                    disabled={full || crowningBusy}
+                    title={full ? "All winners are picked" : undefined}
+                    onClick={() => setCrowning(s)}
+                  >
                     <Crown /> Mark as winner
                   </Button>
                 )}
@@ -328,7 +413,9 @@ function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () =
         })}
       </ul>
 
-      {attachments && <ViewBountyAttachmentModal data={attachments} isOpen onClose={() => setAttachments(null)} />}
+      {attachments && (
+        <ViewBountyAttachmentModal data={attachments} isOpen onClose={() => setAttachments(null)} />
+      )}
       <ConfirmDialog
         open={Boolean(crowning)}
         onOpenChange={(o) => !o && !crowningBusy && setCrowning(null)}
@@ -339,13 +426,21 @@ function Submissions({ bounty: b, onChanged }: { bounty: Bounty; onChanged: () =
             <b className="tabular-nums">
               {share.toFixed(3)} {PLATFORM_ASSET.code.toUpperCase()}
             </b>{" "}
-            (about ${(b.priceInUSD / b.totalWinner).toLocaleString()}) — is sent to them now. This can&apos;t be undone.
+            (about ${(b.priceInUSD / b.totalWinner).toLocaleString()}) — is sent to them now. This
+            can&apos;t be undone.
           </>
         }
         confirmLabel="Confirm winner"
         destructive={false}
         busy={crowningBusy}
-        onConfirm={() => crowning && pay.mutate({ BountyId: b.id, userId: crowning.userId, prize: b.priceInBand })}
+        onConfirm={() =>
+          crowning &&
+          pay.mutate({
+            BountyId: b.id,
+            userId: crowning.userId,
+            prize: b.priceInBand,
+          })
+        }
       />
     </>
   );
@@ -356,9 +451,19 @@ function EntryText({ html }: { html: string }) {
   const long = html.length > 400;
   return (
     <div className="mt-3">
-      <SafeHTML html={html} className={cn("prose prose-sm max-w-none dark:prose-invert", long && !open && "line-clamp-5")} />
+      <SafeHTML
+        html={html}
+        className={cn(
+          "prose prose-sm dark:prose-invert max-w-none",
+          long && !open && "line-clamp-5",
+        )}
+      />
       {long && (
-        <button type="button" onClick={() => setOpen((o) => !o)} className="mt-1 text-sm font-medium text-primary hover:underline">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="text-primary mt-1 text-sm font-medium hover:underline"
+        >
           {open ? "Show less" : "Show more"}
         </button>
       )}
@@ -369,7 +474,7 @@ function EntryText({ html }: { html: string }) {
 function Comments({ bountyId }: { bountyId: number }) {
   const comments = api.bounty.Bounty.getBountyComments.useQuery({ bountyId });
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+    <div className="bg-card border-foreground/10 space-y-4 rounded-[1.4rem] border-2 p-4 sm:p-5">
       <AddBountyComment bountyId={bountyId} />
       {comments.isPending ? (
         <div className="flex justify-center py-6">
@@ -378,7 +483,7 @@ function Comments({ bountyId }: { bountyId: number }) {
       ) : comments.isError ? (
         <ErrorState message={comments.error.message} onRetry={() => void comments.refetch()} />
       ) : !comments.data.length ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No comments yet.</p>
+        <p className="text-muted-foreground py-6 text-center text-sm">No comments yet.</p>
       ) : (
         <ul className="divide-y">
           {comments.data.map((c) => (
@@ -392,10 +497,18 @@ function Comments({ bountyId }: { bountyId: number }) {
   );
 }
 
-function Stat({ label, icon: Icon, children }: { label: string; icon?: typeof Trophy; children: React.ReactNode }) {
+function Stat({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon?: typeof Trophy;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-xl border bg-card p-3">
-      <dt className="flex items-center gap-1.5 font-hud text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-3">
+      <dt className="font-hud text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase">
         {Icon && <Icon className="size-3.5" />}
         {label}
       </dt>

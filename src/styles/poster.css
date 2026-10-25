@@ -1,0 +1,568 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   The "poster" look shared by the marketplace and the brand portal (app.wadzzo):
+   tokens, base layer and utilities (same as the wadzzo-monorepo's @wadzzo/ui/styles/poster.css).
+   Imported right after Tailwind in globals.css; fonts are loaded in app/layout.tsx.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Wadzzo tokens, FC88-style: a solid Wadzzo-green sidebar with deep "ink"
+   green type, a flat charcoal main area (dark) or pale mint (light), a coral
+   accent for hand-written notes. Giant condensed display type (Anton),
+   marker-pen accents (Permanent Marker), Sora for reading.
+   Components read the shadcn variables below, never these directly.
+   Flat by design: no glows, no blur — cheap to paint.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* light = warm paper: off-white page, white cards, near-black ink, the
+     same bright Wadzzo green as dark mode for buttons and stickers */
+  --ar-void: 48 22% 92%;
+  --ar-bg: 48 30% 95.5%;
+  --ar-surface: 0 0% 100%;
+  --ar-surface-2: 48 22% 92.5%;
+  --ar-surface-3: 48 16% 87%;
+  --ar-line: 48 10% 82%;
+  --ar-line-bright: 48 8% 64%;
+
+  --ar-text: 160 30% 8%;
+  --ar-text-dim: 160 8% 32%;
+  --ar-text-faint: 160 5% 46%;
+
+  --ar-green: 112 78% 45%;
+  --ar-green-hot: 112 85% 52%;
+  --ar-green-deep: 125 80% 26%;
+  --ar-green-ink: 162 78% 10%;
+  /* green used as text on paper: bright green is unreadable there */
+  --primary-text: 125 80% 27%;
+
+  /* the sidebar is the brand block in both themes */
+  --side-bg: 112 80% 52%;
+  --side-ink: 162 78% 11%;
+  --side-mint: 105 60% 90%;
+
+  --rarity-common: 200 14% 38%;
+  --rarity-rare: 199 85% 32%;
+  --rarity-epic: 272 62% 46%;
+  --rarity-legendary: 38 85% 30%;
+  --rarity-mythic: 322 72% 42%;
+
+  --ar-danger: 358 72% 42%;
+  --ar-warning: 30 90% 36%;
+  --ar-info: 190 80% 30%;
+  --ar-locked: 160 10% 42%;
+
+  --ar-cyan: 170 70% 30%;
+  --ar-violet: 4 80% 58%;
+  --ar-pink: 4 90% 68%;
+
+  /* shadcn mapping */
+  --background: var(--ar-bg);
+  --foreground: var(--ar-text);
+  --card: var(--ar-surface);
+  --card-foreground: var(--ar-text);
+  --popover: var(--ar-surface);
+  --popover-foreground: var(--ar-text);
+  --primary: var(--ar-green);
+  --primary-foreground: var(--ar-green-ink);
+  --secondary: var(--ar-surface-2);
+  --secondary-foreground: var(--ar-text);
+  --muted: var(--ar-surface-2);
+  --muted-foreground: var(--ar-text-dim);
+  --accent: var(--ar-surface-3);
+  --accent-foreground: var(--ar-text);
+  --destructive: var(--ar-danger);
+  --destructive-foreground: 0 0% 100%;
+  --success: var(--ar-green);
+  --warning: var(--ar-warning);
+  --info: var(--ar-info);
+  --border: var(--ar-line);
+  --input: var(--ar-line);
+  --ring: var(--ar-green);
+  --radius: 14px;
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font-body: "Sora Variable";
+  --font-display: "Anton";
+  --font-marker: "Permanent Marker";
+  /* The fonts themselves are loaded in app/layout.tsx.
+     Wider faces can shrink the sidebar title / nav rows with --side-title-size / --side-nav-size. */
+
+  /* Light mode's dark "ink": sidebar and brand blocks, ink tiles and covers. */
+  --ink: 162 50% 10%;
+  --ink-fg: 90 30% 93%;
+  --ink-mint: 162 42% 20%;
+}
+
+.dark {
+  /* FC88 dark: flat warm charcoal, pale-mint type, Wadzzo green. */
+  --ar-void: 150 6% 8%;
+  --ar-bg: 150 5% 11%;
+  --ar-surface: 150 5% 14.5%;
+  --ar-surface-2: 150 5% 17.5%;
+  --ar-surface-3: 150 4% 22%;
+  --ar-line: 150 4% 23%;
+  --ar-line-bright: 150 5% 34%;
+
+  --ar-text: 100 45% 91%;
+  --ar-text-dim: 110 10% 70%;
+  --ar-text-faint: 120 6% 50%;
+
+  --ar-green: 112 85% 55%;
+  --ar-green-hot: 112 90% 62%;
+  --primary-text: 112 85% 55%;
+  --ar-green-deep: 118 62% 28%;
+  --ar-green-ink: 162 78% 10%;
+
+  --rarity-common: 195 8% 62%;
+  --rarity-rare: 192 88% 56%;
+  --rarity-epic: 272 82% 66%;
+  --rarity-legendary: 42 96% 56%;
+  --rarity-mythic: 320 90% 64%;
+
+  --ar-danger: 4 90% 66%;
+  --ar-warning: 40 95% 58%;
+  --ar-info: 170 70% 58%;
+  --ar-locked: 120 5% 48%;
+
+  --ar-cyan: 165 70% 60%;
+  --ar-violet: 4 100% 74%;
+  --ar-pink: 4 100% 74%;
+
+  --destructive-foreground: 0 0% 100%;
+}
+
+@theme inline {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  /* chips, tabs and small labels: the display face unless a theme sets --font-label */
+  --font-hud: var(--font-label, var(--font-display)), "Arial Narrow", ui-sans-serif, sans-serif;
+  --font-marker: var(--font-marker), "Comic Sans MS", cursive;
+  --color-side: hsl(var(--side-bg));
+  --color-side-ink: hsl(var(--side-ink));
+  --color-side-mint: hsl(var(--side-mint));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+
+  /* Wadzzo names, for the few places that need the raw palette. */
+  --color-surface: hsl(var(--ar-surface));
+  --color-surface-2: hsl(var(--ar-surface-2));
+  --color-surface-3: hsl(var(--ar-surface-3));
+  --color-line-bright: hsl(var(--ar-line-bright));
+  --color-faint: hsl(var(--ar-text-faint));
+  --color-green-hot: hsl(var(--ar-green-hot));
+  --color-cyan: hsl(var(--ar-cyan));
+  --color-violet: hsl(var(--ar-violet));
+  --color-pink: hsl(var(--ar-pink));
+  --color-void: hsl(var(--ar-void));
+  --color-rarity-common: hsl(var(--rarity-common));
+  --color-rarity-rare: hsl(var(--rarity-rare));
+  --color-rarity-epic: hsl(var(--rarity-epic));
+  --color-rarity-legendary: hsl(var(--rarity-legendary));
+  --color-rarity-mythic: hsl(var(--rarity-mythic));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    color-scheme: light;
+    /* Anton and Permanent Marker ship one weight: never fake a bold */
+    font-synthesis-weight: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.22);
+  }
+
+  /* Quiet, theme-aware scrollbars everywhere. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--ar-line-bright)) transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Status tones — the one way to colour a state (live, waiting, failed, info,
+   neutral). Pages use these (via <StatusPill> or directly) instead of raw
+   Tailwind colours, so both themes stay readable and consistent.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@utility tone-success {
+  background-color: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+@utility tone-warning {
+  background-color: hsl(var(--warning) / 0.14);
+  color: hsl(var(--warning));
+}
+@utility tone-danger {
+  background-color: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+}
+@utility tone-info {
+  background-color: hsl(var(--info) / 0.12);
+  color: hsl(var(--info));
+}
+@utility tone-neutral {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+@utility tone-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Small uppercase label above a value or section (stat cards, table heads). */
+@utility label-caps {
+  font-family: var(--font-body), ui-sans-serif, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* One shimmer for every skeleton (same sweep as the fan apps). */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--ar-surface-2));
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--ar-green) / 0.07) 45%,
+      hsl(var(--ar-green) / 0.13) 50%,
+      hsl(var(--ar-green) / 0.07) 55%,
+      transparent 100%
+    );
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+}
+@keyframes skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* Small inline spinner (e.g. inside a badge). */
+@utility loading-spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+@utility loading-xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+@utility loading-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Hero carousel: the active thumbnail's progress bar. */
+@keyframes hero-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FC88 finish: flat surfaces, a paper-grain texture, chunky hand-made shapes,
+   marker notes and dashed rules. Everything here is static paint (no blur,
+   no backdrop-filter, no looping animation) so it stays light on the GPU.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Paper grain over the page (one static SVG, painted once). */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Flat panel (cards, sheets, the sidebar on phones). */
+@utility glass {
+  background-color: hsl(var(--card));
+  border: 2px solid hsl(var(--foreground) / 0.1);
+}
+
+/* Raised flat panel: a hair lighter than the page, crisp border. */
+@utility panel {
+  background-color: hsl(var(--ar-surface));
+  border: 1px solid hsl(var(--foreground) / 0.1);
+}
+
+/* Highlight ring for hover/featured states (tint with --glow). Solid, no blur. */
+@utility glow {
+  --glow: var(--primary);
+  box-shadow: 0 0 0 2px hsl(var(--glow));
+}
+
+/* Kept for markup that still asks for a sheen; the flat look has none. */
+@utility shine {
+  position: relative;
+}
+
+/* Brand-green text (was a gradient; FC88 type is flat). */
+@utility text-gradient {
+  color: hsl(var(--primary));
+}
+@utility text-gradient-arcade {
+  color: hsl(var(--primary));
+}
+
+/* Marker-pen note: hand-written, slightly tilted. */
+@utility marker {
+  font-family: var(--font-marker), cursive;
+  font-weight: var(--font-marker-weight, 400);
+  text-transform: uppercase;
+  letter-spacing: var(--font-marker-tracking, 0.01em);
+  line-height: 1.05;
+}
+
+/* Giant condensed display type. */
+@utility display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  font-weight: var(--font-display-weight, 400);
+  text-transform: uppercase;
+  line-height: var(--font-display-leading, 0.9);
+  letter-spacing: 0.005em;
+}
+
+/* The current page in a brand-colour sidebar or tab bar: an inverted chip by default; a theme
+   can give it its own colours with --side-active-bg / --side-active-fg. */
+@utility side-active {
+  background-color: hsl(var(--side-active-bg, var(--side-ink)));
+  color: hsl(var(--side-active-fg, var(--side-bg)));
+}
+
+/* Hand-made shapes: slightly uneven corners and a small tilt. */
+@utility blob {
+  border-radius: 18px 12px 20px 10px / 12px 18px 10px 20px;
+}
+@utility tilt-l {
+  rotate: -1.5deg;
+}
+@utility tilt-r {
+  rotate: 1.5deg;
+}
+
+/* Long-dash rule like FC88's menu dividers (colour = currentColor). */
+@utility dash-rule {
+  height: 2px;
+  background-image: linear-gradient(90deg, currentColor 55%, transparent 0);
+  background-size: 22px 2px;
+  opacity: 0.45;
+}
+
+/* Faint square grid (static). */
+@utility bg-grid {
+  background-image:
+    linear-gradient(hsl(var(--foreground) / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 75%);
+}
+
+/* Live dot: a static ring, no animation. */
+@utility live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25);
+}
+
+/* Rarity tint for `glow`. */
+@utility rarity-common {
+  --glow: var(--rarity-common);
+}
+@utility rarity-rare {
+  --glow: var(--rarity-rare);
+}
+@utility rarity-epic {
+  --glow: var(--rarity-epic);
+}
+@utility rarity-legendary {
+  --glow: var(--rarity-legendary);
+}
+@utility rarity-mythic {
+  --glow: var(--rarity-mythic);
+}
+
+/* Sideways rails stay scrollable without a scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Hero carousel: the active tab's timer bar. */
+@keyframes hero-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@theme inline {
+  --animate-marquee: marquee 45s linear infinite;
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Green as text: bright green on light backgrounds is unreadable, so light
+   mode uses a deeper green for text only (buttons/stickers keep the bright one).
+   Areas that are always dark (heroes, the ink cards) opt back in with .on-dark. */
+@layer utilities {
+  :root:not(.dark) .text-primary:not(.on-dark .text-primary) {
+    color: hsl(var(--primary-text));
+  }
+}
+
+/* Light mode: the big brand blocks (sidebar, phone tab bar and drawer, wallet
+   balance, info-page headers) turn dark ink with pale chips and lime accents,
+   instead of a full lime slab on white paper. Dark mode keeps the lime sidebar.
+   (side = block background, side-ink = chips/text on it, side-mint = active/accent pieces) */
+:root:not(.dark) .side-scope {
+  --side-bg: var(--ink);
+  --side-ink: var(--ink-fg);
+  --side-mint: var(--ink-mint);
+}
+
+/* Light mode "ink accents": blocks that read as pale-on-pale on paper become
+   dark ink with lime details, echoing the sidebar. Dark mode is untouched.
+   .ink-tile = a coloured tile/sticker; .ink-dot = its icon circle;
+   .ink-cover = an empty cover/banner placeholder. */
+:root:not(.dark) .ink-tile {
+  background-color: hsl(var(--ink));
+  color: hsl(var(--ink-fg));
+}
+:root:not(.dark) .ink-tile .ink-dot {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--ink));
+}
+:root:not(.dark) .ink-cover {
+  background-color: hsl(var(--ink));
+  color: hsl(var(--primary));
+}
+
+/* The shared dialog's overlay (drawn inside DialogContent, never styled by callers): a
+   darker flat scrim, no backdrop blur (blur is expensive to paint). */
+[data-slot="dialog-overlay"] {
+  background-color: rgb(0 0 0 / 0.75);
+  backdrop-filter: none;
+}

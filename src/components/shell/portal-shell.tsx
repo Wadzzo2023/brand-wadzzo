@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 
@@ -12,6 +11,7 @@ import { ADMIN_NAV, BRAND_NAV, isActive } from "./nav";
 import { Sidebar } from "./sidebar";
 import { usePortalAccess } from "./use-portal-access";
 import { UserMenu } from "./user-menu";
+import { WadzzoMark } from "~/ui/wadzzo-mark";
 
 const COLLAPSE_KEY = "wadzzo.sidebar.collapsed";
 /** The saved choice only changes through our own toggle, so there's nothing to subscribe to. */
@@ -54,7 +54,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
     }
   };
 
-  if (access.session.status === "loading") return <CenteredSpinner className="min-h-dvh" label="Signing you in" />;
+  if (access.session.status === "loading")
+    return <CenteredSpinner className="min-h-dvh" label="Signing you in" />;
   if (!access.signedIn) return <SignInScreen />;
 
   const isAdminRoute = pathname.startsWith("/admin");
@@ -62,17 +63,15 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   if (isOnboardingRoute) {
     return (
-      <div className="flex min-h-dvh flex-col bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 sm:px-8">
+      <div className="bg-background flex min-h-dvh flex-col">
+        <header className="side-scope bg-side text-side-ink sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-              <Image src="/images/loading.png" alt="" width={20} height={20} className="object-contain" />
+            <span className="bg-side-ink text-side flex size-10 -rotate-3 items-center justify-center rounded-xl">
+              <WadzzoMark className="h-5" />
             </span>
-            <span className="leading-tight">
-              <span className="block font-hud text-base font-bold tracking-tight">Wadzzo</span>
-              <span className="block font-hud text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Brand Onboarding
-              </span>
+            <span className="leading-none">
+              <span className="display block text-[1.7rem]">Wadzzo</span>
+              <span className="marker mt-0.5 block text-[11px] opacity-75">brand onboarding</span>
             </span>
           </div>
           <UserMenu compact />
@@ -84,7 +83,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const title = [...BRAND_NAV.flatMap((g) => g.items), ...ADMIN_NAV.items].find((i) => isActive(pathname, i))?.label;
+  const title = [...BRAND_NAV.flatMap((g) => g.items), ...ADMIN_NAV.items].find((i) =>
+    isActive(pathname, i),
+  )?.label;
 
   const page = isAdminRoute ? (
     <AdminGate access={access}>{children}</AdminGate>
@@ -97,7 +98,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const homeHref = access.isAdmin && !access.approved ? "/admin/creators" : "/pins";
 
   return (
-    <div className="flex min-h-dvh bg-background">
+    <div className="bg-background flex min-h-dvh">
       <Sidebar
         collapsed={collapsed}
         onToggle={toggle}

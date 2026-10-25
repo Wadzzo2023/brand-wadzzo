@@ -9,7 +9,11 @@ import { cn } from "~/lib/utils";
 
 /** The row above a list: search on the left, filters and actions after it. */
 export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", className)}>{children}</div>;
+  return (
+    <div className={cn("flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", className)}>
+      {children}
+    </div>
+  );
 }
 
 /** Search box with a clear button. `onSearch` fires after typing pauses. */
@@ -34,7 +38,10 @@ export function SearchInput({
 
   return (
     <div className={cn("relative min-w-0 flex-1 sm:w-72 sm:flex-none", className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Search
+        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+        strokeWidth={2.6}
+      />
       <Input
         type="search"
         value={text}
@@ -42,14 +49,14 @@ export function SearchInput({
         onKeyDown={(e) => e.key === "Escape" && setText("")}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden"
+        className="pr-9 pl-10 [&::-webkit-search-cancel-button]:hidden"
       />
       {text && (
         <button
           type="button"
           onClick={() => setText("")}
           aria-label="Clear search"
-          className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md"
         >
           <X className="size-3.5" />
         </button>
@@ -73,7 +80,11 @@ export function FilterChips<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5", className)}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5", className)}
+    >
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -84,14 +95,23 @@ export function FilterChips<T extends string>({
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-              on ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:border-line-bright hover:text-foreground",
+              "font-hud focus-visible:outline-primary inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border-2 px-4 text-base tracking-wide uppercase transition-colors focus-visible:outline-2",
+              on
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-foreground/12 text-muted-foreground hover:border-foreground hover:text-foreground",
             )}
           >
             {o.icon && <o.icon className="size-3.5" />}
             {o.label}
             {o.count !== undefined && (
-              <span className={cn("rounded-full px-1.5 text-xs tabular-nums", on ? "bg-primary-foreground/20" : "bg-muted")}>{o.count.toLocaleString()}</span>
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-xs tabular-nums",
+                  on ? "bg-primary-foreground/20" : "bg-muted",
+                )}
+              >
+                {o.count.toLocaleString()}
+              </span>
             )}
           </button>
         );

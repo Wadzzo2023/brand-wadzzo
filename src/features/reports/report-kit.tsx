@@ -1,6 +1,14 @@
 "use client";
 
-import { addDays, differenceInCalendarDays, format, startOfDay, startOfWeek, subDays, subMonths } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  startOfDay,
+  startOfWeek,
+  subDays,
+  subMonths,
+} from "date-fns";
 import { CalendarRange } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -13,7 +21,13 @@ import type { StatusPill } from "~/ui/status-pill";
 
 // ── Period ──────────────────────────────────────────────────────────────────
 
-export const PERIODS = { "7d": "7 days", "30d": "30 days", "90d": "90 days", "12m": "12 months", all: "All time" } as const;
+export const PERIODS = {
+  "7d": "7 days",
+  "30d": "30 days",
+  "90d": "90 days",
+  "12m": "12 months",
+  all: "All time",
+} as const;
 export type PeriodKey = keyof typeof PERIODS | "custom";
 export type Period = { key: PeriodKey; from?: Date; to?: Date };
 
@@ -39,7 +53,13 @@ export function periodLabel(p: Period) {
 }
 
 /** Preset chips + a custom date range. */
-export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+export function PeriodPicker({
+  value,
+  onChange,
+}: {
+  value: Period;
+  onChange: (p: Period) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(value.from ? format(value.from, "yyyy-MM-dd") : "");
   const [to, setTo] = useState(value.to ? format(value.to, "yyyy-MM-dd") : "");
@@ -49,7 +69,10 @@ export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p:
         label="Period"
         value={value.key === "custom" ? ("" as Exclude<PeriodKey, "custom">) : value.key}
         onChange={(k) => onChange(periodRange(k))}
-        options={(Object.keys(PERIODS) as Exclude<PeriodKey, "custom">[]).map((k) => ({ value: k, label: PERIODS[k] }))}
+        options={(Object.keys(PERIODS) as Exclude<PeriodKey, "custom">[]).map((k) => ({
+          value: k,
+          label: PERIODS[k],
+        }))}
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -57,7 +80,9 @@ export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p:
             type="button"
             className={cn(
               "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors [&_svg]:size-4",
-              value.key === "custom" ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:border-line-bright hover:text-foreground",
+              value.key === "custom"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:border-line-bright hover:text-foreground",
             )}
           >
             <CalendarRange /> {value.key === "custom" ? periodLabel(value) : "Custom"}
@@ -65,13 +90,25 @@ export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p:
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1 text-xs text-muted-foreground">
+            <label className="text-muted-foreground space-y-1 text-xs">
               From
-              <Input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="h-9" />
+              <Input
+                type="date"
+                value={from}
+                max={to || undefined}
+                onChange={(e) => setFrom(e.target.value)}
+                className="h-9"
+              />
             </label>
-            <label className="space-y-1 text-xs text-muted-foreground">
+            <label className="text-muted-foreground space-y-1 text-xs">
               To
-              <Input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="h-9" />
+              <Input
+                type="date"
+                value={to}
+                min={from || undefined}
+                onChange={(e) => setTo(e.target.value)}
+                className="h-9"
+              />
             </label>
           </div>
           <Button
@@ -98,7 +135,14 @@ export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p:
 // ── Pin status ──────────────────────────────────────────────────────────────
 
 type Tone = Parameters<typeof StatusPill>[0]["tone"];
-export function pinStatus(g: { approved: boolean | null; startDate: Date | string; endDate: Date | string }, now: number): { label: string; tone: Tone } {
+export function pinStatus(
+  g: {
+    approved: boolean | null;
+    startDate: Date | string;
+    endDate: Date | string;
+  },
+  now: number,
+): { label: string; tone: Tone } {
   if (g.approved === null) return { label: "In review", tone: "warning" };
   if (g.approved === false) return { label: "Rejected", tone: "danger" };
   if (new Date(g.startDate).getTime() > now) return { label: "Scheduled", tone: "info" };
@@ -108,16 +152,24 @@ export function pinStatus(g: { approved: boolean | null; startDate: Date | strin
 
 // ── CSV ─────────────────────────────────────────────────────────────────────
 
-export function downloadCsv(filename: string, rows: Record<string, string | number | boolean | Date | null | undefined>[]) {
+export function downloadCsv(
+  filename: string,
+  rows: Record<string, string | number | boolean | Date | null | undefined>[],
+) {
   if (!rows.length) return;
   const cols = Object.keys(rows[0]!);
   const cell = (v: string | number | boolean | Date | null | undefined) => {
     const s = v instanceof Date ? v.toISOString() : v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
+  const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join(
+    "\n",
+  );
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  const a = Object.assign(document.createElement("a"), {
+    href: url,
+    download: filename,
+  });
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -128,13 +180,27 @@ export function downloadCsv(filename: string, rows: Record<string, string | numb
  * Collections over time as bars: one per day, or per week when the range is
  * long. Empty days are drawn too so gaps read as gaps.
  */
-export function CollectionsChart({ daily, from, to, className }: { daily: { day: string; n: number }[]; from?: Date; to?: Date; className?: string }) {
+export function CollectionsChart({
+  daily,
+  from,
+  to,
+  className,
+}: {
+  daily: { day: string; n: number }[];
+  from?: Date;
+  to?: Date;
+  className?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
 
   const buckets = useMemo(() => {
     const counts = new Map(daily.map((d) => [d.day, d.n]));
     const end = startOfDay(to ?? new Date());
-    const first = from ? startOfDay(from) : daily[0] ? new Date(`${daily[0].day}T00:00:00`) : subDays(end, 29);
+    const first = from
+      ? startOfDay(from)
+      : daily[0]
+        ? new Date(`${daily[0].day}T00:00:00`)
+        : subDays(end, 29);
     const days = Math.max(1, differenceInCalendarDays(end, first) + 1);
     const weekly = days > 120;
     const out: { label: string; n: number }[] = [];
@@ -145,7 +211,11 @@ export function CollectionsChart({ daily, from, to, className }: { daily: { day:
         out.push({ label: `Week of ${format(d, "MMM d, yyyy")}`, n });
       }
     } else {
-      for (let d = first; d <= end; d = addDays(d, 1)) out.push({ label: format(d, "EEE, MMM d, yyyy"), n: counts.get(format(d, "yyyy-MM-dd")) ?? 0 });
+      for (let d = first; d <= end; d = addDays(d, 1))
+        out.push({
+          label: format(d, "EEE, MMM d, yyyy"),
+          n: counts.get(format(d, "yyyy-MM-dd")) ?? 0,
+        });
     }
     return { out, weekly };
   }, [daily, from, to]);
@@ -155,13 +225,14 @@ export function CollectionsChart({ daily, from, to, className }: { daily: { day:
   const shown = hover !== null ? buckets.out[hover] : null;
 
   return (
-    <div className={cn("rounded-xl border bg-card p-4", className)}>
+    <div className={cn("bg-card border-foreground/10 rounded-[1.4rem] border-2 p-4", className)}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="label-caps">Collections per {buckets.weekly ? "week" : "day"}</h2>
-        <p className="text-xs text-muted-foreground tabular-nums">
+        <p className="text-muted-foreground text-xs tabular-nums">
           {shown ? (
             <>
-              <span className="font-medium text-foreground">{shown.n.toLocaleString()}</span> · {shown.label}
+              <span className="text-foreground font-medium">{shown.n.toLocaleString()}</span> ·{" "}
+              {shown.label}
             </>
           ) : (
             `Peak ${max === 1 && total === 0 ? 0 : max.toLocaleString()}`
@@ -169,21 +240,37 @@ export function CollectionsChart({ daily, from, to, className }: { daily: { day:
         </p>
       </div>
       {total === 0 ? (
-        <div className="mt-3 flex h-40 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">No collections in this period</div>
+        <div className="text-muted-foreground mt-3 flex h-40 items-center justify-center rounded-lg border border-dashed text-sm">
+          No collections in this period
+        </div>
       ) : (
-        <div className="mt-3 flex h-40 items-end gap-px" onMouseLeave={() => setHover(null)} role="img" aria-label={`${total} collections`}>
+        <div
+          className="mt-3 flex h-40 items-end gap-px"
+          onMouseLeave={() => setHover(null)}
+          role="img"
+          aria-label={`${total} collections`}
+        >
           {buckets.out.map((b, i) => (
-            <div key={i} className="flex h-full min-w-0 flex-1 items-end" onMouseEnter={() => setHover(i)}>
+            <div
+              key={i}
+              className="flex h-full min-w-0 flex-1 items-end"
+              onMouseEnter={() => setHover(i)}
+            >
               <div
-                className={cn("w-full rounded-t-sm transition-colors", b.n ? (hover === i ? "bg-primary" : "bg-primary/70") : "bg-muted")}
-                style={{ height: b.n ? `${Math.max(4, (b.n / max) * 100)}%` : "2px" }}
+                className={cn(
+                  "w-full rounded-t-sm transition-colors",
+                  b.n ? (hover === i ? "bg-primary" : "bg-primary/70") : "bg-muted",
+                )}
+                style={{
+                  height: b.n ? `${Math.max(4, (b.n / max) * 100)}%` : "2px",
+                }}
               />
             </div>
           ))}
         </div>
       )}
       {buckets.out.length > 1 && total > 0 && (
-        <div className="mt-1.5 flex justify-between text-[10px] text-muted-foreground">
+        <div className="text-muted-foreground mt-1.5 flex justify-between text-[10px]">
           <span>{buckets.out[0]!.label.replace(/^\w+, |^Week of /, "")}</span>
           <span>{buckets.out.at(-1)!.label.replace(/^\w+, |^Week of /, "")}</span>
         </div>
@@ -195,7 +282,8 @@ export function CollectionsChart({ daily, from, to, className }: { daily: { day:
 /** "+12% vs previous period" — or nothing when there is nothing to compare. */
 export function Delta({ now, before }: { now: number; before: number | undefined }) {
   if (before === undefined) return null;
-  if (before === 0) return now > 0 ? <span className="text-success">New this period</span> : <span>No change</span>;
+  if (before === 0)
+    return now > 0 ? <span className="text-success">New this period</span> : <span>No change</span>;
   const pct = Math.round(((now - before) / before) * 100);
   if (pct === 0) return <span>Same as previous period</span>;
   return (

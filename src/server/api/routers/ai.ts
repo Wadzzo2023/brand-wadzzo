@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { zodTextFormat } from "openai/helpers/zod";
 import { Readable } from "stream";
 import { z } from "zod";
+import { pinataClient } from "~/server/pinata";
 
 import { env } from "~/env";
 import { FILL_FORMS, FILL_SCHEMAS, FORM_BRIEF } from "~/server/ai/forms";
@@ -10,10 +11,6 @@ import { createTRPCRouter, creatorProcedure } from "~/server/api/trpc";
 import { uploadBufferToS3 } from "~/server/s3";
 import { ipfsHashToPinataGatewayUrl } from "~/utils/ipfs";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pinataSDK = require("@pinata/sdk") as new (o: { pinataJWTKey: string }) => {
-  pinFileToIPFS: (s: Readable, o: { pinataMetadata: { name: string } }) => Promise<{ IpfsHash: string }>;
-};
 
 const formEnum = z.enum(FILL_FORMS);
 const context = z.record(z.string(), z.string().max(4000)).default({});
@@ -148,7 +145,7 @@ ${format}${input.maxChars ? ` Stay under ${input.maxChars} characters.` : ""} Re
 
         if (input.destination === "ipfs") {
           const stream = Object.assign(Readable.from(bytes), { path: "ai-thumbnail.png" });
-          const pinned = await new pinataSDK({ pinataJWTKey: env.PINATA_JWT }).pinFileToIPFS(stream, { pinataMetadata: { name: "ai-thumbnail.png" } });
+          const pinned = await (await pinataClient(env.PINATA_JWT)).pinFileToIPFS(stream, { pinataMetadata: { name: "ai-thumbnail.png" } });
           return { url: ipfsHashToPinataGatewayUrl(pinned.IpfsHash), ipfsHash: pinned.IpfsHash };
         }
         return { url: await uploadBufferToS3(bytes, "image/png"), ipfsHash: null };

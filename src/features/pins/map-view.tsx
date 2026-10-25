@@ -47,7 +47,8 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
   if (drawParam !== seenDraw) {
     setSeenDraw(drawParam);
     if (drawParam !== null) {
-      if (drawParam === "polygon" || drawParam === "rectangle" || drawParam === "circle") setDrawShape(drawParam);
+      if (drawParam === "polygon" || drawParam === "rectangle" || drawParam === "circle")
+        setDrawShape(drawParam);
       setDrawing(true);
     }
   }
@@ -56,7 +57,8 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
   }, [search, router]);
   const [hotspotId, setHotspotId] = useState<string | null>(null);
 
-  const { setPosition, openPinDetailModal, isPinCopied, isPinCut, setIsAutoCollect } = useMapInteractionStore();
+  const { setPosition, openPinDetailModal, isPinCopied, isPinCut, setIsAutoCollect } =
+    useMapInteractionStore();
   const { myPins, setMyPins, filterNearbyPins } = useNearbyPinsStore();
   const openCopyCut = useCopyCutModalStore((s) => s.setIsOpen);
   const setDraft = useHotspotDraft((s) => s.set);
@@ -69,7 +71,9 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
   useEffect(() => {
     if (!linkedHotspot || !hotspots.data) return;
     const h = hotspots.data.find((x) => x.id === linkedHotspot);
-    const ring = h && toMapboxFeature(h.geoJson as Parameters<typeof toMapboxFeature>[0])?.geometry.coordinates[0];
+    const ring =
+      h &&
+      toMapboxFeature(h.geoJson as Parameters<typeof toMapboxFeature>[0])?.geometry.coordinates[0];
     if (ring?.length) {
       const lngs = ring.map((p) => p[0]!);
       const lats = ring.map((p) => p[1]!);
@@ -94,7 +98,16 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
 
   const refreshInView = useCallback(() => {
     const b = map.current?.getBounds();
-    if (b) filterNearbyPins({ north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }, "my");
+    if (b)
+      filterNearbyPins(
+        {
+          north: b.getNorth(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          west: b.getWest(),
+        },
+        "my",
+      );
   }, [filterNearbyPins]);
   useEffect(refreshInView, [myPins, refreshInView]);
 
@@ -107,7 +120,12 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
     // Every pin plus every hotspot corner.
     const points = [
       ...pins.data.map((p) => [p.longitude, p.latitude] as const),
-      ...hotspots.data.flatMap((h) => toMapboxFeature(h.geoJson as Parameters<typeof toMapboxFeature>[0])?.geometry.coordinates[0]?.map(([lng, lat]) => [lng!, lat!] as const) ?? []),
+      ...hotspots.data.flatMap(
+        (h) =>
+          toMapboxFeature(
+            h.geoJson as Parameters<typeof toMapboxFeature>[0],
+          )?.geometry.coordinates[0]?.map(([lng, lat]) => [lng!, lat!] as const) ?? [],
+      ),
     ];
     if (points.length) {
       const lngs = points.map((p) => p[0]);
@@ -121,12 +139,17 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
       );
     } else {
       navigator.geolocation?.getCurrentPosition((pos) =>
-        map.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12, duration: 800 }),
+        map.current?.flyTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          zoom: 12,
+          duration: 800,
+        }),
       );
     }
   }, [pins.data, hotspots.data, search]);
 
-  const flyTo = (c: { lat: number; lng: number }, zoom = 15) => map.current?.flyTo({ center: [c.lng, c.lat], zoom, duration: 700 });
+  const flyTo = (c: { lat: number; lng: number }, zoom = 15) =>
+    map.current?.flyTo({ center: [c.lng, c.lat], zoom, duration: 700 });
 
   const onMapClick = (lat: number, lng: number) => {
     if (drawing) return;
@@ -157,14 +180,21 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
           // A click on a hotspot area opens that hotspot (HotspotLayer handles
           // it) — it must not also start a new pin underneath.
           const m = map.current;
-          if (!drawing && m?.getLayer("hotspot-fill") && m.queryRenderedFeatures(e.point, { layers: ["hotspot-fill"] }).length) return;
+          if (
+            !drawing &&
+            m?.getLayer("hotspot-fill") &&
+            m.queryRenderedFeatures(e.point, { layers: ["hotspot-fill"] }).length
+          )
+            return;
           onMapClick(e.lngLat.lat, e.lngLat.lng);
         }}
         onMoveEnd={refreshInView}
         onLoad={refreshInView}
         cursor={drawing ? "crosshair" : isPinCopied || isPinCut ? "copy" : "pointer"}
       >
-        {hotspots.data && <HotspotLayer hotspots={hotspots.data} onSelect={drawing ? undefined : setHotspotId} />}
+        {hotspots.data && (
+          <HotspotLayer hotspots={hotspots.data} onSelect={drawing ? undefined : setHotspotId} />
+        )}
         {!drawing &&
           myPins.map((pin) => {
             const g = pin.locationGroup;
@@ -193,14 +223,19 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
             );
           })}
         {!drawing && <AgentMapLayer />}
-        {drawing && <DrawTool initialShape={drawShape} onDone={onDrawn} onCancel={() => setDrawing(false)} />}
+        {drawing && (
+          <DrawTool initialShape={drawShape} onDone={onDrawn} onCancel={() => setDrawing(false)} />
+        )}
       </BaseMap>
 
       {/* Toolbar */}
       {!drawing && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start gap-2 lg:inset-x-4 lg:top-4">
-          <PlaceSearch className="pointer-events-auto w-full sm:w-80" onSelect={(p) => flyTo(p, 14)} />
-          <div className="pointer-events-auto flex h-10 items-center gap-2 rounded-lg border bg-card px-3 shadow-sm">
+          <PlaceSearch
+            className="pointer-events-auto w-full sm:w-80"
+            onSelect={(p) => flyTo(p, 14)}
+          />
+          <div className="bg-card pointer-events-auto flex h-10 items-center gap-2 rounded-lg border px-3 shadow-sm">
             <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
             <Label htmlFor="show-expired" className="text-xs font-medium">
               Show expired
@@ -211,7 +246,10 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
             <Button variant="outline" className="shadow-sm" onClick={() => setDrawing(true)}>
               <Hexagon /> <span className="hidden sm:inline">Draw hotspot</span>
             </Button>
-            <Button className="hidden shadow-sm sm:inline-flex" onClick={() => router.push("/pins/new")}>
+            <Button
+              className="hidden shadow-sm sm:inline-flex"
+              onClick={() => router.push("/pins/new")}
+            >
               <Plus /> New pin
             </Button>
           </div>
@@ -220,17 +258,26 @@ export default function MapView({ toolbarEnd }: { toolbarEnd?: ReactNode }) {
 
       {/* Paste mode banner */}
       {(isPinCopied || isPinCut) && !drawing && (
-        <div className="absolute left-1/2 top-28 z-10 -translate-x-1/2 rounded-full bg-primary px-4 py-1.5 font-hud text-xs font-semibold text-primary-foreground shadow-lg sm:top-20">
+        <div className="bg-primary font-hud text-primary-foreground absolute top-28 left-1/2 z-10 -translate-x-1/2 rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg sm:top-20">
           Click the map to {isPinCut ? "move" : "paste"} the pin
         </div>
       )}
 
-      {!drawing && <NearbyLocationsPanel className="absolute right-4 top-20 z-10" onSelectPlace={(c) => flyTo(c)} />}
+      {!drawing && (
+        <NearbyLocationsPanel
+          className="absolute top-20 right-4 z-10"
+          onSelectPlace={(c) => flyTo(c)}
+        />
+      )}
       {!drawing && <PinLegend className="absolute bottom-8 left-14 z-10 hidden sm:block" />}
 
       <PinDetailAndActionsModal />
       <CopyCutPinModal />
-      <HotspotDetailModal isOpen={Boolean(hotspotId)} setIsOpen={(o: boolean) => !o && setHotspotId(null)} hotspotId={hotspotId} />
+      <HotspotDetailModal
+        isOpen={Boolean(hotspotId)}
+        setIsOpen={(o: boolean) => !o && setHotspotId(null)}
+        hotspotId={hotspotId}
+      />
       <AgentChat />
     </div>
   );

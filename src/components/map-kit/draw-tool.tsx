@@ -9,7 +9,16 @@ import { Button } from "~/components/shadcn/ui/button";
 import { cn } from "~/lib/utils";
 
 import { PlaceSearch } from "./place-search";
-import { circleFeature, haversineMetres, polygonFeature, rectangleFeature, toMapboxFeature, type DrawShape, type LatLng, type StoredFeature } from "./geo";
+import {
+  circleFeature,
+  haversineMetres,
+  polygonFeature,
+  rectangleFeature,
+  toMapboxFeature,
+  type DrawShape,
+  type LatLng,
+  type StoredFeature,
+} from "./geo";
 
 /** Smaller than this is almost certainly a mis-click, not a hotspot. */
 const MIN_SPAN_M = 10;
@@ -26,7 +35,12 @@ function span(points: LatLng[]) {
   return max;
 }
 
-const SHAPES: { id: DrawShape; label: string; icon: typeof Hexagon; hint: [string, string] }[] = [
+const SHAPES: {
+  id: DrawShape;
+  label: string;
+  icon: typeof Hexagon;
+  hint: [string, string];
+}[] = [
   {
     id: "polygon",
     label: "Polygon",
@@ -87,14 +101,19 @@ export function DrawTool({
   const doneRef = useRef(onDone);
 
   const feature = useMemo<StoredFeature | null>(() => {
-    const pts = hover && ((shape === "polygon" && points.length >= 1) || (shape !== "polygon" && points.length === 1)) ? [...points, hover] : points;
+    const pts =
+      hover &&
+      ((shape === "polygon" && points.length >= 1) || (shape !== "polygon" && points.length === 1))
+        ? [...points, hover]
+        : points;
     if (shape === "polygon" && pts.length >= 3) return polygonFeature(pts);
     if (shape === "rectangle" && pts.length >= 2) return rectangleFeature(pts[0]!, pts[1]!);
     if (shape === "circle" && pts.length >= 2) return circleFeature(pts[0]!, pts[pts.length - 1]!);
     return null;
   }, [points, hover, shape]);
 
-  const enough = (shape === "polygon" && points.length >= 3) || (shape !== "polygon" && points.length >= 2);
+  const enough =
+    (shape === "polygon" && points.length >= 3) || (shape !== "polygon" && points.length >= 2);
   const extent = enough ? span(points) : 0;
   const tooSmall = enough && extent < MIN_SPAN_M;
   const large = extent > warnAboveMetres;
@@ -102,7 +121,12 @@ export function DrawTool({
 
   const finish = () => {
     if (!complete) return;
-    const f = shape === "polygon" ? polygonFeature(points) : shape === "rectangle" ? rectangleFeature(points[0]!, points[1]!) : circleFeature(points[0]!, points[1]!);
+    const f =
+      shape === "polygon"
+        ? polygonFeature(points)
+        : shape === "rectangle"
+          ? rectangleFeature(points[0]!, points[1]!)
+          : circleFeature(points[0]!, points[1]!);
     onDone(f, shape);
   };
   const finishRef = useRef(finish);
@@ -164,7 +188,7 @@ export function DrawTool({
           pointsRef.current.length === 0
             ? "Zoomed in to drawing level — click now to start drawing"
             : "Zoomed in to drawing level — click to continue placing corners",
-          { icon: "🔍", id: "draw-zoom-in" }
+          { icon: "🔍", id: "draw-zoom-in" },
         );
         return;
       }
@@ -253,12 +277,33 @@ export function DrawTool({
     <>
       {drawn && (
         <Source id="draw-shape" type="geojson" data={drawn}>
-          <Layer id="draw-fill" type="fill" paint={{ "fill-color": "#22c55e", "fill-opacity": 0.18 }} />
-          <Layer id="draw-line" type="line" paint={{ "line-color": "#16a34a", "line-width": 2, "line-dasharray": [2, 1] }} />
+          <Layer
+            id="draw-fill"
+            type="fill"
+            paint={{ "fill-color": "#22c55e", "fill-opacity": 0.18 }}
+          />
+          <Layer
+            id="draw-line"
+            type="line"
+            paint={{
+              "line-color": "#16a34a",
+              "line-width": 2,
+              "line-dasharray": [2, 1],
+            }}
+          />
         </Source>
       )}
       <Source id="draw-points" type="geojson" data={vertices}>
-        <Layer id="draw-vertex" type="circle" paint={{ "circle-radius": 5, "circle-color": "#ffffff", "circle-stroke-color": "#16a34a", "circle-stroke-width": 2 }} />
+        <Layer
+          id="draw-vertex"
+          type="circle"
+          paint={{
+            "circle-radius": 5,
+            "circle-color": "#ffffff",
+            "circle-stroke-color": "#16a34a",
+            "circle-stroke-width": 2,
+          }}
+        />
       </Source>
 
       {/* Start vertex finish target: visible when polygon has at least 3 points */}
@@ -274,31 +319,35 @@ export function DrawTool({
         >
           <div className="group relative flex cursor-pointer items-center justify-center">
             {/* Animated glowing beacon */}
-            <span className="absolute -inset-2.5 animate-ping rounded-full bg-success/40" />
+            <span className="bg-success/40 absolute -inset-2.5 animate-ping rounded-full" />
 
             {/* Target button */}
             <button
               type="button"
-              className="relative flex size-7 items-center justify-center rounded-full border-2 border-white bg-success text-white shadow-xl transition-transform hover:scale-125 focus:outline-hidden"
+              className="bg-success relative flex size-7 items-center justify-center rounded-full border-2 border-white text-white shadow-xl transition-transform hover:scale-125 focus:outline-hidden"
               title="Click here to complete area"
             >
               <Check className="size-4 stroke-[3]" />
             </button>
 
             {/* Floating prompt badge */}
-            <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-success px-2 py-0.5 font-hud text-[11px] font-semibold text-white shadow-lg animate-bounce">
+            <div className="bg-success font-hud pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 animate-bounce rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white shadow-lg">
               Click to finish
-              <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-success" />
+              <div className="border-t-success absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent" />
             </div>
           </div>
         </Marker>
       )}
 
       {/* Top Floating Controls */}
-      <div className="absolute left-1/2 top-3 z-20 w-[min(92%,440px)] -translate-x-1/2 rounded-xl border bg-card/95 p-3 shadow-lg backdrop-blur-sm">
+      <div className="bg-card/95 border-foreground/10 absolute top-3 left-1/2 z-20 w-[min(92%,440px)] -translate-x-1/2 rounded-[1.4rem] border-2 p-3 shadow-lg">
         <div className="flex items-center gap-2">
           <p className="font-hud text-sm font-semibold">{title}</p>
-          <div className="ml-auto flex gap-1 rounded-lg bg-surface-2 p-0.5" role="radiogroup" aria-label="Shape">
+          <div
+            className="bg-surface-2 ml-auto flex gap-1 rounded-lg p-0.5"
+            role="radiogroup"
+            aria-label="Shape"
+          >
             {SHAPES.map((s) => (
               <button
                 key={s.id}
@@ -309,7 +358,10 @@ export function DrawTool({
                   setShape(s.id);
                   setPoints([]);
                 }}
-                className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium", shape === s.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+                className={cn(
+                  "flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium",
+                  shape === s.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
+                )}
                 title={s.label}
               >
                 <s.icon className="size-3.5" />
@@ -323,27 +375,38 @@ export function DrawTool({
           <PlaceSearch
             className="mt-3"
             placeholder="Jump to a place"
-            onSelect={(p) => map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(minZoom ? 15 : 9, map.getZoom()), duration: 700 })}
+            onSelect={(p) =>
+              map?.flyTo({
+                center: [p.lng, p.lat],
+                zoom: Math.max(minZoom ? 15 : 9, map.getZoom()),
+                duration: 700,
+              })
+            }
           />
         )}
 
         {tooFar ? (
-          <div className="mt-3 flex items-center justify-between gap-2.5 rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-xs text-warning">
+          <div className="border-warning/30 bg-warning/10 text-warning mt-3 flex items-center justify-between gap-2.5 rounded-lg border p-2.5 text-xs">
             <div className="flex items-center gap-2">
-              <ZoomIn className="size-4 shrink-0 text-warning" />
+              <ZoomIn className="text-warning size-4 shrink-0" />
               <span>
-                Map is zoomed out. Click anywhere on the map or click <strong>Zoom In</strong> to start drawing.
+                Map is zoomed out. Click anywhere on the map or click <strong>Zoom In</strong> to
+                start drawing.
               </span>
             </div>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 shrink-0 border-warning/30 bg-card text-xs hover:bg-warning/15"
+              className="border-warning/30 bg-card hover:bg-warning/15 h-7 shrink-0 text-xs"
               onClick={() => {
                 const target = points[0] ?? map?.getCenter();
                 if (target) {
-                  map?.flyTo({ center: [target.lng, target.lat], zoom: 14, duration: 600 });
+                  map?.flyTo({
+                    center: [target.lng, target.lat],
+                    zoom: 14,
+                    duration: 600,
+                  });
                 }
               }}
             >
@@ -352,7 +415,12 @@ export function DrawTool({
             </Button>
           </div>
         ) : (
-          <p className={cn("mt-2 text-xs", tooSmall ? "text-destructive" : large ? "text-warning" : "text-muted-foreground")}>
+          <p
+            className={cn(
+              "mt-2 text-xs",
+              tooSmall ? "text-destructive" : large ? "text-warning" : "text-muted-foreground",
+            )}
+          >
             {tooSmall
               ? `That's under ${MIN_SPAN_M} m across — make the area bigger.`
               : large
@@ -361,7 +429,7 @@ export function DrawTool({
           </p>
         )}
 
-        <p className="mt-1 hidden text-[11px] text-faint sm:block">
+        <p className="text-faint mt-1 hidden text-[11px] sm:block">
           Click start point or Finish to close · Esc cancel · Backspace undo
         </p>
 
@@ -369,7 +437,13 @@ export function DrawTool({
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
             <X className="size-4" /> Cancel
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled={!points.length} onClick={() => setPoints((p) => p.slice(0, -1))}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!points.length}
+            onClick={() => setPoints((p) => p.slice(0, -1))}
+          >
             <Undo2 className="size-4" /> Undo
           </Button>
           <Button
@@ -377,7 +451,7 @@ export function DrawTool({
             size="sm"
             className={cn(
               "ml-auto transition-all",
-              complete && "bg-success hover:bg-success text-white shadow-md ring-2 ring-success/50"
+              complete && "bg-success hover:bg-success ring-success/50 text-white shadow-md ring-2",
             )}
             disabled={!complete}
             onClick={finish}
@@ -389,8 +463,8 @@ export function DrawTool({
 
       {/* Floating zoom hint pill when zoomed too far out */}
       {tooFar && (
-        <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 rounded-full border border-warning/30 bg-card/95 px-4 py-2 text-xs font-medium text-warning shadow-xl backdrop-blur-md animate-pulse">
-          <ZoomIn className="size-4 text-warning" />
+        <div className="border-warning/30 bg-card/95 text-warning pointer-events-none absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 animate-pulse items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium shadow-xl">
+          <ZoomIn className="text-warning size-4" />
           <span>Click anywhere on the map to zoom in &amp; start drawing</span>
         </div>
       )}

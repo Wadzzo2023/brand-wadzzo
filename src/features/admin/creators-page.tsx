@@ -1,12 +1,29 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Ban, Check, Clock, Coins, ExternalLink, RefreshCw, Trash2, UserCheck, UserX, Users } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Clock,
+  Coins,
+  ExternalLink,
+  RefreshCw,
+  Trash2,
+  UserCheck,
+  UserX,
+  Users,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/shadcn/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/shadcn/ui/select";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { usePortalAccess } from "~/components/shell/use-portal-access";
 import { PlatformFilter } from "~/features/admin/platform-filter";
@@ -28,14 +45,17 @@ type Status = "all" | "pending" | "approved" | "banned";
 type Sort = "newest" | "oldest" | "name";
 type Pending = { creator: Creator; action: "ban" | "unban" | "delete" };
 
-const statusOf = (c: Creator): Exclude<Status, "all"> => (c.approved === true ? "approved" : c.approved === false ? "banned" : "pending");
+const statusOf = (c: Creator): Exclude<Status, "all"> =>
+  c.approved === true ? "approved" : c.approved === false ? "banned" : "pending";
 const needsIssue = (c: Creator) => c.approved === true && c.pageAsset?.issuer === BLANK_KEYWORD;
 
 /** Admin › Creators: the approval queue, then every brand with its access. */
 export default function CreatorsPage() {
   const { isSuperAdmin } = usePortalAccess();
   const [platformId, setPlatformId] = useState<string>();
-  const creators = api.admin.creator.getCreators.useQuery(platformId ? { platformId } : undefined, { refetchOnWindowFocus: false });
+  const creators = api.admin.creator.getCreators.useQuery(platformId ? { platformId } : undefined, {
+    refetchOnWindowFocus: false,
+  });
   const [status, setStatus] = useState<Status>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
@@ -57,9 +77,18 @@ export default function CreatorsPage() {
     if (!creators.data) return undefined;
     return creators.data
       .filter((c) => status === "all" || statusOf(c) === status)
-      .filter((c) => !query || c.name.toLowerCase().includes(query) || c.id.toLowerCase().includes(query) || Boolean(c.vanityURL?.toLowerCase().includes(query)))
+      .filter(
+        (c) =>
+          !query ||
+          c.name.toLowerCase().includes(query) ||
+          c.id.toLowerCase().includes(query) ||
+          Boolean(c.vanityURL?.toLowerCase().includes(query)),
+      )
       .sort((a, b) =>
-        sort === "name" ? a.name.localeCompare(b.name) : (sort === "oldest" ? 1 : -1) * (new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()),
+        sort === "name"
+          ? a.name.localeCompare(b.name)
+          : (sort === "oldest" ? 1 : -1) *
+            (new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()),
       );
   }, [creators.data, status, query, sort]);
 
@@ -68,10 +97,23 @@ export default function CreatorsPage() {
       id: "brand",
       header: "Brand",
       skeleton: "person",
-      cell: (c) => <Person name={c.name} image={c.profileUrl} sub={<span className="font-mono">{addrShort(c.id, 6)}</span>} />,
+      cell: (c) => (
+        <Person
+          name={c.name}
+          image={c.profileUrl}
+          sub={<span className="font-mono">{addrShort(c.id, 6)}</span>}
+        />
+      ),
     },
     ...(isSuperAdmin
-      ? [{ id: "platform", header: "Platform", skeleton: "short", cell: (c) => <StatusPill tone="info">{c.platform.name}</StatusPill> } satisfies Column<Creator>]
+      ? [
+          {
+            id: "platform",
+            header: "Platform",
+            skeleton: "short",
+            cell: (c) => <StatusPill tone="info">{c.platform.name}</StatusPill>,
+          } satisfies Column<Creator>,
+        ]
       : []),
     {
       id: "status",
@@ -87,11 +129,14 @@ export default function CreatorsPage() {
         c.pageAsset ? (
           <span className="flex items-center gap-1.5">
             <span className="font-mono text-xs font-semibold">{c.pageAsset.code}</span>
-            {c.pageAsset.issuer === BLANK_KEYWORD && <StatusPill tone="warning">Not issued</StatusPill>}
+            {c.pageAsset.issuer === BLANK_KEYWORD && (
+              <StatusPill tone="warning">Not issued</StatusPill>
+            )}
           </span>
         ) : c.customPageAssetCodeIssuer ? (
           <span className="font-mono text-xs font-semibold">
-            {c.customPageAssetCodeIssuer.split("-")[0]} <span className="font-sans font-normal text-muted-foreground">(own)</span>
+            {c.customPageAssetCodeIssuer.split("-")[0]}{" "}
+            <span className="text-muted-foreground font-sans font-normal">(own)</span>
           </span>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -102,9 +147,11 @@ export default function CreatorsPage() {
       header: "Activity",
       skeleton: "text",
       cell: (c) => (
-        <span className="whitespace-nowrap text-muted-foreground">
-          <b className="font-semibold tabular-nums text-foreground">{c._count.LocationGroup}</b> {c._count.LocationGroup === 1 ? "pin" : "pins"} ·{" "}
-          <b className="font-semibold tabular-nums text-foreground">{c._count.followers}</b> {c._count.followers === 1 ? "follower" : "followers"}
+        <span className="text-muted-foreground whitespace-nowrap">
+          <b className="text-foreground font-semibold tabular-nums">{c._count.LocationGroup}</b>{" "}
+          {c._count.LocationGroup === 1 ? "pin" : "pins"} ·{" "}
+          <b className="text-foreground font-semibold tabular-nums">{c._count.followers}</b>{" "}
+          {c._count.followers === 1 ? "follower" : "followers"}
         </span>
       ),
     },
@@ -119,7 +166,10 @@ export default function CreatorsPage() {
       header: "Joined",
       skeleton: "short",
       cell: (c) => (
-        <span className="whitespace-nowrap text-muted-foreground" title={new Date(c.joinedAt).toLocaleString()}>
+        <span
+          className="text-muted-foreground whitespace-nowrap"
+          title={new Date(c.joinedAt).toLocaleString()}
+        >
           {formatDistanceToNow(new Date(c.joinedAt), { addSuffix: true })}
         </span>
       ),
@@ -128,12 +178,47 @@ export default function CreatorsPage() {
 
   const actions = (c: Creator): RowAction[] => {
     const s = statusOf(c);
-    const list: RowAction[] = [{ label: "View details", icon: ExternalLink, href: `/admin/creators/${c.id}` }];
-    if (s === "pending") list.push({ label: "Approve", icon: Check, onSelect: () => act.approve(c) });
-    if (needsIssue(c)) list.push({ label: "Issue page asset", icon: Coins, onSelect: () => act.approve(c) });
-    if (s === "approved") list.push({ label: "Ban", icon: Ban, destructive: true, separator: true, onSelect: () => setConfirm({ creator: c, action: "ban" }) });
-    if (s === "banned") list.push({ label: "Unban", icon: UserCheck, separator: true, onSelect: () => setConfirm({ creator: c, action: "unban" }) });
-    list.push({ label: "Delete", icon: Trash2, destructive: true, separator: s === "pending", onSelect: () => setConfirm({ creator: c, action: "delete" }) });
+    const list: RowAction[] = [
+      {
+        label: "View details",
+        icon: ExternalLink,
+        href: `/admin/creators/${c.id}`,
+      },
+    ];
+    if (s === "pending")
+      list.push({
+        label: "Approve",
+        icon: Check,
+        onSelect: () => act.approve(c),
+      });
+    if (needsIssue(c))
+      list.push({
+        label: "Issue page asset",
+        icon: Coins,
+        onSelect: () => act.approve(c),
+      });
+    if (s === "approved")
+      list.push({
+        label: "Ban",
+        icon: Ban,
+        destructive: true,
+        separator: true,
+        onSelect: () => setConfirm({ creator: c, action: "ban" }),
+      });
+    if (s === "banned")
+      list.push({
+        label: "Unban",
+        icon: UserCheck,
+        separator: true,
+        onSelect: () => setConfirm({ creator: c, action: "unban" }),
+      });
+    list.push({
+      label: "Delete",
+      icon: Trash2,
+      destructive: true,
+      separator: s === "pending",
+      onSelect: () => setConfirm({ creator: c, action: "delete" }),
+    });
     return list;
   };
 
@@ -144,7 +229,11 @@ export default function CreatorsPage() {
         title="Creators"
         description="Approve new brands, give them full access, and manage existing ones."
         actions={
-          <Button variant="outline" onClick={() => void creators.refetch()} disabled={creators.isFetching}>
+          <Button
+            variant="outline"
+            onClick={() => void creators.refetch()}
+            disabled={creators.isFetching}
+          >
             <RefreshCw className={creators.isFetching ? "animate-spin" : undefined} /> Refresh
           </Button>
         }
@@ -156,10 +245,29 @@ export default function CreatorsPage() {
           value={status}
           onChange={setStatus}
           options={[
-            { value: "all", label: "All", count: creators.data ? counts.all : undefined },
-            { value: "pending", label: "Pending", icon: Clock, count: creators.data ? counts.pending : undefined },
-            { value: "approved", label: "Approved", icon: UserCheck, count: creators.data ? counts.approved : undefined },
-            { value: "banned", label: "Banned", icon: UserX, count: creators.data ? counts.banned : undefined },
+            {
+              value: "all",
+              label: "All",
+              count: creators.data ? counts.all : undefined,
+            },
+            {
+              value: "pending",
+              label: "Pending",
+              icon: Clock,
+              count: creators.data ? counts.pending : undefined,
+            },
+            {
+              value: "approved",
+              label: "Approved",
+              icon: UserCheck,
+              count: creators.data ? counts.approved : undefined,
+            },
+            {
+              value: "banned",
+              label: "Banned",
+              icon: UserX,
+              count: creators.data ? counts.banned : undefined,
+            },
           ]}
         />
         <div className="flex gap-2 sm:ml-auto">
@@ -191,8 +299,16 @@ export default function CreatorsPage() {
         actions={actions}
         empty={{
           icon: Users,
-          title: query ? "No creators match" : status === "pending" ? "Nothing waiting for approval" : "No creators here",
-          description: query ? "Try another name or wallet." : status === "pending" ? "New brand requests show up here." : undefined,
+          title: query
+            ? "No creators match"
+            : status === "pending"
+              ? "Nothing waiting for approval"
+              : "No creators here",
+          description: query
+            ? "Try another name or wallet."
+            : status === "pending"
+              ? "New brand requests show up here."
+              : undefined,
         }}
       />
 
@@ -213,7 +329,9 @@ export default function CreatorsPage() {
               ? "They lose access to the portal and their drops stop showing to fans. You can unban them later."
               : "They get their portal access back."
         }
-        confirmLabel={confirm?.action === "delete" ? "Delete" : confirm?.action === "ban" ? "Ban" : "Unban"}
+        confirmLabel={
+          confirm?.action === "delete" ? "Delete" : confirm?.action === "ban" ? "Ban" : "Unban"
+        }
         destructive={confirm?.action !== "unban"}
         busy={act.busy}
         onConfirm={() => {
@@ -228,7 +346,15 @@ export default function CreatorsPage() {
 }
 
 /** Status, with the one action that matters inline: Approve / Issue. */
-function CreatorStatus({ creator: c, onApprove, busy }: { creator: Creator; onApprove: (c: Creator) => void; busy: boolean }) {
+function CreatorStatus({
+  creator: c,
+  onApprove,
+  busy,
+}: {
+  creator: Creator;
+  onApprove: (c: Creator) => void;
+  busy: boolean;
+}) {
   const s = statusOf(c);
   return (
     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -246,7 +372,12 @@ function CreatorStatus({ creator: c, onApprove, busy }: { creator: Creator; onAp
         </StatusPill>
       )}
       {(s === "pending" || needsIssue(c)) && (
-        <Button size="sm" className="h-7 px-2.5 text-xs" disabled={busy} onClick={() => onApprove(c)}>
+        <Button
+          size="sm"
+          className="h-7 px-2.5 text-xs"
+          disabled={busy}
+          onClick={() => onApprove(c)}
+        >
           {s === "pending" ? "Approve" : "Issue asset"}
         </Button>
       )}
@@ -259,13 +390,19 @@ function NavPermissionToggle({ creator: c }: { creator: Creator }) {
   const on = (c.extraFields as CreatorExtraFields | null)?.navPermission ?? false;
   const update = api.admin.creator.updateNavPermission.useMutation({
     onSuccess: (_, v) => {
-      toast.success(v.navPermission ? `${c.name} now has full access` : `${c.name} is back to drops only`);
+      toast.success(
+        v.navPermission ? `${c.name} now has full access` : `${c.name} is back to drops only`,
+      );
       void utils.admin.creator.getCreators.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
   return (
-    <div onClick={(e) => e.stopPropagation()} className="flex items-center" title="Posts, bounties, stores, gifts and membership">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-center"
+      title="Posts, bounties, stores, gifts and membership"
+    >
       <Switch
         checked={update.isPending ? Boolean(update.variables?.navPermission) : on}
         disabled={update.isPending || c.approved !== true}

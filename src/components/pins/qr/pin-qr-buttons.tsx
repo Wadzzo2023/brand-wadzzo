@@ -101,9 +101,18 @@ export function PinQRDownloadAllButton({
  * keeps it because the menu is where you *discover* the print half of the pair.
  */
 export function pinQRBulkActions(
-  { downloadAll, printAll, isPending }: Pick<ReturnType<typeof useDropQRs>, "downloadAll" | "printAll" | "isPending">,
+  {
+    downloadAll,
+    printAll,
+    isPending,
+  }: Pick<ReturnType<typeof useDropQRs>, "downloadAll" | "printAll" | "isPending">,
   count: number,
-): { label: string; icon: LucideIcon; disabled: boolean; onSelect: () => void }[] {
+): {
+  label: string;
+  icon: LucideIcon;
+  disabled: boolean;
+  onSelect: () => void;
+}[] {
   return [
     {
       // No count in the visible label: the row already says how many pins the
@@ -115,7 +124,14 @@ export function pinQRBulkActions(
       onSelect: () => void downloadAll(),
     },
     ...(count > 1
-      ? [{ label: "Print all QRs", icon: Printer, disabled: isPending, onSelect: () => void printAll() }]
+      ? [
+          {
+            label: "Print all QRs",
+            icon: Printer,
+            disabled: isPending,
+            onSelect: () => void printAll(),
+          },
+        ]
       : []),
   ];
 }

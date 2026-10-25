@@ -1,7 +1,16 @@
 "use client";
 
 import { format } from "date-fns";
-import { CheckCircle2, Coins, Copy, Hourglass, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Coins,
+  Copy,
+  Hourglass,
+  Pencil,
+  Plus,
+  Settings2,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -25,9 +34,16 @@ const platform = PLATFORM_ASSET.code.toUpperCase();
  * in storage, how much is listed), then each sale listing as a card.
  */
 export function PageAssetTab() {
-  const overview = api.fan.creator.profileOverview.useQuery(undefined, { refetchOnWindowFocus: false });
-  const balance = api.wallate.acc.getCreatorPageAssetBallances.useQuery(undefined, { refetchOnWindowFocus: false, retry: false });
-  const listings = api.fan.asset.getMyAssets.useQuery(undefined, { refetchOnWindowFocus: false });
+  const overview = api.fan.creator.profileOverview.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+  const balance = api.wallate.acc.getCreatorPageAssetBallances.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  const listings = api.fan.asset.getMyAssets.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   const [deleting, setDeleting] = useState<Listing | null>(null);
 
   const utils = api.useUtils();
@@ -41,7 +57,8 @@ export function PageAssetTab() {
   });
 
   if (overview.isPending) return <TabSkeleton />;
-  if (overview.isError) return <ErrorState message={overview.error.message} onRetry={() => void overview.refetch()} />;
+  if (overview.isError)
+    return <ErrorState message={overview.error.message} onRetry={() => void overview.refetch()} />;
 
   const pa = overview.data?.pageAsset;
   if (!pa)
@@ -68,12 +85,20 @@ export function PageAssetTab() {
   return (
     <>
       {/* Hero: the token itself, on its own artwork. */}
-      <section className="relative overflow-hidden rounded-2xl border bg-foreground text-white">
+      <section className="bg-foreground relative overflow-hidden rounded-2xl border text-white">
         {art && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={art} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-2xl" />
+          <img
+            src={art}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-2xl"
+          />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/30" aria-hidden />
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/30"
+          aria-hidden
+        />
         <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-7">
           <div className="size-24 shrink-0 overflow-hidden rounded-2xl border-2 border-white/30 bg-white/10 shadow-xl sm:size-28">
             {art ? (
@@ -86,27 +111,42 @@ export function PageAssetTab() {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold tracking-[0.12em] text-white/70 uppercase">Your page asset</p>
-            <h2 className="mt-1 font-hud text-3xl font-bold tracking-tight sm:text-4xl">{pa.code}</h2>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-white/70 uppercase">
+              Your page asset
+            </p>
+            <h2 className="font-hud mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+              {pa.code}
+            </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/80">
               {pa.pending ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning/90 px-2 py-0.5 font-medium text-black">
+                <span className="bg-warning/90 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-black">
                   <Hourglass className="size-3" /> Waiting for an admin to issue it
                 </span>
               ) : (
                 <button
                   type="button"
-                  onClick={() => void navigator.clipboard.writeText(pa.issuer).then(() => toast.success("Issuer copied"))}
+                  onClick={() =>
+                    void navigator.clipboard
+                      .writeText(pa.issuer)
+                      .then(() => toast.success("Issuer copied"))
+                  }
                   className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 font-mono hover:bg-white/25"
                 >
                   {addrShort(pa.issuer, 5)} <Copy className="size-3" />
                 </button>
               )}
-              {pa.custom && <span className="rounded-full bg-white/15 px-2 py-0.5">Your own Stellar asset</span>}
+              {pa.custom && (
+                <span className="rounded-full bg-white/15 px-2 py-0.5">Your own Stellar asset</span>
+              )}
             </div>
           </div>
           <dl className="grid grid-cols-3 gap-2 sm:w-auto sm:min-w-[360px]">
-            <HeroStat label="In storage" value={inStorage === undefined ? (balance.isError ? "—" : "…") : inStorage.toLocaleString()} />
+            <HeroStat
+              label="In storage"
+              value={
+                inStorage === undefined ? (balance.isError ? "—" : "…") : inStorage.toLocaleString()
+              }
+            />
             <HeroStat label="On sale" value={onSale.toLocaleString()} />
             <HeroStat label="Listings" value={(listings.data?.length ?? 0).toLocaleString()} />
           </dl>
@@ -115,7 +155,9 @@ export function PageAssetTab() {
 
       <div className="mt-8">
         <h2 className="font-hud text-lg font-semibold">Sale listings</h2>
-        <p className="text-sm text-muted-foreground">Bundles of {pa.code} fans can buy from your store.</p>
+        <p className="text-muted-foreground text-sm">
+          Bundles of {pa.code} fans can buy from your store.
+        </p>
       </div>
 
       {listings.isPending ? (
@@ -125,13 +167,21 @@ export function PageAssetTab() {
           ))}
         </div>
       ) : listings.isError ? (
-        <ErrorState className="mt-4" message={listings.error.message} onRetry={() => void listings.refetch()} />
+        <ErrorState
+          className="mt-4"
+          message={listings.error.message}
+          onRetry={() => void listings.refetch()}
+        />
       ) : !listings.data.length ? (
         <EmptyState
           className="mt-4"
           icon={Coins}
           title="Nothing on sale yet"
-          description={pa.pending ? "Once your page asset is issued you can put some of it on sale here." : `Put a bundle of ${pa.code} on sale — fans buy it with ${platform}, XLM or card.`}
+          description={
+            pa.pending
+              ? "Once your page asset is issued you can put some of it on sale here."
+              : `Put a bundle of ${pa.code} on sale — fans buy it with ${platform}, XLM or card.`
+          }
           action={
             !pa.pending && (
               <Button asChild>
@@ -167,49 +217,84 @@ export function PageAssetTab() {
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+    <div className="rounded-xl bg-white/10 px-3 py-2.5">
       <dt className="text-[10px] font-semibold tracking-wider text-white/70 uppercase">{label}</dt>
-      <dd className="mt-0.5 font-hud text-lg font-bold tabular-nums">{value}</dd>
+      <dd className="font-hud mt-0.5 text-lg font-bold tabular-nums">{value}</dd>
     </div>
   );
 }
 
-function ListingCard({ listing: l, code, art, onDelete }: { listing: Listing; code: string; art: string | null; onDelete: () => void }) {
+function ListingCard({
+  listing: l,
+  code,
+  art,
+  onDelete,
+}: {
+  listing: Listing;
+  code: string;
+  art: string | null;
+  onDelete: () => void;
+}) {
   return (
-    <article className={cn("flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md", l.isSold && "opacity-80")}>
+    <article
+      className={cn(
+        "bg-card border-foreground/10 flex h-full flex-col overflow-hidden rounded-[1.4rem] border-2 transition-shadow hover:shadow-md",
+        l.isSold && "opacity-80",
+      )}
+    >
       {/* Banner: the bundle size on the token's artwork. */}
-      <div className="relative h-32 overflow-hidden bg-foreground text-white">
+      <div className="bg-foreground relative h-32 overflow-hidden text-white">
         {art && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={art} alt="" aria-hidden className="absolute inset-0 size-full object-cover opacity-70" />
+          <img
+            src={art}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full object-cover opacity-70"
+          />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" aria-hidden />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent"
+          aria-hidden
+        />
         <div className="absolute top-3 right-3">
           {l.isSold ? (
             <StatusPill tone="success" icon={CheckCircle2} className="bg-success text-white">
               Sold
             </StatusPill>
           ) : (
-            <StatusPill tone="info" className="bg-white/90 text-foreground">
+            <StatusPill tone="info" className="text-foreground bg-white/90">
               On sale
             </StatusPill>
           )}
         </div>
-        <p className="absolute bottom-3 left-4 font-hud text-2xl font-bold tabular-nums">
-          {l.amountToSell.toLocaleString()} <span className="text-sm font-semibold text-white/80">{code}</span>
+        <p className="font-hud absolute bottom-3 left-4 text-2xl font-bold tabular-nums">
+          {l.amountToSell.toLocaleString()}{" "}
+          <span className="text-sm font-semibold text-white/80">{code}</span>
         </p>
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="truncate font-semibold">{l.title || `${l.amountToSell.toLocaleString()} ${code}`}</h3>
-        {l.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{l.description}</p>}
-        <dl className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-muted/60 p-2.5 text-center">
+        <h3 className="truncate font-semibold">
+          {l.title || `${l.amountToSell.toLocaleString()} ${code}`}
+        </h3>
+        {l.description && (
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">{l.description}</p>
+        )}
+        <dl className="bg-muted/60 mt-3 grid grid-cols-3 gap-2 rounded-lg p-2.5 text-center">
           <Price label={platform} value={l.price} />
           <Price label="USD" value={l.priceUSD} prefix="$" />
           <Price label="XLM" value={l.priceXLM} />
         </dl>
-        <p className="mt-3 text-xs text-muted-foreground">Listed {format(new Date(l.placedAt), "MMM d, yyyy")}</p>
+        <p className="text-muted-foreground mt-3 text-xs">
+          Listed {format(new Date(l.placedAt), "MMM d, yyyy")}
+        </p>
         <div className="mt-auto flex justify-end gap-1 pt-3">
-          <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onDelete}
+          >
             <Trash2 /> Remove
           </Button>
           {!l.isSold && (
@@ -228,8 +313,12 @@ function ListingCard({ listing: l, code, art, onDelete }: { listing: Listing; co
 function Price({ label, value, prefix = "" }: { label: string; value: number; prefix?: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">{label}</dt>
-      <dd className="truncate text-sm font-semibold tabular-nums">{value ? `${prefix}${value.toLocaleString()}` : "—"}</dd>
+      <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+        {label}
+      </dt>
+      <dd className="truncate text-sm font-semibold tabular-nums">
+        {value ? `${prefix}${value.toLocaleString()}` : "—"}
+      </dd>
     </div>
   );
 }

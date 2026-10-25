@@ -117,7 +117,11 @@ function Panel({ target }: { target: PinQRTarget }) {
     },
   );
 
-  const { downloadAll, printAll, isPending: bulkPending } = useDropQRs({
+  const {
+    downloadAll,
+    printAll,
+    isPending: bulkPending,
+  } = useDropQRs({
     locationGroupId: target.locationGroupId,
     format,
   });
@@ -176,7 +180,7 @@ function Panel({ target }: { target: PinQRTarget }) {
     <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-lg">
       <DialogHeader className="gap-1 px-5 pt-5 pb-0">
         <DialogTitle className="font-hud flex items-center gap-2">
-          <QrCode className="size-4 text-primary" />
+          <QrCode className="text-primary size-4" />
           Print QR code
         </DialogTitle>
         <DialogDescription className="text-xs">
@@ -187,11 +191,11 @@ function Panel({ target }: { target: PinQRTarget }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-5">
         {/* ── The code ──────────────────────────────────────────────────── */}
-        <div className="flex justify-center rounded-xl border bg-muted/30 p-5">
+        <div className="bg-muted/30 flex justify-center rounded-xl border p-5">
           {single.isError ? (
             <div className="flex size-[184px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 text-center">
-              <QrCode className="size-6 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">{single.error.message}</p>
+              <QrCode className="text-muted-foreground size-6" />
+              <p className="text-muted-foreground text-xs">{single.error.message}</p>
             </div>
           ) : !previewSrc ? (
             <Skeleton className="size-[184px] rounded-lg" />
@@ -213,7 +217,7 @@ function Panel({ target }: { target: PinQRTarget }) {
         </div>
 
         {single.data?.isMultiPin && single.data.pinNumber && (
-          <p className="mt-2.5 text-center text-xs tabular-nums text-muted-foreground">
+          <p className="text-muted-foreground mt-2.5 text-center text-xs tabular-nums">
             Pin {single.data.pinNumber} of {single.data.pinCount} in this drop
           </p>
         )}
@@ -222,7 +226,7 @@ function Panel({ target }: { target: PinQRTarget }) {
             expensive mistake here, so the state that would waste one should be
             read before the code, not after. */}
         {single.data?.collectableReason && (
-          <p className="mt-2.5 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <p className="border-warning/40 bg-warning/10 text-warning mt-2.5 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs">
             <TriangleAlert className="mt-px size-4 shrink-0" />
             <span>
               {single.data.collectableReason} You can still print now — the code starts working the
@@ -238,16 +242,16 @@ function Panel({ target }: { target: PinQRTarget }) {
           <button
             type="button"
             onClick={() => void copyUrl()}
-            className="mt-3 flex w-full items-center gap-2 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-accent"
+            className="bg-card hover:bg-accent mt-3 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors"
           >
-            <ScanLine className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+            <ScanLine className="text-muted-foreground size-4 shrink-0" />
+            <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[11px]">
               {single.data.scanUrl}
             </span>
             {copied ? (
-              <Check className="size-4 shrink-0 text-primary" />
+              <Check className="text-primary size-4 shrink-0" />
             ) : (
-              <Copy className="size-4 shrink-0 text-muted-foreground" />
+              <Copy className="text-muted-foreground size-4 shrink-0" />
             )}
             <span className="sr-only">Copy link</span>
           </button>
@@ -287,8 +291,8 @@ function Panel({ target }: { target: PinQRTarget }) {
             icon alone. */}
         {pinCount > 1 && (
           <div className="mt-5 border-t pt-4">
-            <p className="text-xs text-muted-foreground">
-              All {pinCount} pins in this drop — {format === "svg" ? "vector" : "raster"} codes,{" "}
+            <p className="text-muted-foreground text-xs">
+              All {pinCount} pins in this drop — {format === "svg" ? "vector" : "raster"} codes,
               three to a printed page.
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">

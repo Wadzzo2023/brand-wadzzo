@@ -29,9 +29,15 @@ export default function NotificationsPage() {
 
   const list = api.fan.notification.inbox.useInfiniteQuery(
     { scope: SCOPE, category, unreadOnly, limit: 20 },
-    { getNextPageParam: (last) => last.nextCursor ?? undefined, refetchOnWindowFocus: true },
+    {
+      getNextPageParam: (last) => last.nextCursor ?? undefined,
+      refetchOnWindowFocus: true,
+    },
   );
-  const counts = api.fan.notification.inboxUnreadByCategory.useQuery({ scope: SCOPE }, { refetchOnWindowFocus: true });
+  const counts = api.fan.notification.inboxUnreadByCategory.useQuery(
+    { scope: SCOPE },
+    { refetchOnWindowFocus: true },
+  );
   const { markAllRead, clearRead } = useInboxActions();
 
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
@@ -56,10 +62,20 @@ export default function NotificationsPage() {
         description="Sales, followers, bounties and drops around your brand."
         actions={
           <>
-            <Button variant="outline" size="sm" disabled={!totalUnread || markAllRead.isPending} onClick={() => markAllRead.mutate({ scope: SCOPE, category })}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!totalUnread || markAllRead.isPending}
+              onClick={() => markAllRead.mutate({ scope: SCOPE, category })}
+            >
               <CheckCheck className="size-4" /> Mark all read
             </Button>
-            <Button variant="ghost" size="sm" disabled={clearRead.isPending} onClick={() => clearRead.mutate({ scope: SCOPE })}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={clearRead.isPending}
+              onClick={() => clearRead.mutate({ scope: SCOPE })}
+            >
               <Trash2 className="size-4" /> Clear read
             </Button>
           </>
@@ -68,12 +84,23 @@ export default function NotificationsPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Category">
-          <Chip active={!category} onClick={() => setCategory(undefined)} label="All" count={totalUnread} />
+          <Chip
+            active={!category}
+            onClick={() => setCategory(undefined)}
+            label="All"
+            count={totalUnread}
+          />
           {CATEGORIES[SCOPE].map((c) => (
-            <Chip key={c.id} active={category === c.id} onClick={() => setCategory(c.id)} label={c.label} count={counts.data?.[c.id] ?? 0} />
+            <Chip
+              key={c.id}
+              active={category === c.id}
+              onClick={() => setCategory(c.id)}
+              label={c.label}
+              count={counts.data?.[c.id] ?? 0}
+            />
           ))}
         </div>
-        <div className="flex rounded-lg bg-muted p-0.5 text-sm" role="tablist" aria-label="Show">
+        <div className="bg-muted flex rounded-lg p-0.5 text-sm" role="tablist" aria-label="Show">
           {[
             { id: false, label: "All" },
             { id: true, label: "Unread" },
@@ -84,7 +111,12 @@ export default function NotificationsPage() {
               role="tab"
               aria-selected={unreadOnly === o.id}
               onClick={() => setUnreadOnly(o.id)}
-              className={cn("rounded-md px-3 py-1 font-medium transition-colors", unreadOnly === o.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+              className={cn(
+                "rounded-md px-3 py-1 font-medium transition-colors",
+                unreadOnly === o.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               {o.label}
             </button>
@@ -93,7 +125,7 @@ export default function NotificationsPage() {
       </div>
 
       {list.isPending ? (
-        <div className="space-y-2 rounded-xl border bg-card p-2">
+        <div className="bg-card border-foreground/10 space-y-2 rounded-[1.4rem] border-2 p-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
@@ -102,14 +134,20 @@ export default function NotificationsPage() {
         <EmptyState
           icon={Bell}
           title={unreadOnly ? "Nothing unread" : "No notifications yet"}
-          description={unreadOnly ? "You've read everything." : "When fans buy your items, follow your brand, join your bounties or collect your pins, you'll see it here."}
+          description={
+            unreadOnly
+              ? "You've read everything."
+              : "When fans buy your items, follow your brand, join your bounties or collect your pins, you'll see it here."
+          }
         />
       ) : (
         <div className="space-y-5">
           {sections.map((s) => (
             <section key={s.label} className="space-y-1.5">
-              <h2 className="px-1 font-hud text-[11px] font-semibold uppercase tracking-[0.18em] text-faint">{s.label}</h2>
-              <div className="divide-y rounded-xl border bg-card p-1">
+              <h2 className="font-hud text-faint px-1 text-[11px] font-semibold tracking-[0.18em] uppercase">
+                {s.label}
+              </h2>
+              <div className="bg-card border-foreground/10 divide-y rounded-[1.4rem] border-2 p-1">
                 {s.rows.map((i) => (
                   <NotificationRow key={i.ids[0]} item={i} />
                 ))}
@@ -118,7 +156,11 @@ export default function NotificationsPage() {
           ))}
           {list.hasNextPage && (
             <div className="flex justify-center">
-              <Button variant="outline" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+              <Button
+                variant="outline"
+                disabled={list.isFetchingNextPage}
+                onClick={() => void list.fetchNextPage()}
+              >
                 {list.isFetchingNextPage ? "Loading…" : "Load more"}
               </Button>
             </div>
@@ -129,7 +171,17 @@ export default function NotificationsPage() {
   );
 }
 
-function Chip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+function Chip({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
   return (
     <button
       type="button"
@@ -138,11 +190,17 @@ function Chip({ active, onClick, label, count }: { active: boolean; onClick: () 
       onClick={onClick}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-        active ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:border-line-bright hover:text-foreground",
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "text-muted-foreground hover:border-line-bright hover:text-foreground",
       )}
     >
       {label}
-      {count > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{count > 99 ? "99+" : count}</span>}
+      {count > 0 && (
+        <span className="bg-primary text-primary-foreground flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
     </button>
   );
 }

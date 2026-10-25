@@ -58,22 +58,31 @@ export default function MuralReviewPage() {
   const raw = params?.get("view") ?? "";
   const view: View = VIEWS.includes(raw as View) ? (raw as View) : "pending";
   const base = pathname ?? "/admin/murals";
-  const setView = (v: View) => router.replace(v === "pending" ? base : `${base}?view=${v}`, { scroll: false });
+  const setView = (v: View) =>
+    router.replace(v === "pending" ? base : `${base}?view=${v}`, {
+      scroll: false,
+    });
 
   const [search, setSearch] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [rejectIds, setRejectIds] = useState<string[] | null>(null);
 
-  const counts = api.admin.murals.counts.useQuery(undefined, { refetchOnWindowFocus: false });
+  const counts = api.admin.murals.counts.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   const list = api.admin.murals.list.useQuery(
-    { status: view === "settings" || view === "insights" ? "PENDING" : VIEW_STATUS[view] },
+    {
+      status: view === "settings" || view === "insights" ? "PENDING" : VIEW_STATUS[view],
+    },
     { enabled: LISTS.has(view), refetchOnWindowFocus: false },
   );
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const all = list.data?.murals ?? [];
-    return q ? all.filter((m) => m.title.toLowerCase().includes(q) || m.artist?.toLowerCase().includes(q)) : all;
+    return q
+      ? all.filter((m) => m.title.toLowerCase().includes(q) || m.artist?.toLowerCase().includes(q))
+      : all;
   }, [list.data, search]);
 
   // ── Decisions with undo ─────────────────────────────────────────────────
@@ -90,11 +99,11 @@ export default function MuralReviewPage() {
     toast(
       (t: Toast) => (
         <span className="flex items-center gap-3 text-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-success" />
+          <CheckCircle2 className="text-success size-4 shrink-0" />
           {message}
           <button
             type="button"
-            className="ml-1 rounded px-1.5 py-0.5 font-semibold text-primary hover:bg-primary/10"
+            className="text-primary hover:bg-primary/10 ml-1 rounded px-1.5 py-0.5 font-semibold"
             onClick={() => {
               toast.dismiss(t.id);
               undo().then(
@@ -113,20 +122,36 @@ export default function MuralReviewPage() {
   /** Where a mural goes back to when a decision is undone. */
   const previous = (id: string) => {
     const m = list.data?.murals.find((x) => x.id === id);
-    return m ? { status: m.status === "DISCOVERED" ? ("PENDING" as const) : m.status, reason: m.rejectReason ?? undefined } : null;
+    return m
+      ? {
+          status: m.status === "DISCOVERED" ? ("PENDING" as const) : m.status,
+          reason: m.rejectReason ?? undefined,
+        }
+      : null;
   };
 
-  const apply = (ids: string[], status: "PENDING" | "APPROVED" | "REJECTED", reason: "NOT_A_MURAL" | "FRAUD" | undefined, message: string) => {
+  const apply = (
+    ids: string[],
+    status: "PENDING" | "APPROVED" | "REJECTED",
+    reason: "NOT_A_MURAL" | "FRAUD" | undefined,
+    message: string,
+  ) => {
     const before = ids.map((id) => ({ id, prev: previous(id) }));
     if (previewId && ids.includes(previewId)) step(1, ids);
     decide.mutate(
       { ids, status, reason },
       {
         onSuccess: ({ revoked }) => {
-          const extra = revoked.coins > 0 ? ` · ${revoked.coins.toLocaleString()} coins taken back` : "";
+          const extra =
+            revoked.coins > 0 ? ` · ${revoked.coins.toLocaleString()} coins taken back` : "";
           undoable(message + extra, async () => {
             for (const b of before) {
-              if (b.prev) await decide.mutateAsync({ ids: [b.id], status: b.prev.status, reason: b.prev.reason });
+              if (b.prev)
+                await decide.mutateAsync({
+                  ids: [b.id],
+                  status: b.prev.status,
+                  reason: b.prev.reason,
+                });
             }
           });
         },
@@ -135,7 +160,8 @@ export default function MuralReviewPage() {
     );
   };
 
-  const approve = (id: string) => apply([id], "APPROVED", undefined, "Approved — it's on every map");
+  const approve = (id: string) =>
+    apply([id], "APPROVED", undefined, "Approved — it's on every map");
   const moveBack = (id: string) => apply([id], "PENDING", undefined, "Moved back to review");
 
   // ── Preview stepping ────────────────────────────────────────────────────
@@ -163,10 +189,30 @@ export default function MuralReviewPage() {
           value={view}
           onChange={setView}
           options={[
-            { value: "pending", label: "Waiting for review", icon: Clock, count: c?.PENDING },
-            { value: "gathering", label: "Gathering finders", icon: Users, count: c?.DISCOVERED },
-            { value: "approved", label: "Approved", icon: CheckCircle2, count: c?.APPROVED },
-            { value: "rejected", label: "Rejected", icon: ShieldX, count: c?.REJECTED },
+            {
+              value: "pending",
+              label: "Waiting for review",
+              icon: Clock,
+              count: c?.PENDING,
+            },
+            {
+              value: "gathering",
+              label: "Gathering finders",
+              icon: Users,
+              count: c?.DISCOVERED,
+            },
+            {
+              value: "approved",
+              label: "Approved",
+              icon: CheckCircle2,
+              count: c?.APPROVED,
+            },
+            {
+              value: "rejected",
+              label: "Rejected",
+              icon: ShieldX,
+              count: c?.REJECTED,
+            },
             { value: "insights", label: "Insights", icon: BarChart3 },
             { value: "settings", label: "Settings", icon: Settings2 },
           ]}
@@ -190,7 +236,15 @@ export default function MuralReviewPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={view === "pending" ? CheckCircle2 : Frame}
-            title={search ? "No murals match" : view === "pending" ? "All caught up" : view === "gathering" ? "Nothing gathering" : `No ${view} murals`}
+            title={
+              search
+                ? "No murals match"
+                : view === "pending"
+                  ? "All caught up"
+                  : view === "gathering"
+                    ? "Nothing gathering"
+                    : `No ${view} murals`
+            }
             description={
               search
                 ? "Try another title or artist."
@@ -203,9 +257,10 @@ export default function MuralReviewPage() {
           />
         ) : (
           <>
-            <p className="mb-3 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mb-3 text-sm">
               {plural(rows.length, "mural")}
-              {view === "gathering" && " · collectable already; approve early if it's clearly a mural"}
+              {view === "gathering" &&
+                " · collectable already; approve early if it's clearly a mural"}
             </p>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {rows.map((m) => (
@@ -252,10 +307,30 @@ export default function MuralReviewPage() {
 
 function Flags({ m }: { m: MuralRow }) {
   const items: { icon: typeof Zap; label: string; title: string }[] = [];
-  if (m.flags.newAccounts > 0) items.push({ icon: UserPlus, label: m.flags.newAccounts === 1 ? "New account" : `${m.flags.newAccounts} new accounts`, title: "A first finder joined in the last 7 days" });
-  if (m.flags.quickConfirm) items.push({ icon: Zap, label: "Quick confirm", title: "Two first finders scanned within 2 minutes of each other" });
-  if (m.flags.borderline) items.push({ icon: AlertTriangle, label: "Check photos", title: "Vision saw a possible screen, or the art score was low" });
-  if (m.flags.duplicates > 0) items.push({ icon: Copy, label: "Possible duplicate", title: `${plural(m.flags.duplicates, "other mural")} within 50 m` });
+  if (m.flags.newAccounts > 0)
+    items.push({
+      icon: UserPlus,
+      label: m.flags.newAccounts === 1 ? "New account" : `${m.flags.newAccounts} new accounts`,
+      title: "A first finder joined in the last 7 days",
+    });
+  if (m.flags.quickConfirm)
+    items.push({
+      icon: Zap,
+      label: "Quick confirm",
+      title: "Two first finders scanned within 2 minutes of each other",
+    });
+  if (m.flags.borderline)
+    items.push({
+      icon: AlertTriangle,
+      label: "Check photos",
+      title: "Vision saw a possible screen, or the art score was low",
+    });
+  if (m.flags.duplicates > 0)
+    items.push({
+      icon: Copy,
+      label: "Possible duplicate",
+      title: `${plural(m.flags.duplicates, "other mural")} within 50 m`,
+    });
   if (!items.length) return null;
   return (
     <div className="flex flex-wrap gap-1">
@@ -291,12 +366,28 @@ function MuralCard({
 }) {
   const open = m.status === "PENDING" || m.status === "DISCOVERED";
   return (
-    <li className={cn("flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow", focused && "ring-2 ring-primary")}>
-      <button type="button" onClick={onOpen} className="group relative block aspect-[4/3] w-full overflow-hidden bg-muted text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <li
+      className={cn(
+        "bg-card border-foreground/10 flex flex-col overflow-hidden rounded-[1.4rem] border-2 transition-shadow",
+        focused && "ring-primary ring-2",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group bg-muted focus-visible:ring-ring relative block aspect-[4/3] w-full overflow-hidden text-left outline-none focus-visible:ring-2"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={m.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+        <img
+          src={m.coverUrl}
+          alt=""
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        />
         <span className="absolute top-2 left-2 flex gap-1">
-          {m.status === "REJECTED" && m.rejectReason && <StatusPill tone="danger">{REJECT_LABEL[m.rejectReason]}</StatusPill>}
+          {m.status === "REJECTED" && m.rejectReason && (
+            <StatusPill tone="danger">{REJECT_LABEL[m.rejectReason]}</StatusPill>
+          )}
           {m.status === "APPROVED" && (
             <StatusPill tone="success" dot>
               On maps
@@ -305,7 +396,13 @@ function MuralCard({
         </span>
         <span className="absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
           {Array.from({ length: needed }, (_, i) => (
-            <span key={i} className={cn("size-1.5 rounded-full", i < m.distinctScanners ? "bg-white" : "bg-white/30")} />
+            <span
+              key={i}
+              className={cn(
+                "size-1.5 rounded-full",
+                i < m.distinctScanners ? "bg-white" : "bg-white/30",
+              )}
+            />
           ))}
           <span className="ml-1 tabular-nums">{m.distinctScanners}</span>
         </span>
@@ -314,9 +411,10 @@ function MuralCard({
       <div className="flex flex-1 flex-col gap-2.5 p-3">
         <button type="button" onClick={onOpen} className="min-w-0 text-left">
           <span className="block truncate font-semibold">{m.title}</span>
-          <span className="block truncate text-xs text-muted-foreground">
+          <span className="text-muted-foreground block truncate text-xs">
             {m.artist ? `by ${m.artist} · ` : m.autoTitled ? "Not named · " : ""}
-            {plural(m.scanCount, "scan")} · found {formatDistanceToNow(new Date(m.createdAt), { addSuffix: true })}
+            {plural(m.scanCount, "scan")} · found{" "}
+            {formatDistanceToNow(new Date(m.createdAt), { addSuffix: true })}
           </span>
         </button>
 
@@ -324,11 +422,11 @@ function MuralCard({
           <span className="flex -space-x-2">
             {m.finders.slice(0, 4).map((f) => (
               <span key={f.id} title={`#${f.rank} ${f.name ?? ""}`}>
-                <Avatar src={f.image} name={f.name} className="size-6 ring-2 ring-card" />
+                <Avatar src={f.image} name={f.name} className="ring-card size-6 ring-2" />
               </span>
             ))}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="text-muted-foreground truncate text-xs">
             {m.finders[0]?.name ?? "Someone"}
             {m.finders.length > 1 && ` + ${m.finders.length - 1}`}
           </span>
@@ -339,7 +437,13 @@ function MuralCard({
         <div className="mt-auto flex gap-2 pt-1">
           {open ? (
             <>
-              <Button size="sm" variant="outline" className="flex-1 text-destructive hover:text-destructive" disabled={busy} onClick={onReject}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive flex-1"
+                disabled={busy}
+                onClick={onReject}
+              >
                 <X /> Reject
               </Button>
               <Button size="sm" className="flex-1" disabled={busy} onClick={onApprove}>
@@ -347,7 +451,13 @@ function MuralCard({
               </Button>
             </>
           ) : (
-            <Button size="sm" variant="outline" className="flex-1" disabled={busy} onClick={onMoveBack}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              disabled={busy}
+              onClick={onMoveBack}
+            >
               <RotateCcw /> Move back to review
             </Button>
           )}
@@ -361,7 +471,10 @@ function GridSkeleton() {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {Array.from({ length: 6 }, (_, i) => (
-        <li key={i} className="overflow-hidden rounded-xl border bg-card">
+        <li
+          key={i}
+          className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2"
+        >
           <Skeleton className="aspect-[4/3] w-full rounded-none" />
           <div className="space-y-2 p-3">
             <Skeleton className="h-5 w-2/3" />

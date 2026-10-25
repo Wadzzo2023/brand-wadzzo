@@ -7,7 +7,14 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "~/components/shadcn/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/shadcn/ui/dialog";
 import { Input } from "~/components/shadcn/ui/input";
 import { Switch } from "~/components/shadcn/ui/switch";
 import { Textarea } from "~/components/shadcn/ui/textarea";
@@ -56,7 +63,13 @@ export default function MembershipPage() {
  * The tiers themselves — list, add, edit, delete. Used on /membership and in
  * Settings; `pageAssetHref` is where to send a brand without a page asset.
  */
-export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAssetHref?: string; onSetUpPageAsset?: () => void }) {
+export function MembershipTiers({
+  pageAssetHref,
+  onSetUpPageAsset,
+}: {
+  pageAssetHref?: string;
+  onSetUpPageAsset?: () => void;
+}) {
   const tiers = api.fan.member.getAllMembership.useQuery({});
   const creator = api.fan.creator.meCreator.useQuery();
   const pageAsset = api.fan.creator.getCreatorPageAsset.useQuery();
@@ -109,50 +122,87 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
           action={setUp}
         />
       ) : list.length === 0 ? (
-        <EmptyState icon={Crown} title="No tiers yet" description="Start with one tier — e.g. a fan club that unlocks members-only posts." action={addButton} />
+        <EmptyState
+          icon={Crown}
+          title="No tiers yet"
+          description="Start with one tier — e.g. a fan club that unlocks members-only posts."
+          action={addButton}
+        />
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
-              {list.length} of {MAX_TIERS} tiers · priced in <b className="font-mono text-foreground">{code}</b>
+            <p className="text-muted-foreground text-sm">
+              {list.length} of {MAX_TIERS} tiers · priced in{" "}
+              <b className="text-foreground font-mono">{code}</b>
             </p>
             {addButton}
           </div>
           <ul className="grid gap-4 md:grid-cols-3">
             {list.map((t, i) => (
-              <li key={t.id} className={cn("relative flex flex-col overflow-hidden rounded-xl border bg-card p-5", t.popular && "border-primary/50", !t.isActive && "opacity-70")}>
-                <span className={cn("absolute inset-x-0 top-0 h-1", SWATCH[t.color as TierColor]?.bar ?? SWATCH.green.bar)} />
+              <li
+                key={t.id}
+                className={cn(
+                  "bg-card border-foreground/10 relative flex flex-col overflow-hidden rounded-[1.4rem] border-2 p-5",
+                  t.popular && "border-primary/50",
+                  !t.isActive && "opacity-70",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute inset-x-0 top-0 h-1",
+                    SWATCH[t.color as TierColor]?.bar ?? SWATCH.green.bar,
+                  )}
+                />
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-1.5 font-hud text-xs font-semibold uppercase tracking-wide text-primary">
+                    <p className="font-hud text-primary flex flex-wrap items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
                       Tier {i + 1}
                       {t.popular && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
+                        <span className="bg-primary/10 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] tracking-normal normal-case">
                           <Star className="size-3" /> Most popular
                         </span>
                       )}
-                      {!t.isActive && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-muted-foreground">Hidden</span>}
+                      {!t.isActive && (
+                        <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[10px] tracking-normal normal-case">
+                          Hidden
+                        </span>
+                      )}
                     </p>
-                    <h3 className="mt-1 truncate font-hud text-xl font-semibold">{t.name}</h3>
+                    <h3 className="font-hud mt-1 truncate text-xl font-semibold">{t.name}</h3>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon-sm" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => setEditing(t)}>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Edit ${t.name}`}
+                      onClick={() => setEditing(t)}
+                    >
                       <Pencil />
                     </Button>
-                    <Button size="icon-sm" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`Delete ${t.name}`} onClick={() => setDeleting(t)}>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      aria-label={`Delete ${t.name}`}
+                      onClick={() => setDeleting(t)}
+                    >
                       <Trash2 />
                     </Button>
                   </div>
                 </div>
                 <p className="mt-3">
-                  <span className="font-hud text-3xl font-semibold tabular-nums">{t.price.toLocaleString("en-US")}</span>{" "}
-                  <span className="text-sm text-muted-foreground">{code} to hold</span>
+                  <span className="font-hud text-3xl font-semibold tabular-nums">
+                    {t.price.toLocaleString("en-US")}
+                  </span>{" "}
+                  <span className="text-muted-foreground text-sm">{code} to hold</span>
                 </p>
-                {t.description && <p className="mt-2 text-sm text-muted-foreground">{t.description}</p>}
+                {t.description && (
+                  <p className="text-muted-foreground mt-2 text-sm">{t.description}</p>
+                )}
                 <ul className="mt-4 space-y-1.5 border-t pt-4 text-sm">
                   {t.features.map((f) => (
                     <li key={f} className="flex gap-2">
-                      <Check className="mt-0.5 size-4 shrink-0 text-primary" /> {f}
+                      <Check className="text-primary mt-0.5 size-4 shrink-0" /> {f}
                     </li>
                   ))}
                 </ul>
@@ -163,7 +213,7 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
                 <button
                   type="button"
                   onClick={() => setEditing("new")}
-                  className="flex h-full min-h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  className="text-muted-foreground hover:border-primary/50 hover:text-foreground flex h-full min-h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm transition-colors"
                 >
                   <Plus className="size-5" /> Add a tier
                 </button>
@@ -173,7 +223,13 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
         </>
       )}
 
-      {editing && <TierDialog tier={editing === "new" ? null : editing} code={code ?? ""} onClose={() => setEditing(null)} />}
+      {editing && (
+        <TierDialog
+          tier={editing === "new" ? null : editing}
+          code={code ?? ""}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <ConfirmDialog
         open={Boolean(deleting)}
         onOpenChange={(o) => !o && setDeleting(null)}
@@ -188,7 +244,15 @@ export function MembershipTiers({ pageAssetHref, onSetUpPageAsset }: { pageAsset
 
 const MAX_PERKS = 8;
 
-function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; code: string; onClose: () => void }) {
+function TierDialog({
+  tier,
+  code,
+  onClose,
+}: {
+  tier: SubscriptionType | null;
+  code: string;
+  onClose: () => void;
+}) {
   const [name, setName] = useState(tier?.name ?? "");
   const [price, setPrice] = useState(tier ? String(tier.price) : "");
   const [description, setDescription] = useState(tier?.description ?? "");
@@ -196,7 +260,9 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
   const [color, setColor] = useState<TierColor>((tier?.color as TierColor) ?? "green");
   const [popular, setPopular] = useState(tier?.popular ?? false);
   const [isActive, setIsActive] = useState(tier?.isActive ?? true);
-  const [errors, setErrors] = useState<Partial<Record<"name" | "price" | "description" | "features", string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<"name" | "price" | "description" | "features", string>>
+  >({});
 
   const utils = api.useUtils();
   const done = (msg: string) => {
@@ -204,8 +270,14 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
     void utils.fan.member.getAllMembership.invalidate();
     onClose();
   };
-  const create = api.fan.member.createMembership.useMutation({ onSuccess: () => done("Tier created"), onError: (e) => toast.error(e.message) });
-  const update = api.fan.member.editTierModal.useMutation({ onSuccess: () => done("Tier updated"), onError: (e) => toast.error(e.message) });
+  const create = api.fan.member.createMembership.useMutation({
+    onSuccess: () => done("Tier created"),
+    onError: (e) => toast.error(e.message),
+  });
+  const update = api.fan.member.editTierModal.useMutation({
+    onSuccess: () => done("Tier updated"),
+    onError: (e) => toast.error(e.message),
+  });
   const saving = create.isPending || update.isPending;
 
   const setPerk = (i: number, v: string) => setPerks((ps) => ps.map((p, j) => (j === i ? v : p)));
@@ -222,7 +294,15 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
     else if (features.some((f) => f.length > 80)) e.features = "Keep each perk under 80 characters";
     setErrors(e);
     if (Object.keys(e).length) return;
-    const data = { name: n, price: p, description: description.trim(), features, color, popular, isActive };
+    const data = {
+      name: n,
+      price: p,
+      description: description.trim(),
+      features,
+      color,
+      popular,
+      isActive,
+    };
     if (tier) update.mutate({ id: tier.id, ...data });
     else create.mutate(data);
   };
@@ -232,32 +312,94 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-hud">{tier ? `Edit ${tier.name}` : "New tier"}</DialogTitle>
-          <DialogDescription>Fans holding at least this much {code} get these perks.</DialogDescription>
+          <DialogDescription>
+            Fans holding at least this much {code} get these perks.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name" htmlFor="tier-name" required error={errors.name} hint="e.g. Insider, VIP">
-              <Input id="tier-name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
+            <Field
+              label="Name"
+              htmlFor="tier-name"
+              required
+              error={errors.name}
+              hint="e.g. Insider, VIP"
+            >
+              <Input
+                id="tier-name"
+                value={name}
+                maxLength={24}
+                onChange={(e) => setName(e.target.value)}
+              />
             </Field>
-            <Field label={`Price (${code})`} htmlFor="tier-price" required error={errors.price} hint="Tokens a fan must hold">
-              <Input id="tier-price" type="number" min={1} step="any" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <Field
+              label={`Price (${code})`}
+              htmlFor="tier-price"
+              required
+              error={errors.price}
+              hint="Tokens a fan must hold"
+            >
+              <Input
+                id="tier-price"
+                type="number"
+                min={1}
+                step="any"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
             </Field>
           </div>
-          <Field label="Description" htmlFor="tier-desc" error={errors.description} hint={`${description.length}/160`}>
-            <Textarea id="tier-desc" value={description} maxLength={160} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder="Who this tier is for" className="resize-none" />
+          <Field
+            label="Description"
+            htmlFor="tier-desc"
+            error={errors.description}
+            hint={`${description.length}/160`}
+          >
+            <Textarea
+              id="tier-desc"
+              value={description}
+              maxLength={160}
+              rows={2}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Who this tier is for"
+              className="resize-none"
+            />
           </Field>
-          <Field label="Perks" required error={errors.features} hint={`One per line, up to ${MAX_PERKS}`}>
+          <Field
+            label="Perks"
+            required
+            error={errors.features}
+            hint={`One per line, up to ${MAX_PERKS}`}
+          >
             <div className="space-y-2">
               {perks.map((p, i) => (
                 <div key={i} className="flex gap-2">
-                  <Input value={p} maxLength={80} onChange={(e) => setPerk(i, e.target.value)} placeholder={i === 0 ? "Members-only posts" : "Another perk"} aria-label={`Perk ${i + 1}`} />
-                  <Button type="button" size="icon" variant="ghost" aria-label={`Remove perk ${i + 1}`} disabled={perks.length === 1} onClick={() => setPerks((ps) => ps.filter((_, j) => j !== i))}>
+                  <Input
+                    value={p}
+                    maxLength={80}
+                    onChange={(e) => setPerk(i, e.target.value)}
+                    placeholder={i === 0 ? "Members-only posts" : "Another perk"}
+                    aria-label={`Perk ${i + 1}`}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Remove perk ${i + 1}`}
+                    disabled={perks.length === 1}
+                    onClick={() => setPerks((ps) => ps.filter((_, j) => j !== i))}
+                  >
                     <X />
                   </Button>
                 </div>
               ))}
               {perks.length < MAX_PERKS && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setPerks((ps) => [...ps, ""])}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPerks((ps) => [...ps, ""])}
+                >
                   <Plus /> Add perk
                 </Button>
               )}
@@ -274,7 +416,11 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
                   aria-label={c}
                   title={c}
                   onClick={() => setColor(c)}
-                  className={cn("flex size-8 items-center justify-center rounded-full ring-offset-2 ring-offset-background transition-shadow", SWATCH[c].bar, color === c && "ring-2 ring-foreground")}
+                  className={cn(
+                    "ring-offset-background flex size-8 items-center justify-center rounded-full ring-offset-2 transition-shadow",
+                    SWATCH[c].bar,
+                    color === c && "ring-foreground ring-2",
+                  )}
                 >
                   {color === c && <Check className="size-4 text-white" />}
                 </button>
@@ -285,14 +431,18 @@ function TierDialog({ tier, code, onClose }: { tier: SubscriptionType | null; co
             <label className="flex items-center justify-between gap-3 text-sm">
               <span>
                 <span className="block font-medium">Most popular</span>
-                <span className="text-xs text-muted-foreground">Highlights this tier (only one at a time)</span>
+                <span className="text-muted-foreground text-xs">
+                  Highlights this tier (only one at a time)
+                </span>
               </span>
               <Switch checked={popular} onCheckedChange={setPopular} />
             </label>
             <label className="flex items-center justify-between gap-3 text-sm">
               <span>
                 <span className="block font-medium">Active</span>
-                <span className="text-xs text-muted-foreground">Hidden tiers aren&apos;t shown to fans</span>
+                <span className="text-muted-foreground text-xs">
+                  Hidden tiers aren&apos;t shown to fans
+                </span>
               </span>
               <Switch checked={isActive} onCheckedChange={setIsActive} />
             </label>

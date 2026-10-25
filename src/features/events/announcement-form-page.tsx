@@ -1,6 +1,15 @@
 "use client";
 
-import { CalendarClock, ImageIcon, Link2, Loader2, Megaphone, Pin, Settings, X } from "lucide-react";
+import {
+  CalendarClock,
+  ImageIcon,
+  Link2,
+  Loader2,
+  Megaphone,
+  Pin,
+  Settings,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -61,9 +70,7 @@ export function NewAnnouncementPage() {
 export function EditAnnouncementPage({ id }: { id: string }) {
   const all = api.events.myAnnouncements.useQuery();
   if (all.isLoading) {
-    return (
-      <FormSkeleton sections={2} />
-    );
+    return <FormSkeleton sections={2} />;
   }
   const announcement = all.data?.find((a) => a.id === id);
   if (!announcement)
@@ -88,12 +95,18 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
   const router = useRouter();
   const back = "/events?tab=announcements";
   const [form, setForm] = useState<FormState>(() => initialState(announcement));
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
   const [uploadKey, setUploadKey] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [imageBrief, setImageBrief] = useState("");
-  const aiContext = { title: form.title, message: form.body, button: form.withCta ? form.ctaLabel : "" };
-  const imagePrompt = imageBrief || [form.title, form.body.slice(0, 400)].filter(Boolean).join(". ");
+  const aiContext = {
+    title: form.title,
+    message: form.body,
+    button: form.withCta ? form.ctaLabel : "",
+  };
+  const imagePrompt =
+    imageBrief || [form.title, form.body.slice(0, 400)].filter(Boolean).join(". ");
 
   const utils = api.useUtils();
   const done = (msg: string) => {
@@ -101,8 +114,12 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
     void utils.events.myAnnouncements.invalidate();
     router.push(back);
   };
-  const create = api.events.createAnnouncement.useMutation({ onSuccess: () => done("Announcement posted") });
-  const update = api.events.updateAnnouncement.useMutation({ onSuccess: () => done("Announcement updated") });
+  const create = api.events.createAnnouncement.useMutation({
+    onSuccess: () => done("Announcement posted"),
+  });
+  const update = api.events.updateAnnouncement.useMutation({
+    onSuccess: () => done("Announcement updated"),
+  });
   const saving = create.isPending || update.isPending;
   const error = create.error ?? update.error;
 
@@ -110,7 +127,8 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
     e.preventDefault();
     if (!form.title.trim()) return void toast.error("Give it a title");
     const expiresAt = form.expires ? fromLocalInput(form.expiresAt) : null;
-    if (form.expires && (!expiresAt || expiresAt <= new Date())) return void toast.error("Pick an expiry in the future");
+    if (form.expires && (!expiresAt || expiresAt <= new Date()))
+      return void toast.error("Pick an expiry in the future");
     const data = {
       title: form.title,
       body: form.body,
@@ -144,23 +162,31 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
       onSubmit={submit}
       actions={actions}
       aside={
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="bg-card border-foreground/10 overflow-hidden rounded-[1.4rem] border-2">
           {form.images[0] && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={form.images[0]} alt="" className="aspect-video w-full object-cover" />
           )}
           <div className="space-y-2 p-5">
-            <p className="flex items-center gap-2 font-hud text-xs font-semibold uppercase tracking-wide text-primary">
+            <p className="font-hud text-primary flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
               Preview {form.pinned && <Pin className="size-3" />}
             </p>
-            <p className="font-hud text-lg font-semibold leading-snug">{form.title || "Untitled announcement"}</p>
-            <p className="line-clamp-6 whitespace-pre-line text-sm text-muted-foreground">{form.body || "Your message shows here."}</p>
+            <p className="font-hud text-lg leading-snug font-semibold">
+              {form.title || "Untitled announcement"}
+            </p>
+            <p className="text-muted-foreground line-clamp-6 text-sm whitespace-pre-line">
+              {form.body || "Your message shows here."}
+            </p>
             {form.withCta && form.ctaUrl.trim() && (
               <Button type="button" size="sm" className="mt-2 w-full" tabIndex={-1}>
                 {form.ctaLabel || "Learn more"}
               </Button>
             )}
-            {form.expires && <p className="pt-1 text-xs text-faint">Hidden after {fromLocalInput(form.expiresAt)?.toLocaleString() ?? "—"}</p>}
+            {form.expires && (
+              <p className="text-faint pt-1 text-xs">
+                Hidden after {fromLocalInput(form.expiresAt)?.toLocaleString() ?? "—"}
+              </p>
+            )}
           </div>
         </section>
       }
@@ -168,7 +194,11 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
       <AiFillCard
         form="announcement"
         context={aiContext}
-        examples={["We're closed Monday for a private event", "New flavours drop this weekend — first 50 get a free topping", "Our app now has pins across the whole city"]}
+        examples={[
+          "We're closed Monday for a private event",
+          "New flavours drop this weekend — first 50 get a free topping",
+          "Our app now has pins across the whole city",
+        ]}
         apply={(r) => {
           const before = form;
           setForm((f) => ({
@@ -189,20 +219,55 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
           label="Title"
           htmlFor="an-title"
           required
-          action={<AiTextButton form="announcement" field="title" maxChars={120} value={form.title} context={aiContext} onChange={(t) => set("title", t)} />}
+          action={
+            <AiTextButton
+              form="announcement"
+              field="title"
+              maxChars={120}
+              value={form.title}
+              context={aiContext}
+              onChange={(t) => set("title", t)}
+            />
+          }
         >
-          <Input id="an-title" value={form.title} maxLength={120} placeholder="New flavours this weekend" onChange={(e) => set("title", e.target.value)} />
+          <Input
+            id="an-title"
+            value={form.title}
+            maxLength={120}
+            placeholder="New flavours this weekend"
+            onChange={(e) => set("title", e.target.value)}
+          />
         </Field>
         <Field
           label="Message"
           htmlFor="an-body"
-          action={<AiTextButton form="announcement" field="message" maxChars={5000} value={form.body} context={aiContext} onChange={(t) => set("body", t)} />}
+          action={
+            <AiTextButton
+              form="announcement"
+              field="message"
+              maxChars={5000}
+              value={form.body}
+              context={aiContext}
+              onChange={(t) => set("body", t)}
+            />
+          }
         >
-          <Textarea id="an-body" rows={6} maxLength={5000} value={form.body} placeholder="Tell your fans what's new…" onChange={(e) => set("body", e.target.value)} />
+          <Textarea
+            id="an-body"
+            rows={6}
+            maxLength={5000}
+            value={form.body}
+            placeholder="Tell your fans what's new…"
+            onChange={(e) => set("body", e.target.value)}
+          />
         </Field>
       </FormSection>
 
-      <FormSection title="Images" icon={ImageIcon} description={`Optional, up to ${MAX_IMAGES}. The first is the cover.`}>
+      <FormSection
+        title="Images"
+        icon={ImageIcon}
+        description={`Optional, up to ${MAX_IMAGES}. The first is the cover.`}
+      >
         {form.images.length < MAX_IMAGES && (
           <div className="flex justify-end">
             <AiImageButton
@@ -210,7 +275,12 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
               aspect="wide"
               label="Generate image with AI"
               suggestedPrompt={imagePrompt}
-              onImage={(url) => setForm((f) => ({ ...f, images: [...f.images, url].slice(0, MAX_IMAGES) }))}
+              onImage={(url) =>
+                setForm((f) => ({
+                  ...f,
+                  images: [...f.images, url].slice(0, MAX_IMAGES),
+                }))
+              }
             />
           </div>
         )}
@@ -223,7 +293,10 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
             onUploadingChange={setUploading}
             onChange={(url) => {
               if (!url) return;
-              setForm((f) => ({ ...f, images: [...f.images, url].slice(0, MAX_IMAGES) }));
+              setForm((f) => ({
+                ...f,
+                images: [...f.images, url].slice(0, MAX_IMAGES),
+              }));
               setUploadKey((n) => n + 1);
             }}
           />
@@ -233,13 +306,26 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
             {form.images.map((src, i) => (
               <li key={src} className="group relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="aspect-square w-full rounded-lg border object-cover" />
-                {i === 0 && <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Cover</span>}
+                <img
+                  src={src}
+                  alt=""
+                  className="aspect-square w-full rounded-lg border object-cover"
+                />
+                {i === 0 && (
+                  <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white uppercase">
+                    Cover
+                  </span>
+                )}
                 <button
                   type="button"
                   aria-label="Remove image"
-                  onClick={() => set("images", form.images.filter((x) => x !== src))}
-                  className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
+                  onClick={() =>
+                    set(
+                      "images",
+                      form.images.filter((x) => x !== src),
+                    )
+                  }
+                  className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -251,18 +337,48 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
 
       <FormSection title="Options" icon={Settings}>
         <div className="divide-y rounded-lg border">
-          <Toggle icon={Pin} title="Pin to top" hint="Stays first on your brand page." checked={form.pinned} onChange={(v) => set("pinned", v)} />
+          <Toggle
+            icon={Pin}
+            title="Pin to top"
+            hint="Stays first on your brand page."
+            checked={form.pinned}
+            onChange={(v) => set("pinned", v)}
+          />
           <div>
-            <Toggle icon={Link2} title="Button" hint="A call-to-action that opens a link." checked={form.withCta} onChange={(v) => set("withCta", v)} />
+            <Toggle
+              icon={Link2}
+              title="Button"
+              hint="A call-to-action that opens a link."
+              checked={form.withCta}
+              onChange={(v) => set("withCta", v)}
+            />
             {form.withCta && (
               <div className="grid gap-3 px-4 pb-4 sm:grid-cols-[180px_1fr]">
-                <Input aria-label="Button text" placeholder="Shop now" maxLength={40} value={form.ctaLabel} onChange={(e) => set("ctaLabel", e.target.value)} />
-                <Input aria-label="Button link" type="url" placeholder="https://" value={form.ctaUrl} onChange={(e) => set("ctaUrl", e.target.value)} />
+                <Input
+                  aria-label="Button text"
+                  placeholder="Shop now"
+                  maxLength={40}
+                  value={form.ctaLabel}
+                  onChange={(e) => set("ctaLabel", e.target.value)}
+                />
+                <Input
+                  aria-label="Button link"
+                  type="url"
+                  placeholder="https://"
+                  value={form.ctaUrl}
+                  onChange={(e) => set("ctaUrl", e.target.value)}
+                />
               </div>
             )}
           </div>
           <div>
-            <Toggle icon={CalendarClock} title="Expires" hint="Hidden from fans automatically after this." checked={form.expires} onChange={(v) => set("expires", v)} />
+            <Toggle
+              icon={CalendarClock}
+              title="Expires"
+              hint="Hidden from fans automatically after this."
+              checked={form.expires}
+              onChange={(v) => set("expires", v)}
+            />
             {form.expires && (
               <div className="px-4 pb-4">
                 <Input
@@ -279,18 +395,30 @@ function AnnouncementForm({ announcement }: { announcement: EditableAnnouncement
         </div>
       </FormSection>
 
-      {error && <p className="text-sm text-destructive">{firstError(error)}</p>}
+      {error && <p className="text-destructive text-sm">{firstError(error)}</p>}
     </FormPage>
   );
 }
 
-function Toggle({ icon: Icon, title, hint, checked, onChange }: { icon: typeof Pin; title: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  icon: Icon,
+  title,
+  hint,
+  checked,
+  onChange,
+}: {
+  icon: typeof Pin;
+  title: string;
+  hint: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex cursor-pointer items-center gap-3 p-4">
-      <Icon className="size-4 text-primary" />
+      <Icon className="text-primary size-4" />
       <span className="flex-1">
         <span className="block text-sm font-medium">{title}</span>
-        <span className="block text-xs text-muted-foreground">{hint}</span>
+        <span className="text-muted-foreground block text-xs">{hint}</span>
       </span>
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>

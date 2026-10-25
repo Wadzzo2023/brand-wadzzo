@@ -1,6 +1,18 @@
 "use client";
 
-import { CalendarClock, Hexagon, Loader2, MapPin, Pause, Pencil, Play, Repeat, Timer, Trash2, Users } from "lucide-react";
+import {
+  CalendarClock,
+  Hexagon,
+  Loader2,
+  MapPin,
+  Pause,
+  Pencil,
+  Play,
+  Repeat,
+  Timer,
+  Trash2,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -9,7 +21,13 @@ import { Layer, Source, type MapRef } from "react-map-gl/mapbox";
 import { BaseMap } from "~/components/map-kit/base-map";
 import { featureCenter, toMapboxFeature, type StoredFeature } from "~/components/map-kit/geo";
 import { Button } from "~/components/shadcn/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/shadcn/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/shadcn/ui/dialog";
 import { cn } from "~/lib/utils";
 import { ErrorState } from "~/ui/error-state";
 import { api } from "~/utils/api";
@@ -20,13 +38,23 @@ type Props = {
   hotspotId: string | null;
 };
 
-const fmt = (d: Date | string | null | undefined) => (d ? new Date(d).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—");
-const every = (days: number) => (days === 1 ? "Every day" : days === 7 ? "Every week" : `Every ${days} days`);
+const fmt = (d: Date | string | null | undefined) =>
+  d
+    ? new Date(d).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : "—";
+const every = (days: number) =>
+  days === 1 ? "Every day" : days === 7 ? "Every week" : `Every ${days} days`;
 
 /** A hotspot at a glance: its area, schedule, how it's doing, and pause / resume / delete. */
 export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Props) {
   const utils = api.useUtils();
-  const hotspot = api.maps.pin.getHotspot.useQuery({ hotspotId: hotspotId ?? "" }, { enabled: !!hotspotId && isOpen });
+  const hotspot = api.maps.pin.getHotspot.useQuery(
+    { hotspotId: hotspotId ?? "" },
+    { enabled: !!hotspotId && isOpen },
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [now] = useState(() => Date.now());
 
@@ -65,8 +93,13 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
   const h = hotspot.data;
   const stats = useMemo(() => {
     const groups = h?.locationGroups ?? [];
-    const collected = groups.reduce((n, g) => n + g.locations.reduce((m, l) => m + l.consumers.length, 0), 0);
-    const live = groups.filter((g) => new Date(g.startDate).getTime() <= now && new Date(g.endDate).getTime() >= now).length;
+    const collected = groups.reduce(
+      (n, g) => n + g.locations.reduce((m, l) => m + l.consumers.length, 0),
+      0,
+    );
+    const live = groups.filter(
+      (g) => new Date(g.startDate).getTime() <= now && new Date(g.endDate).getTime() >= now,
+    ).length;
     return { drops: groups.length, live, collected };
   }, [h, now]);
   const title = h?.locationGroups?.[0]?.title ?? "Hotspot";
@@ -79,12 +112,15 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
         {hotspot.isLoading ? (
           <div className="flex h-72 items-center justify-center">
             <DialogTitle className="sr-only">Loading hotspot</DialogTitle>
-            <Loader2 className="size-6 animate-spin text-primary" />
+            <Loader2 className="text-primary size-6 animate-spin" />
           </div>
         ) : !h ? (
           <div className="p-6">
             <DialogTitle className="sr-only">Hotspot</DialogTitle>
-            <ErrorState message={hotspot.error?.message ?? "This hotspot couldn't be loaded."} onRetry={() => void hotspot.refetch()} />
+            <ErrorState
+              message={hotspot.error?.message ?? "This hotspot couldn't be loaded."}
+              onRetry={() => void hotspot.refetch()}
+            />
           </div>
         ) : (
           <>
@@ -97,7 +133,8 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
                 </div>
                 <DialogDescription className="flex items-center gap-1.5">
                   <Hexagon className="size-3.5" />
-                  <span className="capitalize">{h.shape.toLowerCase()}</span> hotspot · {h.autoCollect ? "auto collect" : "manual collect"}
+                  <span className="capitalize">{h.shape.toLowerCase()}</span> hotspot ·{" "}
+                  {h.autoCollect ? "auto collect" : "manual collect"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -111,25 +148,49 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
                 <Row label="Starts" value={fmt(h.hotspotStartDate)} />
                 <Row label="Ends" value={fmt(h.hotspotEndDate)} />
                 <Row icon={Repeat} label="New pin" value={every(h.dropEveryDays)} />
-                <Row icon={Timer} label="Each pin lasts" value={h.pinDurationDays === 1 ? "1 day" : `${h.pinDurationDays} days`} />
+                <Row
+                  icon={Timer}
+                  label="Each pin lasts"
+                  value={h.pinDurationDays === 1 ? "1 day" : `${h.pinDurationDays} days`}
+                />
                 <Row
                   label="Next drop"
-                  value={ended ? "Finished" : !h.isActive ? "Paused" : h.nextRunTime ? fmt(h.nextRunTime) : "Not scheduled yet"}
+                  value={
+                    ended
+                      ? "Finished"
+                      : !h.isActive
+                        ? "Paused"
+                        : h.nextRunTime
+                          ? fmt(h.nextRunTime)
+                          : "Not scheduled yet"
+                  }
                   className="col-span-2"
                 />
               </dl>
 
               {confirmDelete ? (
-                <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                <div className="border-destructive/30 bg-destructive/5 space-y-3 rounded-lg border p-4">
                   <p className="text-sm">
-                    Delete this hotspot? Its schedule stops and all {stats.drops} drop{stats.drops === 1 ? "" : "s"} are hidden from fans. This can&apos;t be undone.
+                    Delete this hotspot? Its schedule stops and all {stats.drops} drop
+                    {stats.drops === 1 ? "" : "s"} are hidden from fans. This can&apos;t be undone.
                   </p>
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={remove.isPending}
+                    >
                       Keep it
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => hotspotId && remove.mutate({ hotspotId })} disabled={remove.isPending}>
-                      {remove.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete hotspot
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => hotspotId && remove.mutate({ hotspotId })}
+                      disabled={remove.isPending}
+                    >
+                      {remove.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete
+                      hotspot
                     </Button>
                   </div>
                 </div>
@@ -141,15 +202,33 @@ export default function HotspotDetailModal({ isOpen, setIsOpen, hotspotId }: Pro
                     </Link>
                   </Button>
                   {h.isActive ? (
-                    <Button variant="outline" size="sm" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && pause.mutate({ hotspotId })}>
-                      {pause.isPending ? <Loader2 className="animate-spin" /> : <Pause />} Pause drops
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      disabled={busy || ended}
+                      onClick={() => hotspotId && pause.mutate({ hotspotId })}
+                    >
+                      {pause.isPending ? <Loader2 className="animate-spin" /> : <Pause />} Pause
+                      drops
                     </Button>
                   ) : (
-                    <Button size="sm" className="flex-1" disabled={busy || ended} onClick={() => hotspotId && resume.mutate({ hotspotId })}>
-                      {resume.isPending ? <Loader2 className="animate-spin" /> : <Play />} Resume drops
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      disabled={busy || ended}
+                      onClick={() => hotspotId && resume.mutate({ hotspotId })}
+                    >
+                      {resume.isPending ? <Loader2 className="animate-spin" /> : <Play />} Resume
+                      drops
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmDelete(true)}
+                  >
                     <Trash2 /> Delete
                   </Button>
                 </div>
@@ -169,8 +248,15 @@ function StatusBadge({ active, ended }: { active: boolean; ended: boolean }) {
       ? ["Active", "bg-primary/10 text-primary"]
       : ["Paused", "bg-warning/10 text-warning"];
   return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 font-hud text-[11px] font-semibold uppercase tracking-wide", tone)}>
-      <span className={cn("size-1.5 rounded-full bg-current", active && !ended && "animate-pulse")} />
+    <span
+      className={cn(
+        "font-hud inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase",
+        tone,
+      )}
+    >
+      <span
+        className={cn("size-1.5 rounded-full bg-current", active && !ended && "animate-pulse")}
+      />
       {label}
     </span>
   );
@@ -180,17 +266,27 @@ function Stat({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
   return (
     <div className="px-2 py-3">
       <p className="font-hud text-xl font-semibold tabular-nums">{value}</p>
-      <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+      <p className="text-muted-foreground mt-0.5 flex items-center justify-center gap-1 text-xs">
         <Icon className="size-3" /> {label}
       </p>
     </div>
   );
 }
 
-function Row({ label, value, icon: Icon, className }: { label: string; value: string; icon?: typeof MapPin; className?: string }) {
+function Row({
+  label,
+  value,
+  icon: Icon,
+  className,
+}: {
+  label: string;
+  value: string;
+  icon?: typeof MapPin;
+  className?: string;
+}) {
   return (
     <div className={className}>
-      <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+      <dt className="text-muted-foreground flex items-center gap-1 text-xs">
         {Icon && <Icon className="size-3" />}
         {label}
       </dt>
@@ -221,10 +317,24 @@ function AreaMap({ feature }: { feature: StoredFeature }) {
   };
   return (
     <div className="h-40 overflow-hidden rounded-t-xl border-b">
-      <BaseMap ref={map} initialViewState={{ latitude: c.lat, longitude: c.lng, zoom: 14 }} onLoad={() => requestAnimationFrame(() => setTimeout(fit, 220))} interactive={false} controls={false}>
+      <BaseMap
+        ref={map}
+        initialViewState={{ latitude: c.lat, longitude: c.lng, zoom: 14 }}
+        onLoad={() => requestAnimationFrame(() => setTimeout(fit, 220))}
+        interactive={false}
+        controls={false}
+      >
         <Source id="hotspot-detail" type="geojson" data={shape}>
-          <Layer id="hotspot-detail-fill" type="fill" paint={{ "fill-color": "#22c55e", "fill-opacity": 0.2 }} />
-          <Layer id="hotspot-detail-line" type="line" paint={{ "line-color": "#16a34a", "line-width": 2 }} />
+          <Layer
+            id="hotspot-detail-fill"
+            type="fill"
+            paint={{ "fill-color": "#22c55e", "fill-opacity": 0.2 }}
+          />
+          <Layer
+            id="hotspot-detail-line"
+            type="line"
+            paint={{ "line-color": "#16a34a", "line-width": 2 }}
+          />
         </Source>
       </BaseMap>
     </div>

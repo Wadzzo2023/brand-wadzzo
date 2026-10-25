@@ -17,7 +17,12 @@ import { Button } from "~/components/shadcn/ui/button";
 import { Input } from "~/components/shadcn/ui/input";
 import useNeedSign from "~/lib/hook";
 import { useUserStellarAcc } from "~/lib/state/wallete/stellar-balances";
-import { PLATFORM_ASSET, PLATFORM_FEE, SIMPLIFIED_FEE_IN_XLM, TrxBaseFeeInPlatformAsset } from "~/lib/stellar/constant";
+import {
+  PLATFORM_ASSET,
+  PLATFORM_FEE,
+  SIMPLIFIED_FEE_IN_XLM,
+  TrxBaseFeeInPlatformAsset,
+} from "~/lib/stellar/constant";
 import { clientSelect } from "~/lib/stellar/fan/utils";
 import { AiFillCard } from "~/ui/ai/ai-fill";
 import { AiImageButton } from "~/ui/ai/ai-image";
@@ -33,11 +38,22 @@ const PRIZE_RATE = 0.01;
 const XLM_PER_USD = 0.7;
 
 const BountySchema = z.object({
-  title: z.string().min(1, { message: "Title can't be empty" }).max(65, { message: "Title can't be more than 65 characters" }),
-  totalWinner: z.number({ invalid_type_error: "Enter how many winners" }).int().min(1, { message: "At least 1 winner" }),
-  prizeInUSD: z.number({ invalid_type_error: "Enter the prize" }).min(0.00001, { message: "Enter the prize" }),
+  title: z
+    .string()
+    .min(1, { message: "Title can't be empty" })
+    .max(65, { message: "Title can't be more than 65 characters" }),
+  totalWinner: z
+    .number({ invalid_type_error: "Enter how many winners" })
+    .int()
+    .min(1, { message: "At least 1 winner" }),
+  prizeInUSD: z
+    .number({ invalid_type_error: "Enter the prize" })
+    .min(0.00001, { message: "Enter the prize" }),
   prize: z.number().min(0.00001, { message: "Enter the prize" }),
-  requiredBalance: z.number({ invalid_type_error: "Must be a number" }).nonnegative({ message: "Can't be less than 0" }).optional(),
+  requiredBalance: z
+    .number({ invalid_type_error: "Must be a number" })
+    .nonnegative({ message: "Can't be less than 0" })
+    .optional(),
   content: z.string().min(2, { message: "Describe the task" }),
 });
 type BountyForm = z.infer<typeof BountySchema>;
@@ -61,10 +77,18 @@ export default function NewBountyPage() {
   const [uploading, setUploading] = useState(false);
   const [signing, setSigning] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, control, getValues, formState } = useForm<BountyForm>({
-    resolver: zodResolver(BountySchema),
-    defaultValues: { title: "", content: "", totalWinner: 1, prizeInUSD: 0, prize: 0, requiredBalance: 0 },
-  });
+  const { register, handleSubmit, setValue, watch, control, getValues, formState } =
+    useForm<BountyForm>({
+      resolver: zodResolver(BountySchema),
+      defaultValues: {
+        title: "",
+        content: "",
+        totalWinner: 1,
+        prizeInUSD: 0,
+        prize: 0,
+        requiredBalance: 0,
+      },
+    });
   const { errors } = formState;
   const values = watch();
   const [imageBrief, setImageBrief] = useState("");
@@ -74,13 +98,16 @@ export default function NewBountyPage() {
     prize: values.prizeInUSD ? `$${values.prizeInUSD}` : "",
     winners: String(values.totalWinner ?? ""),
   };
-  const imagePrompt = imageBrief || [values.title, htmlToText(values.content ?? "").slice(0, 400)].filter(Boolean).join(". ");
+  const imagePrompt =
+    imageBrief ||
+    [values.title, htmlToText(values.content ?? "").slice(0, 400)].filter(Boolean).join(". ");
 
   const assetFees = 2 * Number(TrxBaseFeeInPlatformAsset) + Number(PLATFORM_FEE);
   const xlmFee = 2 * SIMPLIFIED_FEE_IN_XLM; // now, and again when paying winners
   const prizeXlm = (values.prizeInUSD || 0) * XLM_PER_USD;
   const assetTotal = (values.prize || 0) + assetFees;
-  const insufficient = paymentMethod === "asset" && values.prize > 0 && platformAssetBalance < assetTotal;
+  const insufficient =
+    paymentMethod === "asset" && values.prize > 0 && platformAssetBalance < assetTotal;
 
   const create = api.bounty.Bounty.createBounty.useMutation({
     onSuccess: () => {
@@ -132,7 +159,12 @@ export default function NewBountyPage() {
   const busy = fund.isPending || signing || create.isPending;
 
   const confirmPayment = handleSubmit((data) =>
-    fund.mutate({ signWith: needSign(), prize: data.prize, xlmPrice: data.prizeInUSD * XLM_PER_USD, method: paymentMethod }),
+    fund.mutate({
+      signWith: needSign(),
+      prize: data.prize,
+      xlmPrice: data.prizeInUSD * XLM_PER_USD,
+      method: paymentMethod,
+    }),
   );
   // The page's submit validates, then asks how to pay.
   const onSubmit = handleSubmit(() => setIsOpen(true));
@@ -172,40 +204,69 @@ export default function NewBountyPage() {
         onSubmit={(e) => void onSubmit(e)}
         actions={actions}
         aside={
-          <section className="rounded-xl border bg-card p-5">
-            <h2 className="mb-3 flex items-center gap-2 font-hud text-base font-semibold">
-              <Receipt className="size-4 text-primary" /> Summary
+          <section className="bg-card border-foreground/10 rounded-[1.4rem] border-2 p-5">
+            <h2 className="font-hud mb-3 flex items-center gap-2 text-base font-semibold">
+              <Receipt className="text-primary size-4" /> Summary
             </h2>
             {images[0] && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={images[0]} alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" />
+              <img
+                src={images[0]}
+                alt=""
+                className="mb-3 aspect-video w-full rounded-lg object-cover"
+              />
             )}
             <p className="font-hud text-sm font-semibold">{values.title || "Untitled bounty"}</p>
             <div className="mt-2 divide-y">
-              {row("Prize", `$${values.prizeInUSD || 0} · ${(values.prize || 0).toFixed(2)} ${code}`)}
+              {row(
+                "Prize",
+                `$${values.prizeInUSD || 0} · ${(values.prize || 0).toFixed(2)} ${code}`,
+              )}
               {row("Winners", winners)}
               {row("Each winner gets", `$${((values.prizeInUSD || 0) / winners).toFixed(2)}`)}
-              {row("Fans must hold", values.requiredBalance ? `${values.requiredBalance} ${code}` : "Nothing")}
-              {row("Fees", paymentMethod === "asset" ? `${assetFees.toFixed(2)} ${code}` : `${xlmFee} XLM`)}
-              {row("Total", paymentMethod === "asset" ? `${assetTotal.toFixed(2)} ${code}` : `${(prizeXlm + xlmFee).toFixed(2)} XLM`, true)}
+              {row(
+                "Fans must hold",
+                values.requiredBalance ? `${values.requiredBalance} ${code}` : "Nothing",
+              )}
+              {row(
+                "Fees",
+                paymentMethod === "asset" ? `${assetFees.toFixed(2)} ${code}` : `${xlmFee} XLM`,
+              )}
+              {row(
+                "Total",
+                paymentMethod === "asset"
+                  ? `${assetTotal.toFixed(2)} ${code}`
+                  : `${(prizeXlm + xlmFee).toFixed(2)} XLM`,
+                true,
+              )}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className="text-muted-foreground mt-3 text-xs">
               Your balance: {platformAssetBalance.toFixed(2)} {code}
             </p>
-            {insufficient && <p className="mt-1 text-xs text-destructive">Not enough {code} for the prize and fees.</p>}
+            {insufficient && (
+              <p className="text-destructive mt-1 text-xs">
+                Not enough {code} for the prize and fees.
+              </p>
+            )}
           </section>
         }
       >
         <AiFillCard
           form="bounty"
           context={aiContext}
-          examples={["Best photo of our mural, 3 winners, $30 total", "First 5 fans to find all our city pins win", "Remix our new track — judged by the band"]}
+          examples={[
+            "Best photo of our mural, 3 winners, $30 total",
+            "First 5 fans to find all our city pins win",
+            "Remix our new track — judged by the band",
+          ]}
           apply={(r) => {
             const before = { ...values };
             setValue("title", r.title.slice(0, 65), { shouldValidate: true });
             setValue("content", r.contentHtml, { shouldValidate: true });
             setValue("totalWinner", r.totalWinner, { shouldValidate: true });
-            setValue("requiredBalance", r.requiredBalance, { shouldValidate: true });
+            setValue("requiredBalance", r.requiredBalance, {
+              shouldValidate: true,
+            });
             if (r.prizeInUSD) setPrizeUsd(String(r.prizeInUSD));
             setImageBrief(r.imagePrompt);
             return () => {
@@ -225,41 +286,132 @@ export default function NewBountyPage() {
             required
             error={errors.title?.message}
             hint={`${65 - (values.title?.length ?? 0)} characters left`}
-            action={<AiTextButton form="bounty" field="title" maxChars={65} value={values.title ?? ""} context={aiContext} onChange={(t) => setValue("title", t.slice(0, 65), { shouldValidate: true })} />}
+            action={
+              <AiTextButton
+                form="bounty"
+                field="title"
+                maxChars={65}
+                value={values.title ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("title", t.slice(0, 65), { shouldValidate: true })}
+              />
+            }
           >
-            <Input id="title" maxLength={65} placeholder="What should fans do?" {...register("title")} />
+            <Input
+              id="title"
+              maxLength={65}
+              placeholder="What should fans do?"
+              {...register("title")}
+            />
           </Field>
           <Field
             label="Description"
             required
             error={errors.content?.message}
-            action={<AiTextButton form="bounty" field="task description" format="html" value={values.content ?? ""} context={aiContext} onChange={(t) => setValue("content", t, { shouldValidate: true })} />}
+            action={
+              <AiTextButton
+                form="bounty"
+                field="task description"
+                format="html"
+                value={values.content ?? ""}
+                context={aiContext}
+                onChange={(t) => setValue("content", t, { shouldValidate: true })}
+              />
+            }
           >
-            <Controller name="content" control={control} render={({ field }) => <Editor value={field.value} onChange={field.onChange} placeholder="Rules, what counts as a win, deadlines…" />} />
+            <Controller
+              name="content"
+              control={control}
+              render={({ field }) => (
+                <Editor
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Rules, what counts as a win, deadlines…"
+                />
+              )}
+            />
           </Field>
         </FormSection>
 
-        <FormSection title="Reward" icon={Coins} description={`Prizes are paid in ${code}. 1 USD = ${1 / PRIZE_RATE} ${code}.`}>
+        <FormSection
+          title="Reward"
+          icon={Coins}
+          description={`Prizes are paid in ${code}. 1 USD = ${1 / PRIZE_RATE} ${code}.`}
+        >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Prize (USD)" htmlFor="prizeInUSD" required error={errors.prizeInUSD?.message}>
-              <Input id="prizeInUSD" type="number" inputMode="decimal" min={0} step="any" placeholder="10" value={values.prizeInUSD || ""} onChange={(e) => setPrizeUsd(e.target.value)} />
+            <Field
+              label="Prize (USD)"
+              htmlFor="prizeInUSD"
+              required
+              error={errors.prizeInUSD?.message}
+            >
+              <Input
+                id="prizeInUSD"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                placeholder="10"
+                value={values.prizeInUSD || ""}
+                onChange={(e) => setPrizeUsd(e.target.value)}
+              />
             </Field>
             <Field label={`Prize (${code})`} htmlFor="prize">
-              <Input id="prize" readOnly tabIndex={-1} value={values.prize ? values.prize.toFixed(5) : ""} placeholder="Calculated" className="bg-surface-2" />
+              <Input
+                id="prize"
+                readOnly
+                tabIndex={-1}
+                value={values.prize ? values.prize.toFixed(5) : ""}
+                placeholder="Calculated"
+                className="bg-surface-2"
+              />
             </Field>
-            <Field label="Winners" htmlFor="totalWinner" required error={errors.totalWinner?.message} hint="The prize is split evenly.">
-              <Input id="totalWinner" type="number" min={1} step={1} {...register("totalWinner", { valueAsNumber: true })} />
+            <Field
+              label="Winners"
+              htmlFor="totalWinner"
+              required
+              error={errors.totalWinner?.message}
+              hint="The prize is split evenly."
+            >
+              <Input
+                id="totalWinner"
+                type="number"
+                min={1}
+                step={1}
+                {...register("totalWinner", { valueAsNumber: true })}
+              />
             </Field>
-            <Field label={`Fans must hold (${code})`} htmlFor="requiredBalance" error={errors.requiredBalance?.message} hint="0 lets anyone join.">
-              <Input id="requiredBalance" type="number" min={0} step="any" {...register("requiredBalance", { valueAsNumber: true })} />
+            <Field
+              label={`Fans must hold (${code})`}
+              htmlFor="requiredBalance"
+              error={errors.requiredBalance?.message}
+              hint="0 lets anyone join."
+            >
+              <Input
+                id="requiredBalance"
+                type="number"
+                min={0}
+                step="any"
+                {...register("requiredBalance", { valueAsNumber: true })}
+              />
             </Field>
           </div>
         </FormSection>
 
-        <FormSection title="Images" icon={Camera} description={`Optional, up to ${MAX_IMAGES}. The first is the cover.`}>
+        <FormSection
+          title="Images"
+          icon={Camera}
+          description={`Optional, up to ${MAX_IMAGES}. The first is the cover.`}
+        >
           {images.length < MAX_IMAGES && (
             <div className="flex justify-end">
-              <AiImageButton form="bounty" aspect="wide" suggestedPrompt={imagePrompt} label="Generate cover with AI" onImage={(url) => setImages((all) => [url, ...all].slice(0, MAX_IMAGES))} />
+              <AiImageButton
+                form="bounty"
+                aspect="wide"
+                suggestedPrompt={imagePrompt}
+                label="Generate cover with AI"
+                onImage={(url) => setImages((all) => [url, ...all].slice(0, MAX_IMAGES))}
+              />
             </div>
           )}
           {images.length < MAX_IMAGES && (
@@ -281,13 +433,21 @@ export default function NewBountyPage() {
               {images.map((url, i) => (
                 <li key={url} className="group relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="aspect-square w-full rounded-lg border object-cover" />
-                  {i === 0 && <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Cover</span>}
+                  <img
+                    src={url}
+                    alt=""
+                    className="aspect-square w-full rounded-lg border object-cover"
+                  />
+                  {i === 0 && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white uppercase">
+                      Cover
+                    </span>
+                  )}
                   <button
                     type="button"
                     aria-label="Remove image"
                     onClick={() => setImages((all) => all.filter((_, j) => j !== i))}
-                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
+                    className="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     <X className="size-4" />
                   </button>
@@ -300,9 +460,22 @@ export default function NewBountyPage() {
 
       <PaymentChoose
         costBreakdown={[
-          { label: "Bounty prize", amount: paymentMethod === "asset" ? values.prize : prizeXlm, highlighted: true, type: "cost" },
-          { label: "Platform fee", amount: paymentMethod === "asset" ? assetFees : xlmFee, type: "fee" },
-          { label: "Total", amount: paymentMethod === "asset" ? assetTotal : prizeXlm + xlmFee, type: "total" },
+          {
+            label: "Bounty prize",
+            amount: paymentMethod === "asset" ? values.prize : prizeXlm,
+            highlighted: true,
+            type: "cost",
+          },
+          {
+            label: "Platform fee",
+            amount: paymentMethod === "asset" ? assetFees : xlmFee,
+            type: "fee",
+          },
+          {
+            label: "Total",
+            amount: paymentMethod === "asset" ? assetTotal : prizeXlm + xlmFee,
+            type: "total",
+          },
         ]}
         XLM_EQUIVALENT={prizeXlm + xlmFee}
         requiredToken={assetTotal}
