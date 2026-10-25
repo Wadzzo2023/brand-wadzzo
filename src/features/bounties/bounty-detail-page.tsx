@@ -2,7 +2,6 @@
 
 import type { SubmissionAttachment, SubmissionViewType } from "@prisma/client";
 import { format } from "date-fns";
-import DOMPurify from "isomorphic-dompurify";
 import {
   Calendar,
   Crown,
@@ -17,7 +16,7 @@ import {
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { submitSignedXDRToServer4User } from "package/connect_wallet/src/lib/stellar/trx/payment_fb_g";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import Chat from "~/components/chat/chat";
@@ -62,10 +61,28 @@ const STATUS_LABEL: Record<SubmissionViewType, string> = {
   REJECTED: "Rejected",
 };
 
+/**
+ * Sanitized HTML, cleaned in the browser with plain DOMPurify: on the server it would need
+ * isomorphic-dompurify's jsdom, which fails to load on Vercel's Node runtime (ERR_REQUIRE_ESM).
+ * The server render and first paint show the text without markup (escaped by React).
+ */
 function SafeHTML({ html, className }: { html: string; className?: string }) {
-  return (
-    <div className={className} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
-  );
+  const [clean, setClean] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import("dompurify").then(({ default: DOMPurify }) => live && setClean(DOMPurify.sanitize(html)));
+    return () => {
+      live = false;
+    };
+  }, [html]);
+  if (clean === null) {
+    const text = html
+      .replace(/<br\s*\/?>|<\/p>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .trim();
+    return <div className={className + " whitespace-pre-line"}>{text}</div>;
+  }
+  return <div className={className} dangerouslySetInnerHTML={{ __html: clean }} />;
 }
 
 /** One bounty, for the brand that runs it: brief, entries, winners, chat and comments. */
