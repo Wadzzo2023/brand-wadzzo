@@ -102,9 +102,11 @@ export function Sidebar({
         )}
 
         {/* scrolling body: create, the sections, the launch tiles, then the balance */}
+
+        {/* `relative` keeps absolute children (sr-only labels) inside the scroll area; without it they stretch the page and the sidebar scrolls away with it */}
         <div
           className={cn(
-            "no-scrollbar border-side-ink/20 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-y-2 border-dashed p-3",
+            "no-scrollbar border-side-ink/20 relative min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-y-2 border-dashed p-3",
             collapsed && "px-2",
           )}
         >
