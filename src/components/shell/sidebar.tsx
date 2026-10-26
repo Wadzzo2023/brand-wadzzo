@@ -17,14 +17,18 @@ import { NotificationBell } from "~/components/notification/notification-bell";
 
 import { CreateMenu } from "./create-menu";
 import { isActive, type NavItem, type BrandEntry } from "./nav";
+import { ArLaunchButton, MarketLaunchButton } from "./launch-tiles";
+import { SidebarFooter } from "./sidebar-footer";
 import { UserMenu } from "./user-menu";
 import { WalletBalance } from "./wallet-balance";
+import { platformBranding } from "./platform";
 import { WadzzoMark } from "~/ui/wadzzo-mark";
 
 /**
- * Desktop navigation (lg and up), in the marketplace's look: a solid brand-colour panel (dark ink
- * in light mode), the portal name in display type, and display-type rows with the current page as
- * an inverted chip. Collapsed it's an icon rail with tooltips. The choice is remembered.
+ * Desktop navigation (lg and up), laid out like the marketplace sidebar: the portal name on top, a
+ * scrolling body (create, the sections, "Go to AR" and "Go to Marketplace", the balance card) and a
+ * fixed footer (profile, theme and socials, app downloads, info links). Collapsed it's an icon
+ * rail with tooltips. The choice is remembered.
  */
 export function Sidebar({
   collapsed,
@@ -73,7 +77,7 @@ export function Sidebar({
           <Link
             href={homeHref}
             className="flex min-w-0 items-center gap-2.5 pr-3"
-            aria-label="Wadzzo portal home"
+            aria-label={`${platformBranding.name} portal home`}
           >
             <span className="bg-side-ink text-side flex size-11 shrink-0 -rotate-3 items-center justify-center rounded-xl">
               <WadzzoMark className="h-6" />
@@ -81,7 +85,7 @@ export function Sidebar({
             {!collapsed && (
               <span className="min-w-0 leading-none">
                 <span className="display block truncate text-[length:var(--side-title-size,1.9rem)]">
-                  Wadzzo
+                  {platformBranding.name}
                 </span>
                 <span className="marker mt-0.5 block text-[11px] opacity-75">
                   {isPureAdmin ? "admin portal" : "brand portal"}
@@ -97,50 +101,68 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Create + balance */}
-        <div className={cn("space-y-2 p-3", collapsed && "px-2")}>
+        {/* scrolling body: create, the sections, the launch tiles, then the balance */}
+        <div
+          className={cn(
+            "no-scrollbar border-side-ink/20 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-y-2 border-dashed p-3",
+            collapsed && "px-2",
+          )}
+        >
           {!isPureAdmin && <CreateMenu navPermission={navPermission} collapsed={collapsed} />}
+
+          <nav className="space-y-4" aria-label="Sections">
+            {groups.map((group, g) => (
+              <div key={group.label}>
+                {g > 0 && <div className="dash-rule mb-3" aria-hidden />}
+                {!collapsed && (
+                  <p className="marker mb-1.5 px-2 text-xs opacity-70">
+                    *{group.label.toLowerCase()}*
+                  </p>
+                )}
+                <ul className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <li key={item.href}>
+                      <NavLink
+                        item={item}
+                        active={isActive(pathname, item)}
+                        collapsed={collapsed}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+
+          {!collapsed && (
+            <div className="space-y-2.5">
+              <ArLaunchButton />
+              <MarketLaunchButton />
+            </div>
+          )}
+
           <WalletBalance collapsed={collapsed} />
         </div>
 
-        {/* Groups */}
-        <nav
-          className="no-scrollbar flex-1 space-y-4 overflow-y-auto px-3 pb-4"
-          aria-label="Sections"
-        >
-          {groups.map((group, g) => (
-            <div key={group.label}>
-              {g > 0 && <div className="dash-rule mb-3" aria-hidden />}
-              {!collapsed && (
-                <p className="marker mb-1.5 px-2 text-xs opacity-70">
-                  *{group.label.toLowerCase()}*
-                </p>
-              )}
-              <ul className="space-y-0.5">
-                {group.items.map((item) => (
-                  <li key={item.href}>
-                    <NavLink item={item} active={isActive(pathname, item)} collapsed={collapsed} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
+        {/* fixed footer */}
+        {collapsed ? (
+          <div className="flex justify-center p-3">
+            <UserMenu collapsed />
+          </div>
+        ) : (
+          <div className="shrink-0 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <SidebarFooter />
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="space-y-1 p-3 pt-0">
-          <div className="dash-rule mb-3" aria-hidden />
-          <UserMenu collapsed={collapsed} />
-        </div>
-
-        {/* chevron on the sidebar's edge, level with the logo: collapses and expands */}
+        {/* chevron on the middle of the sidebar's edge: collapses and expands */}
         <button
           type="button"
           onClick={onToggle}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
-          className="bg-side-ink text-side absolute top-7 -right-3.5 z-50 flex size-7 items-center justify-center rounded-full transition-transform duration-200 hover:scale-110"
+          className="bg-side-ink text-side absolute top-1/2 -right-3.5 z-50 flex size-7 -translate-y-1/2 items-center justify-center rounded-full transition-transform duration-200 hover:scale-110"
         >
           {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
         </button>

@@ -2,6 +2,7 @@
 
 import {
   Check,
+  Contrast,
   LogOut,
   Monitor,
   Moon,
@@ -31,6 +32,7 @@ import { api } from "~/utils/api";
 const THEMES = [
   { id: "light", label: "Light", icon: Sun },
   { id: "dark", label: "Dark", icon: Moon },
+  { id: "contrast", label: "High contrast", icon: Contrast },
   { id: "system", label: "System", icon: Monitor },
 ] as const;
 

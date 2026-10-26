@@ -27,12 +27,12 @@ export function NotificationBell({ className, side = "bottom", align = "end" }: 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className={cn("relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground", className)}
+        className={cn("bg-side-ink text-side relative flex size-9 shrink-0 items-center justify-center rounded-full transition-transform duration-200 hover:scale-110", className)}
         aria-label={unread ? `Notifications (${unread} unread)` : "Notifications"}
       >
-        <Bell className="size-5" />
+        <Bell className="size-[18px]" strokeWidth={2.6} />
         {unread > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+          <span className="bg-pink text-side-ink ring-side absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
