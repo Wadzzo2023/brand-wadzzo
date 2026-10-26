@@ -122,7 +122,7 @@ export default function NewPinPage() {
   const create = api.maps.pin.createPin.useMutation({
     onSuccess: () => {
       closeCreatePinModal();
-      toast.success("Pin created — it's been sent for approval");
+      toast.success("Pin created!");
       router.push("/pins");
     },
     onError: (e) => toast.error(e.message),
@@ -177,7 +177,7 @@ export default function NewPinPage() {
     <FormProvider {...methods}>
       <FormPage
         title={duplicating ? "Duplicate pin" : "New pin"}
-        description="A drop on the map that fans collect when they're nearby. New pins are reviewed before they go live."
+        description="A drop on the map that fans collect when they're nearby."
         back={{ href: "/pins", label: "Pins" }}
         onSubmit={(e) => void onSubmit(e)}
         actions={actions}

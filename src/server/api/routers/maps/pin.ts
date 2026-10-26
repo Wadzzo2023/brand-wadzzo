@@ -535,6 +535,7 @@ export const pinRouter = createTRPCRouter({
           privacy,
           remaining: pinCollectionLimit,
           multiPin,
+          approved: true,
         },
       });
       if (input.tags && input.tags.length > 0) {
@@ -603,6 +604,7 @@ export const pinRouter = createTRPCRouter({
           privacy,
           remaining: pinCollectionLimit,
           multiPin,
+          approved: true,
         },
       });
       if (input.tags && input.tags.length > 0) {
